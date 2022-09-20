@@ -18,7 +18,7 @@ AS
 Begin
 	Set Nocount on
 
-		Declare @pdFechaInicial datetime, @pdFechaFinal datetime, @pnClaTipoInventario  int, @pnClaFamiliaAlambron int, @nEsVisible tinyint
+		Declare @pdFechaInicial datetime, @pdFechaFinal datetime, @pnClaTipoInventario  int, @pnClaFamiliaAlambron int, @nEsVisible tinyint, @nEsEstimacionActivo TINYINT
 		Select @pdFechaInicial = Getdate() , @pdFechaFinal = getdate()
 							
 		--	Clave Familia Int.Alambron
@@ -42,12 +42,22 @@ Begin
 		and		ClaConfiguracion = 1271222
 		AND		BajaLogica = 0
 
+		--*	Ubicación utiliza Módulo de Estimaciones
+		SELECT	  @nEsEstimacionActivo	= nValor1
+		from	OPESch.OpeTiCatConfiguracionVw (NOLOCK)   
+		where	ClaSistema = 127 
+		and		ClaUbicacion = @pnClaUbicacion 
+		and		ClaConfiguracion = 1271221
+		AND		BajaLogica = 0
+
+
 		IF(@pnEsInvocada = 0)
 		BEGIN
 			Select @pdFechaInicial as FechaInicial, @pdFechaFinal as FechaFinal,
 					@pnClaTipoInventario as ClaTipoInventario,
 					@pnClaFamiliaAlambron as ClaFamiliaAlambron
 					, EsVisible = isnull(@nEsVisible,0)
+					, EsEstimacionActivo = ISNULL(@nEsEstimacionActivo,0)
 		END
 		ELSE
 		BEGIN

@@ -1,3 +1,4 @@
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 --*==============================================================
 --*Objeto:		'OPESch.OPE_CU505_Pag5_Grid_EstFacturacion_Sel'
 --*Autor:		Luis F Verastegui
@@ -8,7 +9,6 @@
 --*Precondiciones:
 --*Revisiones: 
 --*==============================================================
-
 USE Operacion
 GO
 ALTER PROCEDURE OPESch.OPE_CU505_Pag5_Grid_EstFacturacion_Sel
@@ -23,7 +23,7 @@ ALTER PROCEDURE OPESch.OPE_CU505_Pag5_Grid_EstFacturacion_Sel
 	,@pnClaGpoCosteo		INT
 	,@pnClaArtAlambron		INT
 	,@pnClaTipoMercado		INT
-	,@psClaMarca			VARCHAR(max)
+	,@psClaMarca			VARCHAR(MAX)
 AS
 BEGIN
 
@@ -48,10 +48,13 @@ BEGIN
 			,@nTotal					INT 
 			,@nIdFabricacion			INT 
 			,@nIdFabricacionDet			INT 
-			,@psNomIsoIdioma		VARCHAR(2)
+			,@psNomIsoIdioma			VARCHAR(2)
 			,@nEsVisible				TINYINT
+			,@nEsEstimacionActivo		INT	
+			,@nUbicacionEstimacion		INT
 
-	CREATE TABLE #tViajeShipId (
+	CREATE TABLE #tViajeShipId 
+	(
 		  ClaUbicacion	INT
 		, IdViaje		INT
 		, ShipId		VARCHAR(300)
@@ -113,6 +116,16 @@ BEGIN
 	and		ClaUbicacion = @pnClaUbicacion 
 	and		ClaConfiguracion = 1271222
 	AND		BajaLogica = 0
+
+	--*	Ubicación utiliza Módulo de Estimaciones
+	SELECT	  @nEsEstimacionActivo	= nValor1
+			, @nUbicacionEstimacion = nValor2
+	from	OPESch.OpeTiCatConfiguracionVw (NOLOCK)   
+	where	ClaSistema = 127 
+	and		ClaUbicacion = @pnClaUbicacion 
+	and		ClaConfiguracion = 1271221
+	AND		BajaLogica = 0
+
 
 	--* Obtener Opm para los peoductos facturados
 	IF object_id('tempdb..#tOpm') IS NOT NULL
@@ -196,6 +209,8 @@ BEGIN
 								,ClaMoneda		INT
 								,NombreCortoMoneda	VARCHAR(20)
 								,ShipID			VARCHAR(250)
+								,Remision		VARCHAR(20)
+								,ClaUbicacionDestino INT
 							)
 
 	INSERT INTO #tPedidos
@@ -230,7 +245,13 @@ BEGIN
 				,t14.ClaMoneda
 				,t15.NombreCortoMoneda
 				,t16.ShipId
+				, Remision = NULL
+				, t2.ClaUbicacionDestino
 	FROM		OpeSch.OpeTraViaje				t1 (NOLOCK)
+	INNER JOIN	OpeSch.OpeTraPlanCarga			t4 (NOLOCK) 
+	ON			t1.ClaUbicacion	= t4.ClaUbicacion
+	AND			t1.IdPlanCarga = t4.IdPlanCarga
+	AND			t4.ClaEstatusPlanCarga <> 4		-- Estatus Cancelado
 	LEFT JOIN 	OpeSch.OpeTraMovEntSal			t2 (NOLOCK)	ON	t1.ClaUbicacion		= t2.ClaUbicacion
 													AND	t1.IdVIaje			= t2.IdViaje 
 													AND t1.IdBoleta			= t2.IdBoleta 
@@ -285,13 +306,15 @@ BEGIN
 	AND		(t9.ClaGpoCosteo		= @pnClaGpoCosteo	OR @pnClaGpoCosteo	= -1)
 	AND		(t12.ClaArticulo		= @pnClaArtAlambron	OR @pnClaArtAlambron= -1)
 	AND		(t5.ClaTipoMercadoPta	= @pnClaTipoMercado OR @pnClaTipoMercado= -1)
-	AND		
-			(
-				(t2.IdEntSal IS NOT NULL AND t3.ClaTMA = @nClaTMATraspaso)
-				OR 
-				(t2.IdEntSal IS NULL AND t2.IdFactura IS NOT NULL)
-			)
+	AND		( (t2.IdEntSal IS NOT NULL AND t3.ClaTMA = @nClaTMATraspaso) OR (t2.IdEntSal IS NULL AND t2.IdFactura IS NOT NULL) )
 
+	IF @nEsEstimacionActivo = 1
+	BEGIN
+		UPDATE	a
+		SET		Remision = OpeSch.OpeConsultaRemisionEstimacionFn(ClaPedido, IdViaje, ClaUbicacionDestino)
+		FROM	#tPedidos a
+		WHERE	ClaUbicacionDestino = @nUbicacionEstimacion
+	END
 
 	SELECT 	 ClaArticulo
 			,FechaViaje
@@ -318,6 +341,7 @@ BEGIN
 			,ClaMoneda
 			,NombreCortoMoneda
 			,ShipID
+			,Remision
 	FROM	#tPedidos /*WITH (NOLOCK)*/
 	ORDER BY FechaViaje,IdPlanCarga, ClaArticulo	
 
