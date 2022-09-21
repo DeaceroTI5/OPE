@@ -1,11 +1,10 @@
 USE Operacion
 GO
 ALTER PROCEDURE OPESch.OPEEnviaCorreoPedidosSuministroDirecto
-	@pnClaUbicacion INT,
-	@pnPrueba		INT = 0
+	@pnPrueba		TINYINT = 0
 AS
 BEGIN
-	-- EXEC OPESch.OPEEnviaCorreoPedidosSuministroDirecto 325, 1
+	-- EXEC OPESch.OPEEnviaCorreoPedidosSuministroDirecto 1
 
 	SET NOCOUNT ON
 
@@ -38,8 +37,8 @@ BEGIN
 	(
 		  IdSolicitudTraspaso	INT
 		, ClaUbicacionSolicita	INT
-		, UbicacionSolicita		VARCHAR(60)
-		, UbicacionSurte		VARCHAR(60)
+		, UbicacionSolicita		VARCHAR(100)
+		, UbicacionSurte		VARCHAR(100)
 		, NomProyecto			VARCHAR(60)
 		, ClaPedidoOrigen		INT
 		, ClaPedido				INT
@@ -52,7 +51,9 @@ BEGIN
 		, CuentasCorreo			VARCHAR(1000)
 	)
 
-	SELECT	@sAsunto = 'Notificación de Pedido de Suministro Directo'
+	--------------------------------------------------------------------------------------------
+	
+	SELECT	@sAsunto = 'Notificación de Pedidos de Suministro Directo'
 
 	INSERT INTO @tbResultado (IdSolicitudTraspaso, ClaUbicacionSolicita, UbicacionSolicita, UbicacionSurte, NomProyecto, ClaPedidoOrigen, ClaPedido)
 	SELECT	  a.IdSolicitudTraspaso
@@ -74,11 +75,13 @@ BEGIN
 	
 	--------------------------------------------------------------------------------------------
 
-	--IF @pnPrueba = 1
-	--	INSERT INTO @tbResultado (IdSolicitudTraspaso, ClaUbicacionSolicita, UbicacionSolicita, UbicacionSurte, NomProyecto, ClaPedidoOrigen, ClaPedido)
-	--	VALUES	  (-1, 324,'324 - CEDI Virtual Aceria Cela', '7 - Acería Celaya', 'Proyecto', 1234, 56789)
-	--			, (-1, 375,'375 - CEDI Virtual Aceria', '7 - Acería Celaya', 'Proyecto',5678,6789)
-	--			, (-1, 324,'324 - CEDI Virtual Aceria Cela', '7 - Acería Celaya', 'Proyecto',0987, 4534)
+	IF @pnPrueba = 1
+	BEGIN
+		INSERT INTO @tbResultado (IdSolicitudTraspaso, ClaUbicacionSolicita, UbicacionSolicita, UbicacionSurte, NomProyecto, ClaPedidoOrigen, ClaPedido)
+		VALUES	  (-1, 324,'324 - CEDI Virtual Aceria Celaya Ingetek', '7 - Acería Celaya', 'Proyecto', 1234, 56789)
+				, (-1, 324,'324 - CEDI Virtual Aceria Celaya Ingetek', '7 - Acería Celaya', 'Proyecto',5678,6789)
+				, (-1, 324,'324 - CEDI Virtual Aceria Celaya Ingetek', '7 - Acería Celaya', 'Proyecto',0987, 4534)
+	END
 
 
 	INSERT INTO @tUbicacionSolicita (ClaUbicacionSolicita)
@@ -87,8 +90,12 @@ BEGIN
 
 
 	IF @pnPrueba = 1
+	BEGIN
+		SELECT '' AS '@tbResultado', * FROM @tbResultado
 		SELECT '' AS '@tUbicacionSolicita', * FROM @tUbicacionSolicita
+	END
 
+	--- Actualización de correos configurados por Ubicación Solicita
 	UPDATE	a
 	SET		CuentasCorreo = b.sValor1
 	FROM	@tUbicacionSolicita a
@@ -127,24 +134,27 @@ BEGIN
 		IF @pnPrueba = 1
 			SELECT @nClaUbicacionSolicita AS '@nClaUbicacionSolicita', @sCuentasCorreo AS '@sCuentasCorreo'
 		
-		--IF ISNULL(@sCuentasCorreo,'') = ''
-		--BEGIN
-		--	GOTO SALTO
-		--END
 		--------------------------------------------------------------------------------------------
 		SELECT	@sCuerpo = 
 		' <!DOCTYPE html>      
 		<html>      
 		<head>      
 		<title>Page Title</title>      
-		</head>      
+		</head>
+		
+		<style type="text/css">
+			body {background-color:#ffffff;}
+			.header{font-family:Arial;color:#FFFFFF;background-color:#304f60;} 
+			TABLE{font-family:Helvetica;font-size:12px;color:#000000;}
+			bodytext{font-family:Arial;color:#304f60;background-color:#000000;}
+		</style>
 
 		<body>      
 		 <FONT color="Black" FACE="verdana" style="font-family: verdana; font-size: 12pt"><p><strong>Notificación:</strong></p></FONT>    
 		<p>Listado de Pedidos de Suministro Directo</br> 
       
-		<table class="ex" cellspacing="0" border="1" width="90%"  bgcolor="DarkBlue" >      
-		  <tr>
+		<table cellspacing="0" border="1" width="90%">      
+		  <tr class="header">
 		  <th WIDTH="10%">	<FONT COLOR=WHITE	style="font-family: verdana; font-size: 10pt">Ubicación solicita</th>  
 		  <th WIDTH="10%">	<FONT COLOR=WHITE	style="font-family: verdana; font-size: 10pt">Ubicación surte</th>           
 		  <th WIDTH="15%">	<FONT COLOR=WHITE	style="font-family: verdana; font-size: 10pt">Proyecto</th>            
@@ -154,18 +164,18 @@ BEGIN
 
 		INSERT INTO @DetalleCorreo (HTML)
 		SELECT	'<tr>
-				 <td bgcolor="#ffffcc" align="left"		style="font-family: verdana; font-size: 10pt">'	+ ISNULL(CAST(RTRIM(LTRIM(UbicacionSolicita)) AS VARCHAR), '') + '</td>  ' + 
-				'<td bgcolor="#ffffcc" align="center"	style="font-family: verdana; font-size: 10pt">'	+ ISNULL(CAST(RTRIM(LTRIM(UbicacionSurte)) AS VARCHAR), '') + '</td>  ' + 
-				'<td bgcolor="#ffffcc" align="left"		style="font-family: verdana; font-size: 10pt">'	+ ISNULL(CAST(RTRIM(LTRIM(NomProyecto)) AS VARCHAR), '') + '</td>  ' + 
-				'<td bgcolor="#ffffcc" align="center"	style="font-family: verdana; font-size: 10pt">'	+ ISNULL(RTRIM(LTRIM(ClaPedidoOrigen)) , '') + '</td>  ' +	
-				'<td bgcolor="#ffffcc" align="center"	style="font-family: verdana; font-size: 10pt">'	+ ISNULL(CAST(RTRIM(LTRIM(ClaPedido)) AS VARCHAR), '') + '</td>  ' + 	
+				 <td bgcolor="lightgrey" align="left"	style="font-family: verdana; font-size: 10pt">'	+ ISNULL(RTRIM(LTRIM(UbicacionSolicita)) , '')					+ '</td>  ' + 
+				'<td bgcolor="lightgrey" align="center"	style="font-family: verdana; font-size: 10pt">'	+ ISNULL(RTRIM(LTRIM(UbicacionSurte)) , '')						+ '</td>  ' + 
+				'<td bgcolor="lightgrey" align="left"	style="font-family: verdana; font-size: 10pt">'	+ ISNULL(RTRIM(LTRIM(NomProyecto)) , '')						+ '</td>  ' + 
+				'<td bgcolor="lightgrey" align="center"	style="font-family: verdana; font-size: 10pt">'	+ ISNULL(CAST(RTRIM(LTRIM(ClaPedidoOrigen)) AS VARCHAR), '')	+ '</td>  ' +	
+				'<td bgcolor="lightgrey" align="center"	style="font-family: verdana; font-size: 10pt">'	+ ISNULL(CAST(RTRIM(LTRIM(ClaPedido)) AS VARCHAR), '')			+ '</td>  ' + 	
 				'</tr> ' AS Datos
 		FROM	@tbResultado
 		WHERE	ClaUbicacionSolicita = @nClaUbicacionSolicita
 
 		--Para poner rows en blanco 
 		UPDATE	@DetalleCorreo
-		SET		HTML = REPLACE(HTML, 'bgcolor="#ffffcc"' , 'bgcolor="white"')
+		SET		HTML = REPLACE(HTML, 'bgcolor="lightgrey"' , 'bgcolor="white"')
 		WHERE	(Ident % 2 = 0)
 		     
 		SELECT	@nCont = MIN(Ident)
@@ -208,8 +218,7 @@ BEGIN
 				--	,@exclude_query_output	= 1
 		END
 		
-		--SALTO:
-		
+
 		SELECT	@nClaUbicacionSolicita = MIN(ClaUbicacionSolicita)
 		FROM	@tbResultado
 		WHERE	ClaUbicacionSolicita > @nClaUbicacionSolicita
