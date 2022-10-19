@@ -11,7 +11,10 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Boton_btnValidaFabricacionOrigen_Proc
     @psClaPedidoCliente         VARCHAR(16) OUT,
     @pnClaEstatusPedidoOrigen   INT OUT,
     @ptFechaDesea               DATETIME OUT,
-	@psObservaciones			VARCHAR(800) = '' OUT
+	@psObservaciones			VARCHAR(800) = '' OUT,
+	@pnCmbPlantaSurte			INT OUT,	-- Se agregan para no perder el dato previamente guardado
+	@pnCmbCliente				INT OUT,	-- Se agregan para no perder el dato previamente guardado
+	@pnCmbConsignado			INT OUT		-- Se agregan para no perder el dato previamente guardado 
 AS
 BEGIN
 
@@ -25,8 +28,11 @@ BEGIN
 
     SELECT  @pnClaPedidoOrigen = ISNULL( @pnClaPedidoOrigen,0 )
 
-    IF ( NOT EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud AND ClaEstatusSolicitud NOT IN (0) ) 
-        AND @pnClaPedidoOrigen > 0 ) 
+    IF	( NOT EXISTS (	SELECT	1 
+						FROM	OpeSch.OpeTraSolicitudTraspasoEncVw 
+						WHERE	IdSolicitudTraspaso = @pnClaSolicitud 
+						AND		ClaEstatusSolicitud NOT IN (0) ) 
+		AND @pnClaPedidoOrigen > 0 ) 
     BEGIN
         SELECT  @nClaUbicacionSolicita  =  (    CASE
                                                     WHEN    ISNULL( ClaEstatus,0 ) = 1
@@ -51,13 +57,13 @@ BEGIN
         FROM    OpeSch.OpeTraFabricacionVw WITH(NOLOCK)  
         WHERE   IdFabricacion = @pnClaPedidoOrigen
 
-         SELECT	DISTINCT
+		SELECT	DISTINCT
                 @nClaProyecto  = a.ClaProyecto
         FROM	OpeSch.OpeVtaCatProyectoVw a WITH(NOLOCK)  
         INNER JOIN	OpeSch.OpeVtaRelFabricacionProyectoVw b WITH(NOLOCK)  
-            ON	a.ClaProyecto = b.ClaProyecto
+        ON		a.ClaProyecto = b.ClaProyecto
         INNER JOIN	OpeSch.OpeTraFabricacionVw c WITH(NOLOCK)  
-            ON	b.IdFabricacion = c.IdFabricacion
+        ON		b.IdFabricacion = c.IdFabricacion
         WHERE	c.IdFabricacion = @pnClaPedidoOrigen
         AND     @nClaEstatusPedidoOrigen = 1
         AND		ISNULL(a.BajaLogica,0) != 1
@@ -66,12 +72,18 @@ BEGIN
 			SELECT @psObservaciones = '[Fab Ventas - '+CONVERT(VARCHAR(16),@pnClaPedidoOrigen)+']' + CHAR(13) + ISNULL(@psObservaciones,'')
 
     END
+	IF @pnCmbPlantaPide <> @nClaUbicacionSolicita	-- Si hay diferencias con la Ubicación pide, setea a nulo los campos dependientes
+	BEGIN
+		SELECT	  @pnCmbPlantaSurte	= NULL
+				, @pnCmbCliente		= NULL	
+				, @pnCmbConsignado	= NULL	
+	END
 
     SELECT  @pnCmbProyecto              = ISNULL( @nClaProyecto,0 ),
             @pnCmbPlantaPide            = @nClaUbicacionSolicita,
             @psClaPedidoCliente         = @sClaPedidoCliente,
             @pnClaEstatusPedidoOrigen   = ISNULL( @nClaEstatusPedidoOrigen,0 ),
-            @ptFechaDesea               = @ptFechaDesea
+            @ptFechaDesea               = @ptFechaDesea 
 
 	SET NOCOUNT OFF    
 

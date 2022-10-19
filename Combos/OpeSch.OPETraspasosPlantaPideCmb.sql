@@ -1,3 +1,4 @@
+--'OpeSch.OPETraspasosPlantaPideCmb'
 GO
 ALTER PROCEDURE OpeSch.OPETraspasosPlantaPideCmb
     @psValor                    VARCHAR(100),   -- Texto a Buscar
@@ -49,8 +50,18 @@ BEGIN
                     EXISTS ( SELECT 1 FROM OpeSch.OpeCfgUsuarioTraspaso t3 WHERE t3.ClaUsuario = @pnClaUsuarioMod AND t3.ClaUbicacion = -1 AND t3.ClaTipoUbicacion = x.ClaTipoUbicacion AND t3.BajaLogica = 0 ) )
 			AND		( ISNULL(BajaLogica, 0) != 1 OR ISNULL(@pnBajasSn,0) = 1 )  
 		END              
-        ELSE                 
-	        IF @PnTipo IN (1,99)                
+        ELSE
+	        IF @PnTipo IN (99)                
+			BEGIN                      
+				SELECT	ClaUbicacion = ClaUbicacion,          
+						NomUbicacion = CONVERT(VARCHAR(10),ClaUbicacion) + ' - '  + LTRIM(RTRIM(NombreUbicacion))    
+				FROM	#TempUbicacionesIngetek x WITH(NOLOCK)               
+				WHERE	ClaUbicacion = CONVERT(INT,@psValor)                                                                                
+				AND		( ISNULL(@pnClaTipoUbicacion,0) <= 0 OR ClaTipoUbicacion = @pnClaTipoUbicacion )
+				AND		( ISNULL(BajaLogica, 0) != 1 OR ISNULL(@pnBajasSn,0) = 1 )   
+			END              
+			ELSE 		
+	        IF @PnTipo IN (1)                
 			BEGIN                      
 				SELECT	ClaUbicacion = ClaUbicacion,          
 						NomUbicacion = CONVERT(VARCHAR(10),ClaUbicacion) + ' - '  + LTRIM(RTRIM(NombreUbicacion))    
@@ -75,7 +86,7 @@ BEGIN
 				AND		( ISNULL(BajaLogica, 0) != 1 OR ISNULL(@pnBajasSn,0) = 1 )  
 			END                  
 	END              
-    ELSE    -- @pnIncluirTodosSN  = 1          
+    ELSE        -- @pnIncluirTodosSN  = 1       
     BEGIN              
 		IF (@psValor IS NULL OR @psValor = '')    
         BEGIN                                      
@@ -122,8 +133,7 @@ BEGIN
 				UNION              
 				SELECT -1, 'Todos'                                                   
 			END                       
-	END               
-
+	END   
 	SET NOCOUNT OFF    
 
 	RETURN            

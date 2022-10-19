@@ -1,3 +1,4 @@
+-- 'OpeSch.OPETraspasosProyectoCmb'
 USE Operacion
 GO
 ALTER PROCEDURE OpeSch.OPETraspasosProyectoCmb
@@ -37,7 +38,7 @@ BEGIN
 	INNER JOIN	#TempUbicacionesIngetek d
 		ON	c.ClaPlanta = d.ClaUbicacion
 	WHERE	(c.IdFabricacion = @pnClaPedidoOrigen OR @pnClaPedidoOrigen = 0)
-	AND		( ISNULL(a.BajaLogica,0) != 1 OR ISNULL(@pnBajasSn,0) = 1 )  
+	AND		(@pnTipo=99 OR ( ISNULL(a.BajaLogica,0) != 1 OR ISNULL(@pnBajasSn,0) = 1 ))  
 
 	IF @pnIncluirTodosSN  = 0              
 	BEGIN                 
