@@ -22,7 +22,8 @@ BEGIN
     SET NOCOUNT ON
 
 	-- exec OPESch.OPE_CU550_Pag35_Grid_GridTraspasosManuales_Sel @pnClaUbicacion=325,@pnClaSolicitud=NULL,@pnClaPedido=NULL,@pnClaPedidoOrigen=NULL,@pnCmbEstatusSolicitud=NULL,@pnCmbPlantaPide=NULL,@pnCmbPlantaSurte=NULL,@ptFechaInicio='2022-09-06 00:00:00',@ptFechaFinal='2022-10-07 00:00:00'
-    --Validación de Fecha Inicio y Fecha Fin
+    
+	--Validación de Fecha Inicio y Fecha Fin
     IF (@ptFechaInicio IS NOT NULL AND @ptFechaFinal IS NOT NULL AND (@ptFechaFinal < @ptFechaInicio)) 
 	BEGIN
 		RAISERROR('La Fecha Inicial NO debe ser Mayor a la Fecha Final. Favor de Verificar.',16,1)
@@ -63,7 +64,10 @@ BEGIN
 		EstatusPedidoOrigen		VARCHAR(30),
 		EstatusPedidoMPDet		VARCHAR(30),
 		EstatusPedidoOrigenDet	VARCHAR(30),
-		FechaDesea				DATETIME
+		FechaDesea				DATETIME,
+		CantidadSurtida        	NUMERIC(22,4),
+		KilosSurtidos       	NUMERIC(22,4),
+		PesoTeorico				NUMERIC(22,7)
     )
 
 	DECLARE @tbEstatusFabricacion TABLE(
@@ -84,7 +88,10 @@ BEGIN
 		, ClaArticulo	INT
 		, ClaEstatus	INT
 		, FechaDesea	DATETIME
+		, CantidadSurtida NUMERIC(22,4)
 	)
+
+
 
 	INSERT INTO @tbEstatusFabricacion(ClaEstatus, NomEstatus)
 	SELECT	ClaEstatus
@@ -191,7 +198,8 @@ BEGIN
 		Unidad,					CantPedida,					PrecioListaMP,			PrecioLista,             
 		MotivoRechazo,			HechaPor,					ClaUbicacionSolicita,   ClaUbicacionSurte,      
 		ClaEstatusSolicitud,    ClaEstatus,					ClaProducto,            ClaMotivoRechazo,        
-		ClaMotivoAutomatico,    ClaRelacion,				Fabricacion,			PedidoOrigen		
+		ClaMotivoAutomatico,    ClaRelacion,				Fabricacion,			PedidoOrigen,
+		PesoTeorico
 	)
     SELECT  NivelGrid               = 2,
             EstatusSolicitud        = CONVERT(VARCHAR(10),e.ClaEstatus) + ' - '  + LTRIM(RTRIM(e.NombreEstatus)),
@@ -212,7 +220,8 @@ BEGIN
             ClaMotivoAutomatico     = b.ClaMotivoAutomatico,
             ClaRelacion             = a.ClaRelacion,
             Fabricacion,            
-            PedidoOrigen            
+            PedidoOrigen,
+			c.PesoTeoricoKgs
     FROM    #TraspasosManuales a WITH(NOLOCK) 
     INNER JOIN  OpeSch.OpeTraSolicitudTraspasoDetVw b WITH(NOLOCK)  
         ON  a.ClaRelacion = b.IdSolicitudTraspaso
@@ -238,9 +247,11 @@ BEGIN
 		WHERE	NivelGrid = 2
 		AND		a.PedidoOrigen IS NOT NULL
 
+
 	UPDATE	a
 	SET		ClaEstatus = b.ClaEstatusFabricacion,
-			FechaDesea = b.FechaDeseaCliente
+			FechaDesea = b.FechaDeseaCliente,
+			CantidadSurtida = b.CantidadSurtida
 	FROM	@tbPedidosDet a
 	INNER JOIN DEAOFINET05.Ventas.Vtasch.VtaTraFabricacionDetVw b
 	ON		a.IdFabricacion = b.IdFabricacion
@@ -252,6 +263,8 @@ BEGIN
 	UPDATE  a
 	SET		EstatusPedidoMPDet = j.NomEstatus
 			,FechaDesea = i.FechaDesea
+			,CantidadSurtida = ISNULL(i.CantidadSurtida,0.00)
+			,KilosSurtidos	= ISNULL((i.CantidadSurtida * a.PesoTeorico), 0.00 )
 	FROM	#TraspasosManuales a
 	INNER JOIN @tbPedidosDet i
 	ON		a.Fabricacion	= i.IdFabricacion
@@ -267,8 +280,10 @@ BEGIN
 	AND		a.ClaProducto	= k.ClaArticulo
 	LEFT JOIN @tbEstatusFabricacion l
 	ON		k.ClaEstatus = l.ClaEstatus
+
 	------------------------------------------------------------------------
-    --Retorno de Información Cargada
+    
+	--Retorno de Información Cargada
 
     --Captura de Información de Registro Existente de Traspaso a Nivel Encabezado
     SELECT  ColSolicitud            = a.Solicitud,
@@ -300,7 +315,9 @@ BEGIN
 			ColEstatusPedidoOrigen	= a.EstatusPedidoOrigen,		
 			ColEstatusPedidoMPDet	= a.EstatusPedidoMPDet,		
 			ColEstatusPedidoOrigenDet =	a.EstatusPedidoOrigenDet,	
-			ColFechaDesea			 = CONVERT(VARCHAR(10),a.FechaDesea, 103)			
+			ColFechaDesea			 = CONVERT(VARCHAR(10),a.FechaDesea, 103),
+			ColCantSurtida			= a.CantidadSurtida,
+			ColKilosSurtidos		= a.KilosSurtidos
     FROM    #TraspasosManuales a WITH(NOLOCK) 
     ORDER BY
             a.ClaRelacion DESC,
@@ -313,11 +330,3 @@ BEGIN
 
 	RETURN
 END
-
-
-
-
-
-
-
-

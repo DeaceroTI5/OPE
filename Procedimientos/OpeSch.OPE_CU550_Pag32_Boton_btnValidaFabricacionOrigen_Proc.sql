@@ -1,5 +1,7 @@
 USE Operacion
 GO
+-- 'OpeSch.OPE_CU550_Pag32_Boton_btnValidaFabricacionOrigen_Proc'
+GO
 ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Boton_btnValidaFabricacionOrigen_Proc
     @pnClaUbicacion             INT,
     @pnClaSolicitud	            INT = 0,

@@ -1,3 +1,7 @@
+USE Operacion
+GO
+-- 'OpeSch.OPE_CU550_Pag32_Sel'
+GO
 ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Sel
 	@pnClaUbicacion     INT,
     @pnClaUsuarioMod    INT,	
@@ -218,15 +222,15 @@ BEGIN
 
         IF ( @nClaEmpresaPide = @nClaEmpresaSurte )
         BEGIN
-            SELECT  @nClaTipoTraspaso = 1
+            SELECT  @nClaTipoTraspaso = 1	-- Traspaso
         END 
         ELSE IF ( @nClaEmpresaPide != @nClaEmpresaSurte AND @nChkSuministroDirecto = 0 )
         BEGIN
-            SELECT  @nClaTipoTraspaso = 2
+            SELECT  @nClaTipoTraspaso = 2	-- Compra Filial para MP
         END 
         ELSE IF ( @nClaEmpresaPide != @nClaEmpresaSurte AND @nChkSuministroDirecto = 1 )
         BEGIN
-            SELECT  @nClaTipoTraspaso = 3
+            SELECT  @nClaTipoTraspaso = 3	-- Compra Filial para SM
         END 
         ELSE 
         BEGIN
