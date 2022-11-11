@@ -54,7 +54,7 @@ BEGIN
 			, @pnClaSolicitud		= @pnClaSolicitud
 			, @pnClaArticulo		= @pnColProducto
 
-		SELECT	@nCantidadDisponible = CantidadDisponible
+		SELECT	TOP 1 @nCantidadDisponible = CantidadDisponible
 		FROM	@tbOtrasSolicitudes
 		
 		SELECT	@sProducto = ClaveArticulo

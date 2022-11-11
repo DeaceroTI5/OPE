@@ -1,3 +1,7 @@
+USE Operacion
+GO
+-- 'OpeSch.OPE_CU550_Pag32_Grid_GridTraspasoManualDet_ColCantPedida_ActualizaValores_Sel'
+GO
 ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Grid_GridTraspasoManualDet_ColCantPedida_ActualizaValores_Sel
     @pnClaUbicacion         INT,
 	@pnIdIndice				INT,

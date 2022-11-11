@@ -13,6 +13,8 @@ BEGIN
     
     SET NOCOUNT ON
 
+	-- Exec OPESch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_Sel @pnClaUbicacion=325,@pnClaSolicitud=155,@pnClaPedidoOrigen=23416945,@pnClaTipoTraspaso=3,@pnDebug=1
+
     --Inicialización de Proceso de Envio de Datos Nivel Detalle
     SELECT  @pnClaSolicitud     = ISNULL( @pnClaSolicitud,0 ),
             @pnClaPedidoOrigen  = ISNULL( @pnClaPedidoOrigen,0 )
@@ -47,6 +49,14 @@ BEGIN
 		, CantidadSolicitada	NUMERIC(22,4)
 		, CantidadDisponible	NUMERIC(22,4)
 	)
+
+	DECLARE @tbCantidadProducto TABLE(
+		  Id					INT IDENTITY(1,1)
+		, ClaProducto			INT
+		, CantidadSolicitada	NUMERIC(22,4)
+		, CantidadDisponible	NUMERIC(22,4)
+	)
+
 
     --Captura de Información de Registro Existente de Traspaso a Nivel Encabezado
 	INSERT INTO @tbFabricacionOrigen (
@@ -130,8 +140,14 @@ BEGIN
 	END
 
 
-	IF @pnDebug = 1
-		SELECT '' AS '@tbOtrasSolicitudes', * FROM @tbOtrasSolicitudes 
+	INSERT INTO @tbCantidadProducto (ClaProducto, CantidadSolicitada, CantidadDisponible)
+		SELECT  
+				  ClaProducto
+				, CantidadSolicitada = SUM(CantidadSolicitada)
+				, CantidadDisponible
+		FROM	@tbOtrasSolicitudes
+		GROUP BY ClaProducto,CantidadDisponible
+
 
 	/*Resultado*/
 	SELECT	  ColSeleccionCPD			
@@ -150,10 +166,10 @@ BEGIN
 			, ColNoRenglonCPD			
 			, ColClaProductoCPD			
 			, ColClaEstatusCPD
-			, ColCantidadDisponible = b.CantidadDisponible
-			, ColCantidadSolicitada = b.CantidadSolicitada
+			, ColCantidadDisponible = ISNULL(b.CantidadDisponible,ColCantPedidaCPD)
+			, ColCantidadSolicitada = ISNULL(b.CantidadSolicitada,0)
 	FROM	@tbFabricacionOrigen a
-	LEFT JOIN @tbOtrasSolicitudes b
+	LEFT JOIN @tbCantidadProducto b
 	ON		a.ColClaProductoCPD = b.ClaProducto
 
     SET NOCOUNT OFF       

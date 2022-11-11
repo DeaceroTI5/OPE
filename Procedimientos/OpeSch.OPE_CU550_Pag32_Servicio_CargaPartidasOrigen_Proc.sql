@@ -8,16 +8,21 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc
     @pnClaTipoTraspaso          INT,
     @pnClaUsuarioMod            INT, --Usuario Autorizador
     @psNombrePcMod              VARCHAR(64),
+	@psMensajeTraspaso			VARCHAR(MAX) = '' OUTPUT,
 	@pnDebug					TINYINT = 0
 AS
 BEGIN
 	SET NOCOUNT ON
 
-	IF @pnDebug = 1 
-		SELECT 'OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc'
 
+	--IF @@SERVERNAME = 'SRVDBDES01\ITKQA' SELECT @pnDebug = 1
+	--IF @pnDebug = 1 
+	--	SELECT 'OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc'
+	
+	SELECT @psMensajeTraspaso = ''
 
-	DECLARE @tbCargaPartidasOrigen TABLE(
+	DECLARE @tbCargaPartidasOrigen TABLE
+	(
 		  Id					INT IDENTITY(1,1)
 		, FabricacionCPO		INT
 		, NoRenglonCPO			INT
@@ -31,7 +36,8 @@ BEGIN
 		, EsMultiploCPO			INT
 	)
 
-	DECLARE @tbOtrasSolicitudes TABLE(
+	DECLARE @tbOtrasSolicitudes TABLE
+	(
 		  Id					INT IDENTITY(1,1)
 		, ClaPedido				INT
 		, ClaProducto			INT
@@ -41,9 +47,19 @@ BEGIN
 		, CantidadDisponible	NUMERIC(22,4)
 	)
 
+	DECLARE @DetalleCorreo	TABLE
+	(
+			 Ident		INT IDENTITY(1, 1)
+			,HTML		VARCHAR(4000)
+	)
+
 	DECLARE	  @nCantidadDisponible	NUMERIC(22,4)
 			, @smsj					VARCHAR(300)
 			, @nRenglon				INT = 0
+			, @nCont				INT
+
+
+
 
     IF ( EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud AND ClaPedidoOrigen IS NOT NULL AND ClaEstatusSolicitud IN (0) ) 
         AND @pnClaSolicitud > 0 AND @pnClaPedidoOrigen > 0 AND @pnClaTipoTraspaso = 3 )
@@ -122,17 +138,92 @@ BEGIN
 		IF @pnDebug = 1
 			SELECT '' AS '@tbCargaPartidasOrigen', * FROM @tbCargaPartidasOrigen
 
+		---- /* Mensaje Traspaso
+		--------------------------------------------------------------------------
+		IF EXISTS (
+				SELECT	1
+				FROM	@tbOtrasSolicitudes
+				WHERE	CantidadSolicitada > 0
+		)
+		BEGIN
+			SELECT	@psMensajeTraspaso = 
+			'<!DOCTYPE html>
+			<html>
+			<style type="text/css">
+				.tabla{font-family:Arial;font-size:12px;color:#000000;}
+				.header{color:#FFFFFF;background-color:#3dbab3;}
+				.texto1{color=#000000" style="font-family: Arial; font-size: 10pt;}
+				.centrar{text-align: center;}
+				.izquierda{text-align: left;}
+				.derecha{text-align: right;}
+			</style>
+			<body>
+			 <FONT class="texto1">
+				<h5><strong>AVISO:</strong></h5>  
+				<p>Las siguientes partidas del pedido Origen <b>'+CONVERT(VARCHAR(10),@pnClaPedidoOrigen)+'</b> se identificaron para otras solicitudes:</FONT></br></br>
+			<table class="tabla" cellspacing="0" border="1" width="100%">
+				<tr class="header">
+				  <th WIDTH="5%">Pedido</th>
+				  <th WIDTH="20%">Producto</th>
+				  <th WIDTH="3%">Unidad</th>
+				  <th WIDTH="4%">Cant. Pedida Cliente</th>
+				  <th WIDTH="4%">Cant. Solicitada</th>
+				  <th WIDTH="4%">Cant. Disponible</th>
+				  <th WIDTH="6%">Etatus MP</th>
+				</tr>'
 
-		---- Acrualiza Cantidad Pedido
+			INSERT INTO @DetalleCorreo (HTML)
+			SELECT	
+					'<tr><td class="centrar" bgcolor="#bdbdbd">'	+ ISNULL(CAST(RTRIM(LTRIM(b.ClaPedido)) AS VARCHAR), '') + '</td>' +
+						'<td class="izquierda" bgcolor="#bdbdbd">'	+ ISNULL(RTRIM(LTRIM(REPLACE(c.ClaveArticulo+' - '+ c.NomArticulo,'''',''))) , '') + '</td>' +
+						'<td class="centrar" bgcolor="#bdbdbd">'	+ ISNULL(RTRIM(LTRIM(d.NomCortoUnidad)) , '') + '</td>' +
+						'<td class="derecha" bgcolor="#bdbdbd">'	+ ISNULL(CAST(RTRIM(LTRIM(FORMAT(b.CantidadFabricacion,'###,###.####'))) AS VARCHAR), '') + '</td>' +
+						'<td class="derecha" bgcolor="#bdbdbd">'	+ ISNULL(CAST(RTRIM(LTRIM(FORMAT(b.CantidadSolicitada,'###,###.####'))) AS VARCHAR), '') + '</td>' +
+						'<td class="derecha" bgcolor="#bdbdbd">'	+ CASE WHEN b.CantidadDisponible = 0 THEN '0' ELSE ISNULL(CAST(RTRIM(LTRIM(FORMAT(b.CantidadDisponible,'###,###.####'))) AS VARCHAR), '') END + '</td>' +
+						'<td class="izquierda" bgcolor="#bdbdbd">'	+ '&nbsp &nbsp &nbsp' + ISNULL(RTRIM(LTRIM(e.Descripcion)) , '') + '</td>' +
+					'</tr>' AS Datos
+			FROM	@tbCargaPartidasOrigen a
+			INNER JOIN @tbOtrasSolicitudes b
+			ON		a.ClaProductoCPO	= b.ClaProducto
+			LEFT JOIN OpeSch.OpeArtCatArticuloVw c
+			ON		a.ClaProductoCPO	= c.ClaArticulo
+			LEFT JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
+            ON		c.ClaUnidadBase		= d.ClaUnidad 
+			AND		d.ClaTipoInventario = 1
+			INNER JOIN DEAOFINET05.Ventas.VtaSch.vtacatestatusfabricacionVw e
+			ON		b.ClaEstatus		= e.ClaEstatus
+			WHERE	b.CantidadSolicitada > 0
+			ORDER BY c.ClaveArticulo ASC
+
+			--Para poner rows en blanco 
+			UPDATE	@DetalleCorreo
+			SET		HTML = REPLACE(HTML, 'bgcolor="#bdbdbd"' , 'bgcolor="white"')
+			WHERE	(Ident % 2 = 0)
+		     
+			SELECT	@nCont = MIN(Ident)
+			FROM	@DetalleCorreo
+
+			WHILE @nCont IS NOT NULL
+			BEGIN
+				SELECT	@psMensajeTraspaso = @psMensajeTraspaso + HTML
+				FROM	@DetalleCorreo
+				WHERE	Ident = @nCont
+
+				SELECT	@nCont = MIN(Ident)
+				FROM	@DetalleCorreo
+				WHERE	Ident > @nCont
+			END
+
+			SELECT	@psMensajeTraspaso = @psMensajeTraspaso + '</table></body></html>'
+		END
+		--------------------------------------------------------------------------*/
+		------ Actualiza Cantidad Pedido
 		UPDATE 	a
-		SET		CantPedidaCPO  = CASE b.ClaEstatus WHEN   4 then a.CantPedidaCPO		-- pendiente Total
-													WHEN  5 then b.CantidadDisponible	-- Surtido Parcial
-													WHEN  6 then NULL					-- Surtido Total
-								END
+		SET		CantPedidaCPO  = (SELECT TOP 1 CantidadDisponible FROM @tbOtrasSolicitudes h WHERE a.ClaProductoCPO = h.ClaProducto)
 		FROM	@tbCargaPartidasOrigen a
 		INNER JOIN @tbOtrasSolicitudes b
 		ON		a.ClaProductoCPO = b.ClaProducto
-		WHERE	CantidadSolicitada > 0
+		WHERE	b.CantidadSolicitada > 0
 
 
 		 IF @pnDebug = 1
@@ -165,7 +256,7 @@ BEGIN
 					@pnClaUsuarioMod,
 					@psNombrePcMod
 			FROM    @tbCargaPartidasOrigen a
-			WHERE	a.CantPedidaCPO IS NOT NULL
+			WHERE	a.CantPedidaCPO > 0
 		END
 		ELSE	-- Debug
 		BEGIN
@@ -182,7 +273,7 @@ BEGIN
 					a.PrecioListaMPCPO,
 					a.PrecioListaMPCPO
 			FROM    @tbCargaPartidasOrigen a
-			WHERE	a.CantPedidaCPO IS NOT NULL
+			WHERE	a.CantPedidaCPO > 0
 	
 		END
     END

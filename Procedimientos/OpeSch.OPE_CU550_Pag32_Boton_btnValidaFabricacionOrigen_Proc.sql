@@ -72,8 +72,22 @@ BEGIN
 
 		IF @nClaEstatusPedidoOrigen <> 0
 			SELECT @psObservaciones = '[Fab Ventas - '+CONVERT(VARCHAR(16),@pnClaPedidoOrigen)+']' + CHAR(13) + ISNULL(@psObservaciones,'')
+	
+
+		--- Ubicacion para Estimaciones
+		IF EXISTS (
+			SELECT	1
+			FROM	OpeSch.OpeBitFabricacionEstimacion a WITH(NOLOCK)
+			WHERE	a.IdFabricacionOriginal = @pnClaPedidoOrigen
+		)
+		BEGIN
+			SELECT	@nClaUbicacionSolicita = ClaUbicacion 
+			FROM	OpeSch.OpeBitFabricacionEstimacion a WITH(NOLOCK)
+			WHERE	a.IdFabricacionOriginal = @pnClaPedidoOrigen
+		END
 
     END
+
 	IF @pnCmbPlantaPide <> @nClaUbicacionSolicita	-- Si hay diferencias con la Ubicación pide, setea a nulo los campos dependientes
 	BEGIN
 		SELECT	  @pnCmbPlantaSurte	= NULL

@@ -67,7 +67,8 @@ BEGIN
 		FechaDesea				DATETIME,
 		CantidadSurtida        	NUMERIC(22,4),
 		KilosSurtidos       	NUMERIC(22,4),
-		PesoTeorico				NUMERIC(22,7)
+		PesoTeorico				NUMERIC(22,7),
+		EsBitacora				TINYINT
     )
 
 	DECLARE @tbEstatusFabricacion TABLE(
@@ -189,6 +190,14 @@ BEGIN
 	ON		a.PedidoOrigen	= k.IdFabricacion
 	LEFT JOIN @tbEstatusFabricacion l
 	ON		k.ClaEstatus = l.ClaEstatus
+
+	UPDATE	a
+	SET		EsBitacora = 1
+	FROM	#TraspasosManuales a
+	WHERE	EXISTS (	SELECT	1
+						FROM	OpeSch.OpeVtaBitFabricacionCambioPlanta b WITH(NOLOCK)
+						WHERE	a.Fabricacion = b.IdFabricacionNueva
+					)
 
 	------------------------------------------------------------------------
 
@@ -317,7 +326,8 @@ BEGIN
 			ColEstatusPedidoOrigenDet =	a.EstatusPedidoOrigenDet,	
 			ColFechaDesea			 = CONVERT(VARCHAR(10),a.FechaDesea, 103),
 			ColCantSurtida			= a.CantidadSurtida,
-			ColKilosSurtidos		= a.KilosSurtidos
+			ColKilosSurtidos		= a.KilosSurtidos,
+			EsBitacora				= ISNULL(a.EsBitacora,0)
     FROM    #TraspasosManuales a WITH(NOLOCK) 
     ORDER BY
             a.ClaRelacion DESC,
