@@ -29,10 +29,16 @@ BEGIN
 	
 			SELECT  											
 				c.[Order], c.ControlCode, c.[Status], 												
-				c.Product, c.ProductDescr, c.Diameter, c.Grade, c.Texture, c.Material, c.Coating, 												
-				c.TotalItems, c.TotalPieces, SUM(CONVERT(numeric(18,4), ISNULL(b.Weight,'0'))) AS TotalKgs, 												
-				c.StraightItems, c.StraightPieces, c.StraightKgs,												
-				c.BentItems, c.BentPieces, c.BentKgs												
+				c.Product, c.ProductDescr, c.Diameter, c.Grade, c.Texture, c.Material, c.Coating
+				, TotalItems	= CONVERT(NUMERIC(18,4),ISNULL(c.TotalItems,'0'))
+				, TotalPieces	= CONVERT(NUMERIC(18,4),ISNULL(c.TotalPieces,'0')) 
+				, SUM(CONVERT(numeric(18,4), ISNULL(b.Weight,'0'))) AS TotalKgs
+				, StraightItems	= CONVERT(NUMERIC(18,4),ISNULL(c.StraightItems,'0')) 
+				, StraightPieces= CONVERT(NUMERIC(18,4),ISNULL(c.StraightPieces,'0')) 
+				, StraightKgs	= CONVERT(NUMERIC(18,4),ISNULL(c.StraightKgs,'0')) 
+				, BentItems		= CONVERT(NUMERIC(18,4),ISNULL(c.BentItems,'0')) 
+				, BentPieces	= CONVERT(NUMERIC(18,4),ISNULL(c.BentPieces,'0')) 
+				, BentKgs		= CONVERT(NUMERIC(18,4),ISNULL(c.BentKgs,'0')) 												
 			FROM opesch.OPEASAControlCodeSummary c													
 				INNER JOIN opesch.OPEASAShippingTicketDet b										
 				on c.[order] = b.orderID													
@@ -48,35 +54,3 @@ BEGIN
 			
 	SET NOCOUNT OFF
 END
-
-/*
-
-exec OPESch.OPE_CU550_Pag30_Grid_PlanillaDet_Sel @pnClaUbicacion=325,@pnIdViajeAux=1230
-exec OPESch.OPE_CU550_Pag30_Grid_PlanillaDet_Sel @pnClaUbicacion=325,@pnIdViajeAux=1231
-
-exec OPESch.OPE_CU550_Pag30_Grid_PlanillaDet_Sel @pnClaUbicacion=326,@pnIdViajeAux=230
-
-	EXEC OPESch.OPE_CU550_Pag30_Grid_PlantillaDet_Sel @pnClaUbicacion = 326
-
-
-
-	SELECT 													
-	c.[Order], c.ControlCode, c.[Status], 												
-	c.Product, c.ProductDescr, c.Diameter, c.Grade, c.Texture, c.Material, c.Coating, 												
-	c.TotalItems, c.TotalPieces, c.TotalKgs, 												
-	c.StraightItems, c.StraightPieces, c.StraightKgs,												
-	c.BentItems, c.BentPieces, c.BentKgs												
-FROM opesch.OPEASAControlCodeSummary c													
-INNER JOIN (SELECT DISTINCT bb.orderID, bb.CtrlCode, bb.Product, bb.ShipId													
-			FROM opesch.OPEASAShippingTicketDet bb										
-			WHERE bb.ShipKey = 4720) b										
-on c.[order] = b.orderID													
-and c.ControlCode = b.CtrlCode													
-and c.Product = b.Product													
-
-
-
-*/
-
-
-
