@@ -2,7 +2,7 @@ USE Operacion
 GO
 	-- 'OpeSch.OpeEmbarqueEstimacionProc'
 GO
-ALTER PROCEDURE OpeSch.OpeEmbarqueEstimacionProc
+ALTER PROCEDURE OpeSch.OpeEmbarqueEstimacionCanceladoProc
 	  @pnClaUbicacionOrigen			INT = NULL
 	, @pnIdFabricacionEstimacion	INT	= NULL
 	, @pnDebug						TINYINT = 0
@@ -113,7 +113,7 @@ BEGIN
 
 
 		IF @pnDebug = 1
-			SELECT '' AS '@tbEmbarqueEstimacion',* FROM @tbEmbarqueEstimacion WHERE EsTardio = 1
+			SELECT '' AS '@tbEmbarqueEstimacion',* FROM @tbEmbarqueEstimacion ORDER BY EsTardio ASC
 
 	
 		--- Registros de Embarques de Estimaciones no tardios
@@ -360,7 +360,7 @@ BEGIN
 					'<td class="centrar"	bgcolor="lightgrey">'	+ ISNULL(CAST(RTRIM(LTRIM(IdFabricacionEstimacion)) AS VARCHAR), '') + '</td>  ' +
 					'<td class="centrar"	bgcolor="lightgrey">'	+ ISNULL(CAST(RTRIM(LTRIM(NumViaje)) AS VARCHAR), '') + '</td>  ' +
 					'<td class="centrar"	bgcolor="lightgrey">'	+ ISNULL(RTRIM(LTRIM(FacturaAlfanumericoVenta)) , '') + '</td>  ' +		
-					'</tr> ' AS Datos
+				'</tr> ' AS Datos
 			FROM	@tbEmbarqueEstimacion
 			WHERE	EsTardio = 1
 			AND		ClaUbicacionOrigen = @nClaUbicacionVenta
