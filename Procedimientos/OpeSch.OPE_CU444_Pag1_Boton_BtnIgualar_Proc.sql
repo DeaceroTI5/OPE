@@ -27,6 +27,7 @@ BEGIN
 	WHERE	ClaUbicacion = @pnClaUbicacion 
 	AND		Placa = @psPlaca
 	AND		IdViajeOrigen = @pnIdViajeOrigen
+
 	-- BUSCAR EN EL HISTORICO 
 	IF @nIdBoleta IS NULL AND @pnIdViajeOrigen IS NOT NULL
 		SELECT	@nIdBoleta = IdBoleta, @nIdViajeOrigen = IdViajeOrigen, @nClaUbicacionOrigen = ClaUbicacionOrigen, @nClaEstatusPlaca = ClaEstatusPlaca
@@ -36,14 +37,14 @@ BEGIN
 		AND		IdViajeOrigen = @pnIdViajeOrigen
 
 	SELECT @nIdMovimiento = IdMovimiento
-	FROM OpeSch.OpeTraMovMciasTranEnc
+	FROM OpeSch.OpeTraMovMciasTranEnc WITH(NOLOCK)
 	WHERE NumViaje = @pnIdViajeOrigen
 	AND Placas = @psPlaca		
 	AND ClaUbicacion = @nClaUbicacionOrigen
 		
 	-- REVISAMOS SI LA DESCARGA YA ESTÁ FINALIZADA 
 	SELECT @nEsRecepcionTerminada = EsRecepcionTerminada
-	FROM OpeSch.OpeTraRecepTraspaso 
+	FROM	OpeSch.OpeTraRecepTraspaso WITH(NOLOCK)
 	WHERE	IdViajeOrigen		=	@nIdViajeOrigen
 	AND		ClaUbicacionOrigen	=	@nClaUbicacionOrigen
 	AND		ClaUbicacion		=	@pnClaUbicacion
@@ -67,7 +68,7 @@ BEGIN
 
 	INSERT INTO #ProductoConReferencia (ClaArticulo, ClaFamilia, ClaSubFamilia)
 	SELECT DISTINCT d.ClaArticulo, a.ClaFamilia, a.ClaSubFamilia
-	FROM OpeSch.OpeTraMovMciasTranDet d
+	FROM OpeSch.OpeTraMovMciasTranDet d WITH(NOLOCK)
 	INNER JOIN OpeSch.OpeArtCatArticuloVw a ON a.ClaTipoInventario = 1 AND a.ClaArticulo = d.ClaArticulo
 	WHERE IdMovimiento = @nIdMovimiento 
 	AND ClaUbicacionDestino = @pnClaUbicacion 
@@ -88,7 +89,7 @@ BEGIN
 	WHERE ref.ClaUbicacion = @pnClaUbicacion 
 	AND ref.BajaLogica = 0
 
-	SELECT * FROM #ProductoConReferencia
+	--SELECT * FROM #ProductoConReferencia
 
 
 	CREATE TABLE #MciasTran
@@ -111,7 +112,7 @@ BEGIN
 		, OPM				= CASE WHEN IsNull(pr.EsRequerida, 0) = 1 THEN CampoTexto1 ELSE '' END
 		, Rollo				= CASE WHEN IsNull(pr.EsRequerida, 0) = 1 THEN CampoTexto2 ELSE '' END
 		, CantRemisionada	= SUM(CantidadEnviada)
-	FROM OpeSch.OpeTraMovMciasTranDet det
+	FROM OpeSch.OpeTraMovMciasTranDet det WITH(NOLOCK)
 	INNER JOIN OpeSch.OpeArtCatArticuloVw art ON art.ClaTipoInventario = 1 AND art.ClaArticulo = det.ClaArticulo
 	LEFT OUTER JOIN #ProductoConReferencia pr ON pr.ClaArticulo = det.ClaArticulo
 	WHERE IdMovimiento = @nIdMovimiento 
@@ -120,6 +121,71 @@ BEGIN
 	GROUP BY ClaUbicacion, det.ClaArticulo, ClaveArticulo, CASE WHEN IsNull(pr.EsRequerida, 0) = 1 THEN CampoTexto1 ELSE '' END, CASE WHEN IsNull(pr.EsRequerida, 0) = 1 THEN CampoTexto2 ELSE '' END
 	
 	
+	-----------------------------------------------------------------
+	--- /*Configuración Estimaciones*/
+	DECLARE @nEsUbicacionEstimacion INT
+
+	DECLARE @tbMciasEstimaciones TABLE(
+		  Id				INT IDENTITY(1,1)
+		, ClaUbicacion		INT
+		, ClaArticulo		INT
+		, OPM				VARCHAR(20)
+		, Rollo				VARCHAR(20)
+		, Cantidad			INT
+	)
+
+	SELECT	@nEsUbicacionEstimacion = nValor1 
+	FROM	OpeSch.OpeTiCatConfiguracionVw 
+	WHERE	ClaUbicacion = @pnClaUbicacion
+	AND		ClaSistema = 127
+	AND		ClaConfiguracion = 1271221
+
+	IF ISNULL(@nEsUbicacionEstimacion,0) = 1
+	BEGIN
+		INSERT INTO @tbMciasEstimaciones
+		SELECT  DISTINCT
+				  b.ClaUbicacion
+				, b.ClaArticulo
+				, c.Opm
+				, c.Rollo
+				, e.Cantidad
+		FROM	OpeSch.OpeTraMovMciasTranEnc a WITH(NOLOCK)
+		INNER JOIN OpeSch.OpeTraMovMciasTranDet  b WITH(NOLOCK)
+		ON      a.ClaUbicacion              = b.ClaUbicacion              
+		AND     a.ClaTipoInventario         = b.ClaTipoInventario 
+		AND     a.IdMovimiento              = b.IdMovimiento 
+		INNER JOIN #MciasTran c
+		ON		b.ClaUbicacion				= c.ClaUbicacion
+		AND		b.ClaArticulo				= c.ClaArticulo		
+		INNER JOIN OpeSch.OpeTraPlanCargaRemisionEstimacion d WITH(NOLOCK)		
+		ON		b.ClaUbicacion				= d.ClaUbicacionEstimacion
+--		AND		d.IdBoletaEstimacion		= @nIdBoleta
+		AND		a.NumViaje					= d.IdViajeEstimacion		
+		INNER JOIN OpeSch.OpeTraInfoViajeEstimacionDet e WITH(NOLOCK)	-- ClaUbicacion, IdViajeOrigen, ClaUbicacionOrigen, IdFabricacion, IdFabricacionDet, ClaArticulo, IdRenglon
+		ON		b.ClaUbicacionDestino		= e.ClaUbicacion
+		AND		a.NumViaje					= e.IdViajeOrigen
+		AND		b.ClaUbicacion				= e.ClaUbicacionOrigen
+		AND		b.NumericoExtra2			= e.IdFabricacion
+		AND		b.NumericoExtra3			= e.IdFabricacionDet
+		AND		b.ClaArticulo				= e.ClaArticulo
+		WHERE	b.IdMovimiento				= @nIdMovimiento 
+		AND		b.ClaUbicacionDestino		= @pnClaUbicacion 
+		AND		b.ClaUbicacion				= @nClaUbicacionOrigen		
+
+
+		UPDATE	a
+		SET		CantRemisionada = Cantidad
+		FROM	#MciasTran a
+		INNER JOIN	@tbMciasEstimaciones b
+		ON		a.ClaUbicacion	= b.ClaUbicacion
+		AND		a.ClaArticulo	= b.ClaArticulo
+		AND		a.OPM			= b.OPM
+		AND		a.Rollo			= b.Rollo
+	END
+
+	-----------------------------------------------------------------
+
+
 --	SELECT * FROM #MciasTran
 	
 --- select ClaFamilia, ClaSubFamilia, ClaArticulo from opesch.opeartcatarticulovw where clavearticulo = '4116522470'		--'3233200970'
@@ -127,7 +193,7 @@ BEGIN
 -- 168	2	301358
 -- DELETE OpeSch.OpeRelTipoRefArticulo WHERE ClaUbicacion = 153 AND ClaFamilia = 168
 
-	SELECT * FROM #MciasTran
+	--SELECT * FROM #MciasTran
 
 /*
 
