@@ -2,7 +2,7 @@ USE Operacion
 GO
 -- 'OpeSch.OPE_CU444_Pag1_RegistraProductoDescargado_Proc_V2'
 GO
-CREATE PROCEDURE OpeSch.OPE_CU444_Pag1_RegistraProductoDescargado_Proc_V2
+ALTER PROCEDURE OpeSch.OPE_CU444_Pag1_RegistraProductoDescargado_Proc_V2
 	  @pnClaUbicacion		INT
 	, @psPlaca				VARCHAR(20)
 	, @pnIdViajeOrigen		INT
@@ -142,6 +142,23 @@ BEGIN
 	AND		b.IdViajeOrigen = @pnIdViajeOrigen
 	AND		tp.ClaArticuloRemisionado = @nClaArticulo
 	
+
+	--SELECT @pnClaUbicacion AS '@pnClaUbicacion', @nIdBoleta as '@nIdBoleta', @nClaUbicacionOrigen as '@nClaUbicacionOrigen', @nIdViajeOrigen as '@nIdViajeOrigen', @psPlaca AS '@psPlaca', @pnIdViajeOrigen AS '@pnIdViajeOrigen', @pnCantidad AS '@pnCantidad', @pnClaArticulo AS '@pnClaArticulo', @pnIdFabricacion AS '@pnIdFabricacion', 
+	--		@psOPM AS '@psOPM', @psRollo AS '@psRollo', @pnEsModificaCantidad AS '@pnEsModificaCantidad'
+
+
+	IF NOT EXISTS(	
+			SELECT	1
+			FROM	OpeSch.OpeTraPlanCargaRemisionEstimacion WITH(NOLOCK)
+			WHERE	ClaUbicacionVenta		= @pnClaUbicacion
+			AND		ClaUbicacionEstimacion	= @nClaUbicacionOrigen
+			AND		IdViajeEstimacion		= @pnIdViajeOrigen
+	)
+	BEGIN
+		SELECT @sErrorMsg = 'Existe una incidencia en el registro de la evidencia de POD Estimaciones, favor de contactar a su administrador de sistemas.'
+		GOTO FINERROR
+	END
+
 	--ACTUALIZAR DATOS
 	IF NOT EXISTS(	SELECT	1  
 				FROM	OpeSch.OpeTraRecepTraspasoProdAuxV2

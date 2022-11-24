@@ -23,8 +23,7 @@ BEGIN
 	INTO	#TempUbicacionesIngetek
 	FROM	OpeSch.OpeTiCatUbicacionVw WITH(NOLOCK)  
 	WHERE	ClaUbicacion NOT IN (ISNULL(@pnCmbPlantaSurte,0))
-    AND     (ClaEmpresa IN (52)
-	OR		ClaUbicacion IN (277,278,364))
+--  AND     (ClaEmpresa IN (52) OR ClaUbicacion IN (277,278,364))
 
 	IF ISNULL(@pnClaValorUbicacionPide,0) > 0
 	BEGIN
