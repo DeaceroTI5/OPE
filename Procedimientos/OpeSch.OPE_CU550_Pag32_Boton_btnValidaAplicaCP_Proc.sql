@@ -34,8 +34,8 @@ BEGIN
         SELECT  @nTipoUbicacionSolicita = ClaTipoUbicacion
         FROM	OpeSch.OpeTiCatUbicacionVw WITH(NOLOCK)  
         WHERE	ClaUbicacion = @nUbicacionSolicita
-        AND     (ClaEmpresa IN (52)
-        OR		ClaUbicacion IN (277,278,364))
+        --AND     (ClaEmpresa IN (52)
+        --OR		ClaUbicacion IN (277,278,364))
 
         IF ( EXISTS ( SELECT 1 FROM OpeSch.OpeCfgUsuarioTraspaso t1 WHERE   t1.ClaUsuario = @pnClaUsuarioMod 
                                                                     AND     t1.ClaUbicacion = -1 
