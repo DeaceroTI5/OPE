@@ -6,7 +6,6 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag31_Grid_GridFacturaTraArticulo_Sel
     @pnClaUsuarioMod            INT,
     @psNombrePcMod              VARCHAR(64),
     @pnActividad                INT,
-    
     @pnEstimacionFactura        INT,
     @pnFabricacionVenta         INT,
     @pnFabricacionVentaDet      INT,
@@ -20,12 +19,14 @@ BEGIN
                 vwtrd.IdViaje AS ColViajeTra,
                 vwtrd.RemisionAlfanumerico AS ColRemisionTra,
                 art.ClaArticulo AS ColClaArticuloTra,
-                vwtrd.CantSurtida AS ColCantSurtidaTra,
-                ROUND(ISNULL(( bdr.PrecioLista * vwtrd.CantSurtida ), 0.00), 2) AS ColImporteTra,
+                SUM(vwtrd.CantSurtida) AS ColCantSurtidaTra,
+                ROUND(SUM(ISNULL(( bdr.PrecioLista * vwtrd.CantSurtida ), 0.00)), 2) AS ColImporteTra,
+                --ROUND(ISNULL(( bdr.PrecioLista * vwtrd.CantSurtida ), 0.00), 2) AS ColImporteTra,
                 cu.NombreUsuario + ' ' + cu.ApellidoPaterno AS ColRealizadoPorTra,
                 vwtrd.FechaUltimaMod AS ColFechaTra
-        FROM	(SELECT DISTINCT ClaUbicacionEstimacion, idFabricacionEstimacion, ClaUbicacionVenta, idFabricacionVenta
-                        FROM OpeSch.OpeTraFabricacionEspejoEstimacion WITH(NOLOCK)) a 
+        FROM		(SELECT DISTINCT --ClaUbicacionEstimacion, idFabricacionEstimacion, ClaUbicacionVenta, idFabricacionVenta
+								idFabricacionVenta
+					FROM	OpeSch.OpeTraFabricacionEspejoEstimacion WITH(NOLOCK)) a 
             --Flujo de Remision / Venta
             INNER JOIN	OpeSch.OpeTraFabricacionVw br WITH(NOLOCK)
                         ON br.IdFabricacion = a.idFabricacionVenta
@@ -60,7 +61,14 @@ BEGIN
         AND     vw1.EsEstimacion = 1
         AND		vwtrd.IdEstimacionFactura = @pnEstimacionFactura
         AND		vwtrd.IdFabricacion = @pnFabricacionVenta 
-        ORDER BY
+        GROUP BY                vwtrd.IdViaje ,
+                vwtrd.RemisionAlfanumerico ,
+                art.ClaArticulo ,
+                vwtrd.CantSurtida ,
+                ROUND(ISNULL(( bdr.PrecioLista * vwtrd.CantSurtida ), 0.00), 2) ,
+                cu.NombreUsuario + ' ' + cu.ApellidoPaterno,
+                vwtrd.FechaUltimaMod
+		ORDER BY
                 vwtrd.IdViaje, vwtrd.RemisionAlfanumerico, art.ClaArticulo
     END
 
@@ -70,12 +78,13 @@ BEGIN
                 vwtrd.IdViaje AS ColViajeTra,
                 vwtrd.RemisionAlfanumerico AS ColRemisionTra,
                 art.ClaArticulo AS ColClaArticuloTra,
-                vwtrd.CantSurtida AS ColCantSurtidaTra,
-                ROUND(ISNULL(( bdr.PrecioLista * vwtrd.CantSurtida ), 0.00), 2) AS ColImporteTra,
+                SUM(vwtrd.CantSurtida) AS ColCantSurtidaTra,
+                ROUND(SUM(ISNULL(( bdr.PrecioLista * vwtrd.CantSurtida ), 0.00)), 2) AS ColImporteTra,
                 cu.NombreUsuario + ' ' + cu.ApellidoPaterno AS ColRealizadoPorTra,
                 vwtrd.FechaUltimaMod AS ColFechaTra
-        FROM	(SELECT DISTINCT ClaUbicacionEstimacion, idFabricacionEstimacion, ClaUbicacionVenta, idFabricacionVenta
-                        FROM OpeSch.OpeTraFabricacionEspejoEstimacion WITH(NOLOCK)) a 
+        FROM	(	SELECT DISTINCT --ClaUbicacionEstimacion, idFabricacionEstimacion, ClaUbicacionVenta, idFabricacionVenta
+								idFabricacionVenta
+					FROM	OpeSch.OpeTraFabricacionEspejoEstimacion WITH(NOLOCK)) a 
             --Flujo de Remision / Venta
             INNER JOIN	OpeSch.OpeTraFabricacionVw br WITH(NOLOCK)
                         ON br.IdFabricacion = a.idFabricacionVenta
@@ -112,7 +121,14 @@ BEGIN
         AND		vwtrd.IdFabricacion = @pnFabricacionVentaDet 
         AND		vwtrd.IdFabricacionDet = @pnFabricacionDetVentaDet
         AND		vwtrd.ClaArticulo = @pnArticuloDet
-        ORDER BY
+        GROUP BY                 vwtrd.IdViaje ,
+                vwtrd.RemisionAlfanumerico ,
+                art.ClaArticulo ,
+                vwtrd.CantSurtida ,
+                ROUND(ISNULL(( bdr.PrecioLista * vwtrd.CantSurtida ), 0.00), 2) ,
+                cu.NombreUsuario + ' ' + cu.ApellidoPaterno ,
+                vwtrd.FechaUltimaMod
+		ORDER BY
                 vwtrd.IdViaje, vwtrd.RemisionAlfanumerico, art.ClaArticulo
     END
 END
