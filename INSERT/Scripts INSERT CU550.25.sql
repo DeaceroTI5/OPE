@@ -663,3 +663,11 @@ WHERE	b.ClaUbicacionVenta IS NULL
 	 AND	a.IdFabricacion		= b.IdFabricacion
 	 AND	a.IdFabricacionDet	= b.IdFabricacionDet
 	 WHERE	b.ClaUbicacion IS NULL
+
+	 INSERT INTO OPESch.OpeTraCierreDeMes
+SELECT a.* FROM DEAITKNET04.Operacion.OPESch.OpeTraCierreDeMes a WITH(NOLOCK) 
+LEFT JOIN OPESch.OpeTraCierreDeMes b WITH(NOLOCK)
+on	a.AnioMes			= b.AnioMes			
+AND a.ClaUbicacion		= b.ClaUbicacion	
+AND a.ClaTipoInventario	= b.ClaTipoInventario
+WHERE b.AnioMes	is null
