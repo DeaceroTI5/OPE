@@ -12,20 +12,23 @@ ALTER PROCEDURE [OpeSch].[OPE_CU550_Pag31_Grid_GridFacturaDetArticulo_Sel]
     @pnFolioProforma        INT,
     @pnFolioFactura         INT
 AS
-BEGIN      
+BEGIN    
+	SET NOCOUNT ON
+
     SELECT
             vtaTPD.IdRenglon AS ColNoRenglonDet,
             LTRIM(RTRIM(CONVERT(VARCHAR(150), art.ClaArticulo))) + ' - ' + art.NomArticulo AS ColArticuloDet,
             vwtd.NomProductoFacturar AS ColNomProductoDet,
-            vtaTPD.CantidadSurtida AS ColCantSurtidaDet,
-            vtaTPD.KilosSurtidos AS ColKilosSurtidosDet,
-            vtaTPD.ImporteSubtotal AS ColImporteDet,
+            SUM(vtaTPD.CantidadSurtida) AS ColCantSurtidaDet,
+            SUM(vtaTPD.KilosSurtidos) AS ColKilosSurtidosDet,
+            SUM(vtaTPD.ImporteSubtotal) AS ColImporteDet,
             vwtd.ComentariosFacturaDet AS ColComentariosDet,
             br.IdFabricacion AS ColFabricacionDet,
             bdr.IdFabricacionDet AS ColFabDetalleDet,
             art.ClaArticulo AS ColClaArticuloDet
-    FROM	(SELECT DISTINCT ClaUbicacionEstimacion, idFabricacionEstimacion, ClaUbicacionVenta, idFabricacionVenta
-                    FROM OpeSch.OpeTraFabricacionEspejoEstimacion WITH(NOLOCK)) a 
+    FROM	(SELECT --DISTINCT ClaUbicacionEstimacion, idFabricacionEstimacion, ClaUbicacionVenta, idFabricacionVenta
+                    idFabricacionVenta
+					FROM OpeSch.OpeTraFabricacionEspejoEstimacion WITH(NOLOCK)) a 
         --Flujo de Remision / Venta
         INNER JOIN	OpeSch.OpeTraFabricacionVw br WITH(NOLOCK)
                     ON br.IdFabricacion = a.idFabricacionVenta
@@ -58,6 +61,16 @@ BEGIN
     AND		vwtd.IdFabricacion = @pnFabricacionVenta 
     AND		vwt.IdProforma = @pnFolioProforma
     --AND		vtaTP.IdFacturaNueva = @pnFolioFactura
+	GROUP BY vtaTPD.IdRenglon ,
+            LTRIM(RTRIM(CONVERT(VARCHAR(150), art.ClaArticulo))) + ' - ' + art.NomArticulo ,
+            vwtd.NomProductoFacturar ,
+            vwtd.ComentariosFacturaDet ,
+            br.IdFabricacion ,
+            bdr.IdFabricacionDet ,
+            art.ClaArticulo 
+
     ORDER BY
             br.IdFabricacion, bdr.IdFabricacionDet, art.ClaArticulo
+
+	SET NOCOUNT OFF
 END
