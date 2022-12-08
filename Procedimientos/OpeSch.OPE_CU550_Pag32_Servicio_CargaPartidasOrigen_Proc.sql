@@ -62,10 +62,10 @@ BEGIN
 
 
     IF ( EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud AND ClaPedidoOrigen IS NOT NULL AND ClaEstatusSolicitud IN (0) ) 
-        AND @pnClaSolicitud > 0 AND @pnClaPedidoOrigen > 0 AND @pnClaTipoTraspaso = 3 )
+        AND @pnClaSolicitud > 0 AND @pnClaPedidoOrigen > 0 AND @pnClaTipoTraspaso IN (3,4) )
     BEGIN
 		---- No ingresar los registros que superan la cantidad disponible (Suministro directo) 
-		IF @pnClaPedidoOrigen IS NOT NULL AND @pnClaTipoTraspaso = 3
+		IF @pnClaPedidoOrigen IS NOT NULL AND @pnClaTipoTraspaso IN (3,4)
 		BEGIN
 			---- CANTIDAD
 			INSERT INTO @tbOtrasSolicitudes (ClaPedido, ClaProducto, ClaEstatus, CantidadFabricacion, CantidadSolicitada, CantidadDisponible)
@@ -106,7 +106,7 @@ BEGIN
                  UnidadCPO           = d.NomCortoUnidad,
                  CantPedidaCPO       = ISNULL( b.CantPedida,0.00 ),
                  PrecioListaMPCPO    = ( CASE
-                                             WHEN ISNULL( @pnClaTipoTraspaso,0 ) = 3
+                                             WHEN ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
                                              THEN ISNULL( ISNULL( j.PrecioMP,k.PrecioMP ),0.00 )
                                              ELSE 0.00
                                          END),

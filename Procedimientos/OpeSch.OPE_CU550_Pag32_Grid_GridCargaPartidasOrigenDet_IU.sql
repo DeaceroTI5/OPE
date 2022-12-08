@@ -31,7 +31,7 @@ BEGIN
     IF ( @pnClaTipoEvento = 0 AND @pnColSeleccionCPD = 1 )
     BEGIN
 		---- No ingresar los registros que superan la cantidad disponible (Suministro directo) 
-		IF @pnClaTipoTraspaso = 3 AND (@pnColCantPedidaCPD > @pnColCantidadDisponible)	
+		IF @pnClaTipoTraspaso IN (3,4) AND (@pnColCantPedidaCPD > @pnColCantidadDisponible)	
 		BEGIN
 			RETURN
 		END
@@ -67,7 +67,7 @@ BEGIN
                 THROW 127015, @sMensajeError, 8;  
                 RETURN
             END
-            IF ( ISNULL( @pnColPrecioListaCPD,0 ) = 0 AND ISNULL( @pnClaTipoTraspaso,0 ) IN (2,3) )
+            IF ( ISNULL( @pnColPrecioListaCPD,0 ) = 0 AND ISNULL( @pnClaTipoTraspaso,0 ) IN (2,3,4) )
             BEGIN
                 SELECT	@sMensajeError = 'Para una Solicitud de Compra Filial es necesario registrar el Precio de Lista. (' + @psColProductoCPD + ')';
 				THROW 127016, @sMensajeError, 8;  

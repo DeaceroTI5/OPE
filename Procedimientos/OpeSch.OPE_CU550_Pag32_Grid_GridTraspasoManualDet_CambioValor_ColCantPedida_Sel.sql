@@ -34,7 +34,7 @@ BEGIN
     IF ( @pnColProducto > 0 )
     BEGIN
 		---- No ingresar los registros que superan la cantidad disponible (Suministro directo) 
-		IF @pnClaPedidoOrigen IS NOT NULL AND @pnClaTipoTraspaso = 3
+		IF @pnClaPedidoOrigen IS NOT NULL AND @pnClaTipoTraspaso IN (3,4)
 		BEGIN
 			---- CANTIDAD
 			INSERT INTO @tbOtrasSolicitudes (ClaPedido, ClaProducto, ClaEstatus, CantidadFabricacion, CantidadSolicitada, CantidadDisponible)

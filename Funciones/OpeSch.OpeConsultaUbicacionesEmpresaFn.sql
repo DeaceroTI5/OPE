@@ -1,5 +1,7 @@
 USE Operacion
 GO
+-- 'OpeSch.OpeConsultaUbicacionesEmpresaFn'
+GO
 ALTER FUNCTION OpeSch.OpeConsultaUbicacionesEmpresaFn 
 (
 	  @pnClaUbicacion		INT
@@ -31,3 +33,10 @@ RETURN (
 	FROM	OpeSch.OpeTiCatUbicacionVw a
 	WHERE	ClaEmpresa	= @nClaEmpresa
 )
+
+
+        SELECT  @nTipoUbicacionSolicita = ClaTipoUbicacion
+        FROM	OpeSch.OpeTiCatUbicacionVw WITH(NOLOCK)  
+        WHERE	ClaUbicacion = @nUbicacionSolicita
+        --AND     (ClaEmpresa IN (52)
+        --OR		ClaUbicacion IN (277,278,364))

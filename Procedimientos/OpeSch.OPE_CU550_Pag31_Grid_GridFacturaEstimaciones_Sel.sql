@@ -12,7 +12,9 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag31_Grid_GridFacturaEstimaciones_Sel
     @pnCmbProyecto          INT, 
     @pnCmbFactura           INT
 AS
-BEGIN      
+BEGIN
+	SET NOCOUNT ON
+
 	DECLARE	@CmbCliente     INT, 
             @CmbProyecto    INT,
 			@CmbFactura     INT
@@ -33,7 +35,7 @@ BEGIN
             SUM( vtaTPD.ImporteSubtotal ) AS ColImporteSubtotal,
             SUM( vtaTPD.IVA ) AS ColIVA,
             SUM( vtaTPD.Total ) AS ColImporteTotal,
-            CONVERT(VARCHAR, vwt.Estatus) + ' ' + CASE vwt.Estatus WHEN 0 THEN 'Nuevo' WHEN 1 THEN 'Alta' WHEN 3 THEN 'Facturado' WHEN 5 THEN 'Cancelado' END AS ColEstatus, --0 Nuevo, 1 Alta, 3 Facturado, 5 Cancelado
+            CONVERT(VARCHAR, vwt.Estatus) + ' - ' + CASE vwt.Estatus WHEN 0 THEN 'Nuevo' WHEN 1 THEN 'Alta' WHEN 3 THEN 'Facturado' WHEN 5 THEN 'Cancelado' END AS ColEstatus, --0 Nuevo, 1 Alta, 3 Facturado, 5 Cancelado
             vwt.ObservacionEstimacion AS ColObservaciones,
             vwt.ComentariosFactura AS ColComentarios,
             vtaTP.FechaUltimaMod AS ColFechaFactura,
@@ -85,4 +87,7 @@ BEGIN
             vtaTP.FechaUltimaMod, vwt.IdEstimacionFactura, vtaTP.IdProforma, vtaTP.IdFacturaNueva
     ORDER BY
             er.ClaCliente, dr.ClaProyecto
+
+
+	SET NOCOUNT OFF
 END

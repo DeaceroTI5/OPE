@@ -10,6 +10,7 @@ ALTER PROCEDURE OpeSch.OPETraspasosProyectoCmb
 AS
 BEGIN
 
+	-- EXEC OPESch.OPETraspasosProyectoCmb @psValor='',@pnTipo=2,@pnIncluirTodosSN=1,@pnBajasSn=default,@pnClaPedidoOrigen=NULL
 	SET NOCOUNT ON
     
     IF OBJECT_ID('TEMPDB..#TempUbicacionesIngetek') IS NOT NULL
@@ -26,6 +27,9 @@ BEGIN
 	WHERE	(ClaEmpresa IN (52)
 	OR		ClaUbicacion IN (277,278,364))
 
+    DECLARE @dFecha DATE
+	SELECT	@dFecha = GETDATE()
+
     SELECT	DISTINCT
 			a.ClaProyecto,
 			a.NomProyecto
@@ -38,7 +42,16 @@ BEGIN
 	INNER JOIN	#TempUbicacionesIngetek d
 		ON	c.ClaPlanta = d.ClaUbicacion
 	WHERE	(c.IdFabricacion = @pnClaPedidoOrigen OR @pnClaPedidoOrigen = 0)
-	AND		(@pnTipo=99 OR ( ISNULL(a.BajaLogica,0) != 1 OR ISNULL(@pnBajasSn,0) = 1 ))  
+--	AND		(@pnTipo=99 OR ( ISNULL(a.BajaLogica,0) != 1 OR ISNULL(@pnBajasSn,0) = 1 ))  
+	AND		(	@pnTipo=99	
+				OR	(	ISNULL(@pnBajasSn,0) = 1	
+						OR (	ISNULL(a.BajaLogica,0) = 0	-- Considerar los registros activos e inactivos que su fecha de Baja sea mayor a la fecha actual.
+								OR (	ISNULL(a.BajaLogica,0) = 1 
+										AND a.FechaBajaLogica IS NOT NULL 
+										AND a.FechaBajaLogica >= @dFecha	)
+							)
+					)
+			)
 
 	IF @pnIncluirTodosSN  = 0              
 	BEGIN                 

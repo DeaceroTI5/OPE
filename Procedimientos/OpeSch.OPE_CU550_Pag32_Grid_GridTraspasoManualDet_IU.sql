@@ -45,7 +45,7 @@ BEGIN
 	)
 
 	---- No ingresar los registros que superan la cantidad disponible (Suministro directo) 
-	IF @pnClaPedidoOrigen IS NOT NULL AND @pnClaTipoTraspaso = 3
+	IF @pnClaPedidoOrigen IS NOT NULL AND @pnClaTipoTraspaso IN (3,4)
 	BEGIN
 	---- CANTIDAD
 		INSERT INTO @tbOtrasSolicitudes (ClaPedido, ClaProducto, ClaEstatus, CantidadFabricacion, CantidadSolicitada, CantidadDisponible)
@@ -88,7 +88,7 @@ BEGIN
                 THROW 127012, 'La Cantidad Pedida necesita ser mayor a 0.00.', 7;  
                 RETURN
             END
-            IF ( ISNULL( @pnColPrecioLista,0 ) = 0 AND ISNULL( @pnClaTipoTraspaso,0 ) IN (2,3) )
+            IF ( ISNULL( @pnColPrecioLista,0 ) = 0 AND ISNULL( @pnClaTipoTraspaso,0 ) IN (2,3,4) )
             BEGIN
                 THROW 127013, 'Para una Solicitud de Compra Filial es necesario registrar el Precio de Lista.', 7;  
                 RETURN

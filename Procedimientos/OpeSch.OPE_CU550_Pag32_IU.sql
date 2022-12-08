@@ -77,7 +77,7 @@ BEGIN
                 THROW 127007, 'Es necesario registrar la referencia de Pedido Origen para las Solicitudes de Suministro Directo.', 3;  
                 RETURN
             END
-            IF ( ISNULL( @pnClaTipoTraspaso,0 ) = 3 AND ISNULL( @pnCmbConsignado,0 ) > 0 ) --Validamos Que Una Solicitud de Suministro Directo No Tenga Informado el Consignado
+            IF ( ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4) AND ISNULL( @pnCmbConsignado,0 ) > 0 ) --Validamos Que Una Solicitud de Suministro Directo No Tenga Informado el Consignado
             BEGIN
                 THROW 127008, 'Una Solicitud de Suministro Directo no requiere tener informado el campo de Consignado.', 4;  
                 RETURN
@@ -93,11 +93,26 @@ BEGIN
                 RETURN
             END
 
+			-- Validar que una Planta de Ingetek se encuentre como Planta Pide o Plantas Surte en la Solicitud
+			IF NOT EXISTS (
+				SELECT	1 
+				FROM	OpeSch.OpeTiCatUbicacionVw WITH(NOLOCK)  
+				WHERE	(ClaEmpresa IN (52)
+						 OR	ClaUbicacion IN (277,278,364)
+						)
+				AND		(ClaUbicacion = @pnCmbPlantaPide OR ClaUbicacion = @pnCmbPlantaSurte)
+			)
+			BEGIN
+				RAISERROR('Es necesario que el traspaso manual este compuesto por al menos una Ubicación de Ingetek',16,1)
+				RETURN
+			END
+
+
             --Definimos si sera proceso de Registro o Edición
             IF ( NOT EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud )
                     OR ISNULL( @pnClaSolicitud,0 ) = 0  ) -- Proceso de Registro
             BEGIN
-                IF ISNULL( @pnClaTipoTraspaso,0 ) = 3
+                IF ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
                 BEGIN
                     SET @pnChkAceptaParcial = 0
                 END
@@ -118,7 +133,7 @@ BEGIN
 
                 SELECT  @pnClaSolicitud = @@IDENTITY      
 
-                IF ( ISNULL( @pnClaTipoTraspaso,0 ) = 3 AND @pnClaPedidoOrigen > 0 AND @pnClaSolicitud > 0 )
+                IF ( ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4) AND @pnClaPedidoOrigen > 0 AND @pnClaSolicitud > 0 )
                 BEGIN
                     EXEC    OpeSch.OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc
                             @pnClaSolicitud             = @pnClaSolicitud,
@@ -131,7 +146,7 @@ BEGIN
             END
             ELSE IF ( EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud AND ClaEstatusSolicitud IN (0) ) ) -- Proceso de Edición
             BEGIN
-                IF ISNULL( @pnClaTipoTraspaso,0 ) = 3
+                IF ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
                 BEGIN
                     SET @pnChkAceptaParcial = 0
                 END

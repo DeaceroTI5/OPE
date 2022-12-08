@@ -46,6 +46,7 @@ BEGIN
             @nChkAceptaParcial          INT = 1,
             @nChkSurtirSinExcederse     INT = 0,
             @nChkSuministroDirecto      INT = 0,
+			@nChkDoorToDoor				INT = 0,
             @nChkLlaveEnMano            INT = 0,
             @sHechoPor                  VARCHAR(100) = NULL,
             @nClaHechoPor               INT = NULL,
@@ -99,7 +100,8 @@ BEGIN
                 ChkAceptaParcial = 1,
                 ChkSurtirSinExcederse = 0,
                 ChkSuministroDirecto = 0,
-            ChkLlaveEnMano = 0,
+				ChkLlaveEnMano = 0,
+				ChkDoorToDoor = 0,
                 HechoPor = NULL,
                 ClaHechoPor = NULL,
                 FechaCaptura = NULL,
@@ -156,6 +158,7 @@ BEGIN
                                             END),
             @nChkSuministroDirecto      = a.EsSuministroDirecto,
             @nChkLlaveEnMano            = a.EsLlaveEnMano,
+			@nChkDoorToDoor				= ISNULL(a.EsDoorToDoor,0),
             @sHechoPor                  = RTRIM(LTRIM(e.NombreUsuario)) + ' ' + RTRIM(LTRIM(e.ApellidoPaterno)) + ' ' + RTRIM(LTRIM(e.ApellidoMaterno)),
             @nClaHechoPor               = a.ClaUsuarioIns,
             @tFechaCaptura              = a.FechaIns,
@@ -224,13 +227,17 @@ BEGIN
         BEGIN
             SELECT  @nClaTipoTraspaso = 1	-- Traspaso
         END 
-        ELSE IF ( @nClaEmpresaPide != @nClaEmpresaSurte AND @nChkSuministroDirecto = 0 )
+        ELSE IF ( @nClaEmpresaPide != @nClaEmpresaSurte AND @nChkSuministroDirecto = 0 AND @nChkDoorToDoor = 0)
         BEGIN
             SELECT  @nClaTipoTraspaso = 2	-- Compra Filial para MP
         END 
         ELSE IF ( @nClaEmpresaPide != @nClaEmpresaSurte AND @nChkSuministroDirecto = 1 )
         BEGIN
             SELECT  @nClaTipoTraspaso = 3	-- Compra Filial para SM
+        END 
+        ELSE IF ( @nClaEmpresaPide != @nClaEmpresaSurte AND @nChkDoorToDoor = 1 )
+        BEGIN
+            SELECT  @nClaTipoTraspaso = 4	-- Compra Filial Door to Door
         END 
         ELSE 
         BEGIN
@@ -279,6 +286,7 @@ BEGIN
             ChkSurtirSinExcederse = @nChkSurtirSinExcederse,
             ChkSuministroDirecto = @nChkSuministroDirecto,
             ChkLlaveEnMano = @nChkLlaveEnMano ,
+			ChkDoorToDoor = @nChkDoorToDoor,
             HechoPor = @sHechoPor,
             ClaHechoPor = @nClaHechoPor,
             FechaCaptura = CONVERT(VARCHAR,@tFechaCaptura,20),

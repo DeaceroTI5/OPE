@@ -90,7 +90,7 @@ BEGIN
             ColCantSurtidaCPD       = ISNULL( b.CantSurtida,0.00 ),
             ColKilosSurtidosCPD     = ISNULL( (b.CantSurtida*c.PesoTeoricoKgs), 0.00 ),
             ColPrecioListaMPCPD     = ( CASE
-                                            WHEN ISNULL( @pnClaTipoTraspaso,0 ) = 3
+                                            WHEN ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
                                             THEN ISNULL( ISNULL( j.PrecioMP,k.PrecioMP ),0.00 )
                                             ELSE 0.00
                                         END),

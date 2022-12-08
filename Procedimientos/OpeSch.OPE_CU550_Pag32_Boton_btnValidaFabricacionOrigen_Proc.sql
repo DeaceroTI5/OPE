@@ -52,7 +52,7 @@ BEGIN
                                                     ELSE    0
                                                 END),
                 @ptFechaDesea           =  (    CASE
-                                                    WHEN    ISNULL( ClaEstatus,0 ) = 1 AND @pnClaTipoTraspaso = 3 AND @ptFechaDefault <= FechaPromesaOrigen
+                                                    WHEN    ISNULL( ClaEstatus,0 ) = 1 AND @pnClaTipoTraspaso IN (3,4) AND @ptFechaDefault <= FechaPromesaOrigen
                                                     THEN    FechaPromesaOrigen
                                                     ELSE    @ptFechaDesea 
                                                 END)
@@ -68,7 +68,7 @@ BEGIN
         ON		b.IdFabricacion = c.IdFabricacion
         WHERE	c.IdFabricacion = @pnClaPedidoOrigen
         AND     @nClaEstatusPedidoOrigen = 1
-        AND		ISNULL(a.BajaLogica,0) != 1
+--      AND		ISNULL(a.BajaLogica,0) != 1
 
 		IF @nClaEstatusPedidoOrigen <> 0
 			SELECT @psObservaciones = '[Fab Ventas - '+CONVERT(VARCHAR(16),@pnClaPedidoOrigen)+']' + CHAR(13) + ISNULL(@psObservaciones,'')
