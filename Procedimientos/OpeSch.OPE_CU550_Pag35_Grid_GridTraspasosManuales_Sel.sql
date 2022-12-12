@@ -15,6 +15,7 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag35_Grid_GridTraspasosManuales_Sel
 	@pnClaProyecto			INT = NULL,
 	@pnClaCliente			INT = NULL,
 	@pnClaConsignado		INT = NULL,
+	@pnVerDetalle			TINYINT = 0,
 	@pnDebug				TINYINT= 0
 AS
 BEGIN
@@ -200,98 +201,99 @@ BEGIN
 					)
 
 	------------------------------------------------------------------------
-
-    --Carga de Nivel Grid Detalle
-    INSERT INTO #TraspasosManuales (
-		NivelGrid,				EstatusSolicitud,			Renglon,				Producto,                
-		Unidad,					CantPedida,					PrecioListaMP,			PrecioLista,             
-		MotivoRechazo,			HechaPor,					ClaUbicacionSolicita,   ClaUbicacionSurte,      
-		ClaEstatusSolicitud,    ClaEstatus,					ClaProducto,            ClaMotivoRechazo,        
-		ClaMotivoAutomatico,    ClaRelacion,				Fabricacion,			PedidoOrigen,
-		PesoTeorico
-	)
-    SELECT  NivelGrid               = 2,
-            EstatusSolicitud        = CONVERT(VARCHAR(10),e.ClaEstatus) + ' - '  + LTRIM(RTRIM(e.NombreEstatus)),
-            Renglon                 = b.IdRenglon,
-            Producto                = CONVERT(VARCHAR(10),c.ClaveArticulo) + ' - '  + LTRIM(RTRIM(c.NomArticulo)),
-            Unidad                  = d.NomCortoUnidad,
-            CantPedida              = b.CantidadPedida,
-            PrecioListaMP           = b.PrecioListaMP,
-            PrecioLista             = b.PrecioLista,
-            MotivoRechazo           = f.NomMotivoRechazoSolTraspaso,
-            HechaPor                = a.HechaPor,
-            ClaUbicacionSolicita    = a.ClaUbicacionSolicita,
-            ClaUbicacionSurte       = a.ClaUbicacionSurte,
-            ClaEstatusSolicitud     = a.ClaEstatusSolicitud,
-            ClaEstatus              = e.ClaEstatus,
-            ClaProducto             = b.ClaProducto,
-            ClaMotivoRechazo        = f.ClaMotivoRechazoSolTraspaso,
-            ClaMotivoAutomatico     = b.ClaMotivoAutomatico,
-            ClaRelacion             = a.ClaRelacion,
-            Fabricacion,            
-            PedidoOrigen,
-			c.PesoTeoricoKgs
-    FROM    #TraspasosManuales a WITH(NOLOCK) 
-    INNER JOIN  OpeSch.OpeTraSolicitudTraspasoDetVw b WITH(NOLOCK)  
-        ON  a.ClaRelacion = b.IdSolicitudTraspaso
-    INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
-        ON  b.ClaProducto = c.ClaArticulo AND c.ClaTipoInventario = 1
-    INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
-        ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
-    INNER JOIN  TiCatalogo.dbo.TiCatEstatus e WITH(NOLOCK)   
-        ON  b.ClaEstatus = e.ClaEstatus AND e.ClaClasificacionEstatus = 1270105 AND ISNULL(e.BajaLogica, 0) = 0
-    LEFT JOIN   OpeSch.OpeCatMotivoRechazoSolTraspasoVw f WITH(NOLOCK)  
-        ON  ISNULL( b.ClaMotivoRechazo,b.ClaMotivoAutomatico ) = f.ClaMotivoRechazoSolTraspaso
-
-
-	------------------------------------------------------------------------
-	INSERT INTO @tbPedidosDet (IdFabricacion, ClaArticulo)
-		SELECT DISTINCT a.Fabricacion, a.ClaProducto    
+	IF ISNULL(@pnVerDetalle,0) = 1
+	BEGIN
+		--Carga de Nivel Grid Detalle
+		INSERT INTO #TraspasosManuales (
+			NivelGrid,				EstatusSolicitud,			Renglon,				Producto,                
+			Unidad,					CantPedida,					PrecioListaMP,			PrecioLista,             
+			MotivoRechazo,			HechaPor,					ClaUbicacionSolicita,   ClaUbicacionSurte,      
+			ClaEstatusSolicitud,    ClaEstatus,					ClaProducto,            ClaMotivoRechazo,        
+			ClaMotivoAutomatico,    ClaRelacion,				Fabricacion,			PedidoOrigen,
+			PesoTeorico
+		)
+		SELECT  NivelGrid               = 2,
+				EstatusSolicitud        = CONVERT(VARCHAR(10),e.ClaEstatus) + ' - '  + LTRIM(RTRIM(e.NombreEstatus)),
+				Renglon                 = b.IdRenglon,
+				Producto                = CONVERT(VARCHAR(10),c.ClaveArticulo) + ' - '  + LTRIM(RTRIM(c.NomArticulo)),
+				Unidad                  = d.NomCortoUnidad,
+				CantPedida              = b.CantidadPedida,
+				PrecioListaMP           = b.PrecioListaMP,
+				PrecioLista             = b.PrecioLista,
+				MotivoRechazo           = f.NomMotivoRechazoSolTraspaso,
+				HechaPor                = a.HechaPor,
+				ClaUbicacionSolicita    = a.ClaUbicacionSolicita,
+				ClaUbicacionSurte       = a.ClaUbicacionSurte,
+				ClaEstatusSolicitud     = a.ClaEstatusSolicitud,
+				ClaEstatus              = e.ClaEstatus,
+				ClaProducto             = b.ClaProducto,
+				ClaMotivoRechazo        = f.ClaMotivoRechazoSolTraspaso,
+				ClaMotivoAutomatico     = b.ClaMotivoAutomatico,
+				ClaRelacion             = a.ClaRelacion,
+				Fabricacion,            
+				PedidoOrigen,
+				c.PesoTeoricoKgs
 		FROM    #TraspasosManuales a WITH(NOLOCK) 
-		WHERE	NivelGrid = 2
-		AND		a.Fabricacion IS NOT NULL
-		UNION
-		SELECT DISTINCT a.PedidoOrigen, a.ClaProducto      
-		FROM    #TraspasosManuales a WITH(NOLOCK) 
-		WHERE	NivelGrid = 2
-		AND		a.PedidoOrigen IS NOT NULL
+		INNER JOIN  OpeSch.OpeTraSolicitudTraspasoDetVw b WITH(NOLOCK)  
+			ON  a.ClaRelacion = b.IdSolicitudTraspaso
+		INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
+			ON  b.ClaProducto = c.ClaArticulo AND c.ClaTipoInventario = 1
+		INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
+			ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
+		INNER JOIN  TiCatalogo.dbo.TiCatEstatus e WITH(NOLOCK)   
+			ON  b.ClaEstatus = e.ClaEstatus AND e.ClaClasificacionEstatus = 1270105 AND ISNULL(e.BajaLogica, 0) = 0
+		LEFT JOIN   OpeSch.OpeCatMotivoRechazoSolTraspasoVw f WITH(NOLOCK)  
+			ON  ISNULL( b.ClaMotivoRechazo,b.ClaMotivoAutomatico ) = f.ClaMotivoRechazoSolTraspaso
 
 
-	UPDATE	a
-	SET		ClaEstatus = b.ClaEstatusFabricacion,
-			FechaDesea = b.FechaDeseaCliente,
-			CantidadSurtida = b.CantidadSurtida
-	FROM	@tbPedidosDet a
-	INNER JOIN DEAOFINET05.Ventas.Vtasch.VtaTraFabricacionDetVw b
-	ON		a.IdFabricacion = b.IdFabricacion
-	AND		a.ClaArticulo	= b.ClaArticulo
+		------------------------------------------------------------------------
+		INSERT INTO @tbPedidosDet (IdFabricacion, ClaArticulo)
+			SELECT DISTINCT a.Fabricacion, a.ClaProducto    
+			FROM    #TraspasosManuales a WITH(NOLOCK) 
+			WHERE	NivelGrid = 2
+			AND		a.Fabricacion IS NOT NULL
+			UNION
+			SELECT DISTINCT a.PedidoOrigen, a.ClaProducto      
+			FROM    #TraspasosManuales a WITH(NOLOCK) 
+			WHERE	NivelGrid = 2
+			AND		a.PedidoOrigen IS NOT NULL
 
-	IF @pnDebug = 1
-		SELECT '' AS '@tbPedidosDet', * FROM @tbPedidosDet
 
-	UPDATE  a
-	SET		EstatusPedidoMPDet = j.NomEstatus
-			,FechaDesea = i.FechaDesea
-			,CantidadSurtida = ISNULL(i.CantidadSurtida,0.00)
-			,KilosSurtidos	= ISNULL((i.CantidadSurtida * a.PesoTeorico), 0.00 )
-	FROM	#TraspasosManuales a
-	INNER JOIN @tbPedidosDet i
-	ON		a.Fabricacion	= i.IdFabricacion
-	AND		a.ClaProducto	= i.ClaArticulo
-	LEFT JOIN @tbEstatusFabricacion j
-	ON		i.ClaEstatus = j.ClaEstatus
+		UPDATE	a
+		SET		ClaEstatus = b.ClaEstatusFabricacion,
+				FechaDesea = b.FechaDeseaCliente,
+				CantidadSurtida = b.CantidadSurtida
+		FROM	@tbPedidosDet a
+		INNER JOIN DEAOFINET05.Ventas.Vtasch.VtaTraFabricacionDetVw b
+		ON		a.IdFabricacion = b.IdFabricacion
+		AND		a.ClaArticulo	= b.ClaArticulo
 
-	UPDATE  a
-	SET		EstatusPedidoOrigenDet = l.NomEstatus
-	FROM	#TraspasosManuales a
-	INNER JOIN @tbPedidosDet k
-	ON		a.PedidoOrigen	= k.IdFabricacion
-	AND		a.ClaProducto	= k.ClaArticulo
-	LEFT JOIN @tbEstatusFabricacion l
-	ON		k.ClaEstatus = l.ClaEstatus
+		IF @pnDebug = 1
+			SELECT '' AS '@tbPedidosDet', * FROM @tbPedidosDet
 
-	------------------------------------------------------------------------
-    
+		UPDATE  a
+		SET		EstatusPedidoMPDet = j.NomEstatus
+				,FechaDesea = i.FechaDesea
+				,CantidadSurtida = ISNULL(i.CantidadSurtida,0.00)
+				,KilosSurtidos	= ISNULL((i.CantidadSurtida * a.PesoTeorico), 0.00 )
+		FROM	#TraspasosManuales a
+		INNER JOIN @tbPedidosDet i
+		ON		a.Fabricacion	= i.IdFabricacion
+		AND		a.ClaProducto	= i.ClaArticulo
+		LEFT JOIN @tbEstatusFabricacion j
+		ON		i.ClaEstatus = j.ClaEstatus
+
+		UPDATE  a
+		SET		EstatusPedidoOrigenDet = l.NomEstatus
+		FROM	#TraspasosManuales a
+		INNER JOIN @tbPedidosDet k
+		ON		a.PedidoOrigen	= k.IdFabricacion
+		AND		a.ClaProducto	= k.ClaArticulo
+		LEFT JOIN @tbEstatusFabricacion l
+		ON		k.ClaEstatus = l.ClaEstatus
+
+		------------------------------------------------------------------------
+    END
 	--Retorno de Información Cargada
 
     --Captura de Información de Registro Existente de Traspaso a Nivel Encabezado

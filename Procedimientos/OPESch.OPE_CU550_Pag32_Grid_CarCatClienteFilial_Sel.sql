@@ -13,6 +13,7 @@ BEGIN
 			, ClienteFilial		= CONVERT(VARCHAR(10),a.ClaClienteFilial) +' - '+ e.NomCliente
 			, Consignado		= CONVERT(VARCHAR(10),a.ClaConsignado) +' - '+ f.NombreConsignado
 			, PrecioLista		= a.claListaPrecio
+			, Moneda			= h.NombreCortoMoneda
 	FROM	TiCatalogo.dbo.CarCatClienteFilial a WITH(NOLOCK)
 	INNER JOIN OpeSch.TiCatUbicacionvw b
 	ON		a.claUbicacionOrigen	= b.ClaUbicacion
@@ -24,6 +25,10 @@ BEGIN
 	ON		a.ClaClienteFilial		= e.ClaCliente
 	LEFT JOIN OpeSch.OpeVtaCatConsignadoVw f
 	ON		a.ClaConsignado			= f.ClaConsignado
+	LEFT JOIN OpeSch.OpeVtaTraListaPrecioVw g
+	ON		a.ClaListaPrecio = g.IdListaPrecio
+	LEFT JOIN OpeSch.OpeTesCatMonedaVw h
+	ON		g.ClaMoneda = h.ClaMoneda	
 	WHERE	EXISTS (	SELECT	1 
 						FROM	OpeSch.TicatUbicacionvw h
 						WHERE	h.ClaEmpresa = 52

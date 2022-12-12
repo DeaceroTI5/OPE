@@ -3,14 +3,12 @@ GO
 GO
 ALTER PROCEDURE OpeSch.OPE_CU550_Pag31_Grid_GridFacturaEstimaciones_Sel 
     @pnClaUbicacion         INT, 
-    @pnClaUsuarioMod        INT,
-    @psNombrePcMod          VARCHAR(64),
-
     @pdFechaInicio          DATETIME, 
     @pdFechaFin             DATETIME,     
     @pnCmbCliente           INT, 
     @pnCmbProyecto          INT, 
-    @pnCmbFactura           INT
+    @pnCmbFactura           INT,
+	@pnDebug				TINYINT = 0
 AS
 BEGIN
 	SET NOCOUNT ON
@@ -23,71 +21,143 @@ BEGIN
 			@CmbProyecto    = (CASE WHEN (@pnCmbProyecto = -1 OR @pnCmbProyecto IS NULL) THEN 1 ELSE 0 END),
             @CmbFactura     = (CASE WHEN (@pnCmbFactura = -1 OR @pnCmbFactura IS NULL) THEN 1 ELSE 0 END)
 
-    SELECT
-            CASE    WHEN vtaTP.IdFacturaNueva IS NULL
-                    THEN NULL
-                    ELSE 'QH' + CONVERT(VARCHAR(15), ( vtaTP.IdFacturaNueva - ( 1000000 * 1028 ) )) 
-            END AS ColFacturaNueva,
-            LTRIM(RTRIM(CONVERT(VARCHAR(150), er.ClaCliente))) + ' - ' + er.NomCliente AS ColNomCliente,
-            LTRIM(RTRIM(CONVERT(VARCHAR(150), dr.ClaProyecto))) + ' - ' + dr.NomProyecto AS ColNomProyecto,
-            br.IdFabricacion AS ColFabricacionVenta,
-            SUM( vtaTPD.KilosSurtidos ) AS ColKilosSurtidos,
-            SUM( vtaTPD.ImporteSubtotal ) AS ColImporteSubtotal,
-            SUM( vtaTPD.IVA ) AS ColIVA,
-            SUM( vtaTPD.Total ) AS ColImporteTotal,
-            CONVERT(VARCHAR, vwt.Estatus) + ' - ' + CASE vwt.Estatus WHEN 0 THEN 'Nuevo' WHEN 1 THEN 'Alta' WHEN 3 THEN 'Facturado' WHEN 5 THEN 'Cancelado' END AS ColEstatus, --0 Nuevo, 1 Alta, 3 Facturado, 5 Cancelado
-            vwt.ObservacionEstimacion AS ColObservaciones,
-            vwt.ComentariosFactura AS ColComentarios,
-            vtaTP.FechaUltimaMod AS ColFechaFactura,
-            er.ClaCliente AS ColClaCliente,
-            dr.ClaProyecto AS ColClaProyecto,
-            vwt.IdEstimacionFactura AS ColEstimacionFactura,
-            vtaTP.IdProforma AS ColFolioProforma,
-            vtaTP.IdFacturaNueva AS ColFolioFactura
-    FROM	(SELECT DISTINCT ClaUbicacionEstimacion, idFabricacionEstimacion, ClaUbicacionVenta, idFabricacionVenta
-                    FROM OpeSch.OpeTraFabricacionEspejoEstimacion WITH(NOLOCK)) a 
-        --Flujo de Remision / Venta
-        INNER JOIN	OpeSch.OpeTraFabricacionVw br WITH(NOLOCK)
-                    ON br.IdFabricacion = a.idFabricacionVenta
-        INNER JOIN	OpeSch.OpeVtaRelFabricacionProyectoVw cr WITH(NOLOCK)
-                    ON cr.IdFabricacion = br.IdFabricacion
-        INNER JOIN	OpeSch.OpeVtaCatProyectoVw dr WITH(NOLOCK)
-                    ON dr.ClaProyecto = cr.ClaProyecto
-        INNER JOIN	OpeSch.OpeVtaCatClienteVw er WITH(NOLOCK)
-                    ON er.ClaCliente = dr.ClaClienteCuenta
-        INNER JOIN	OpeSch.OpeTraFabricacionDetVw bdr WITH(NOLOCK)
-                    ON bdr.IdFabricacion = br.IdFabricacion
-        INNER JOIN  Opesch.OpeArtCatArticuloVw art WITH(NOLOCK)
-                    ON art.ClaArticulo = bdr.ClaArticulo
-        --Tabla Tipo de Proyecto
-        INNER JOIN	OpeSch.OpeRelProyectoEstimacionVw vw1 WITH(NOLOCK)
-                    ON vw1.ClaCliente = er.ClaCliente AND vw1.ClaProyecto = dr.ClaProyecto           
-        --Base Control de Facturación
-        INNER JOIN	OpeSch.OpeTraFacturaEstimacionVw vwt WITH(NOLOCK)
-                    ON vwt.IdFabricacion = br.IdFabricacion AND vwt.ClaCliente = er.ClaCliente AND vwt.ClaProyecto = dr.ClaProyecto
-        INNER JOIN	OpeSch.OpeTraFacturaEstimacionDetVw vwtd WITH(NOLOCK)
-                    ON vwtd.IdEstimacionFactura = vwt.IdEstimacionFactura AND vwtd.IdFabricacion = vwt.IdFabricacion AND vwtd.IdFabricacionDet = bdr.IdFabricacionDet AND vwtd.ClaArticulo = art.ClaArticulo
-        --Base Proforma / Factura       
-        INNER JOIN	DEAOFINET05.Ventas.VtaSch.VtaTraProforma vtaTP WITH(NOLOCK)
-                    ON vtaTP.IdProforma = vwt.IdProforma  
-        INNER JOIN	DEAOFINET05.Ventas.VtaSch.VtaTraProformaDet vtaTPD WITH(NOLOCK)
-                    ON vtaTPD.IdProforma = vtaTP.IdProforma AND vtaTPD.IdRenglon = vwtd.IdFabricacionDet AND vtaTPD.ClaArticulo = vwtd.ClaArticulo
-    WHERE	br.ClaPlanta = 365
-    AND     vw1.EsEstimacion = 1
-    AND		( er.ClaCliente = @pnCmbCliente OR @CmbCliente = 1 )  
-    AND		( dr.ClaProyecto = @pnCmbProyecto OR @CmbProyecto = 1 ) 
-    AND		( vtaTP.IdFacturaNueva = @pnCmbFactura OR @CmbFactura = 1 ) 
-    AND		( (vtaTP.FechaUltimaMod >= DATEADD(DAY,0,@pdFechaInicio)) AND (vtaTP.FechaUltimaMod <= DATEADD(DAY,1,@pdFechaFin)) )
-    GROUP BY
-            CASE    WHEN vtaTP.IdFacturaNueva IS NULL
-                    THEN NULL
-                    ELSE 'QH' + CONVERT(VARCHAR(15), ( vtaTP.IdFacturaNueva - ( 1000000 * 1028 ) )) 
-            END, 
-            er.ClaCliente, er.NomCliente, dr.ClaProyecto, dr.NomProyecto, br.IdFabricacion, vwt.Estatus, vwt.ObservacionEstimacion, vwt.ComentariosFactura,
-            vtaTP.FechaUltimaMod, vwt.IdEstimacionFactura, vtaTP.IdProforma, vtaTP.IdFacturaNueva
-    ORDER BY
-            er.ClaCliente, dr.ClaProyecto
+	DECLARE   @pnEstimacionFactura			INT
+			, @pnFabricacionVenta			INT
+			, @pnFabricacionDetVentaDet		INT
+			, @pnArticuloDet				INT
+			, @pnFolioProforma				INT
+			, @pnFolioFactura				INT
+			, @pnFabricacionVentaDet		INT
 
+	CREATE TABLE #tbRemisionFactura (
+		  Id						INT IDENTITY(1,1)
+		, ClaCliente				INT
+		, ClaProyecto 				INT
+		, IdViaje					INT
+		, Remision					VARCHAR(20)
+		, ClaArticulo				INT
+		, NomProductoFacturar		VARCHAR(100)
+		, ComentariosFacturaDet		VARCHAR(8000)
+		-- FacturaRemision
+		, IdEstimacionFactura 		INT
+		, IdFabricacion 			INT
+		, IdFabricacionDet 			INT
+		, ClaUsuarioTra				INT
+		, FechaTra					DATETIME
+		, CantSurtidaTra			NUMERIC(22,4)		
+		, IdProforma  				INT
+		, Estatus					VARCHAR(20)
+		, ObservacionEstimacion		VARCHAR(250)
+		, ComentariosFactura		VARCHAR(800)
+		-- Proforma
+		, FacturaNueva				VARCHAR(20)
+		, FechaFactura				DATETIME
+		, IdFacturaNueva			INT
+		, CantidadSurtida			NUMERIC(22,4)
+		, KilosSurtidos				NUMERIC(22,4)          
+		, ImporteSubtotal			NUMERIC(22,2)
+		, IVA						NUMERIC(22,2) 
+		, ImporteTotal				NUMERIC(22,4) 
+	)
+
+
+	INSERT INTO #tbRemisionFactura
+	EXEC OpeSch.OpeRemisionFacturaEstimacionSel
+		  @pdFechaInicio				= @pdFechaInicio
+		, @pdFechaFin					= @pdFechaFin
+		, @pnCmbCliente					= @pnCmbCliente
+		, @pnCmbProyecto				= @pnCmbProyecto
+		, @pnCmbFactura					= @pnCmbFactura
+		, @pnEstimacionFactura			= @pnEstimacionFactura
+		, @pnFabricacionVenta			= @pnFabricacionVenta
+		, @pnFabricacionDetVentaDet		= @pnFabricacionDetVentaDet
+		, @pnArticuloDet				= @pnArticuloDet
+		, @pnFolioProforma				= @pnFolioProforma
+		, @pnFolioFactura				= @pnFolioFactura
+
+
+	IF @pnDebug = 1
+		SELECT '' AS '#tbRemisionFactura', * FROM #tbRemisionFactura
+
+	;WITH RemisionFactura AS (
+		SELECT    ColFacturaNueva		= a.FacturaNueva
+				, ColNomCliente			= LTRIM(RTRIM(CONVERT(VARCHAR(150), a.ClaCliente))) + ' - ' + b.NomCliente
+				, ColNomProyecto		= LTRIM(RTRIM(CONVERT(VARCHAR(150), a.ClaProyecto))) + ' - ' + c.NomProyecto
+				, ColFabricacionVenta	= a.IdFabricacion
+				, ColKilosSurtidos		= a.KilosSurtidos	--SUM(a.KilosSurtidos)
+				, ColImporteSubtotal	= a.ImporteSubtotal	--SUM(a.ImporteSubtotal)
+				, ColIVA				= a.IVA				--SUM(a.IVA)
+				, ColImporteTotal		= a.ImporteTotal	--SUM(a.ImporteTotal)
+				, ColEstatus			= a.Estatus
+				, ColObservaciones		= a.ObservacionEstimacion
+				, ColComentarios		= a.ComentariosFactura
+				, ColFechaFactura		= a.FechaFactura
+				, ColClaCliente			= a.ClaCliente
+				, ColClaProyecto		= a.ClaProyecto
+				, ColEstimacionFactura	= a.IdEstimacionFactura
+				, ColFolioProforma		= a.IdProforma
+				, ColFolioFactura		= a.IdFacturaNueva
+		FROM	#tbRemisionFactura a
+		LEFT JOIN OpeSch.OpeVtaCatClienteVw b WITH(NOLOCK)
+		ON		a.ClaCliente	= b.ClaCliente
+		LEFT JOIN OpeSch.OpeVtaCatProyectoVw c WITH(NOLOCK)
+		ON		a.ClaProyecto	= c.ClaProyecto	
+		WHERE	( a.ClaCliente		= @pnCmbCliente		OR @CmbCliente = 1 )  
+		AND		( a.ClaProyecto		= @pnCmbProyecto	OR @CmbProyecto = 1 ) 
+		AND		( a.IdFacturaNueva	= @pnCmbFactura		OR @CmbFactura = 1 ) 
+		GROUP BY    a.FacturaNueva
+				  , LTRIM(RTRIM(CONVERT(VARCHAR(150), a.ClaCliente))) + ' - ' + b.NomCliente
+				  , LTRIM(RTRIM(CONVERT(VARCHAR(150), a.ClaProyecto))) + ' - ' + c.NomProyecto
+				  , a.IdFabricacion
+				  , a.KilosSurtidos	
+				  , a.ImporteSubtotal	
+				  , a.IVA				
+				  , a.ImporteTotal	
+				  , a.Estatus
+				  , a.ObservacionEstimacion
+				  , a.ComentariosFactura
+				  , a.FechaFactura
+				  , a.ClaCliente
+				  , a.ClaProyecto
+				  , a.IdEstimacionFactura
+				  , a.IdProforma
+				  , a.IdFacturaNueva
+	)
+		SELECT		  ColFacturaNueva		
+					, ColNomCliente			
+					, ColNomProyecto		
+					, ColFabricacionVenta	
+					, ColKilosSurtidos		= SUM(ColKilosSurtidos)
+					, ColImporteSubtotal	= SUM(ColImporteSubtotal)
+					, ColIVA				= SUM(ColIVA)
+					, ColImporteTotal		= SUM(ColImporteTotal)
+					, ColEstatus			
+					, ColObservaciones		
+					, ColComentarios		
+					, ColFechaFactura		
+					, ColClaCliente			
+					, ColClaProyecto		
+					, ColEstimacionFactura	
+					, ColFolioProforma		
+					, ColFolioFactura		
+		FROM		RemisionFactura 
+		GROUP BY    ColFacturaNueva		
+				  , ColNomCliente			
+				  , ColNomProyecto		
+				  , ColFabricacionVenta		
+				  , ColEstatus			
+				  , ColObservaciones		
+				  , ColComentarios		
+				  , ColFechaFactura		
+				  , ColClaCliente			
+				  , ColClaProyecto		
+				  , ColEstimacionFactura	
+				  , ColFolioProforma		
+				  , ColFolioFactura		
+		ORDER BY ColFacturaNueva, ColFabricacionVenta
+
+
+	DROP TABLE #tbRemisionFactura
 
 	SET NOCOUNT OFF
 END

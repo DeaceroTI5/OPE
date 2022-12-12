@@ -17,6 +17,8 @@ ALTER PROCEDURE OpeSch.OpeRemisionFacturaEstimacionSel
 AS
 BEGIN
 	SET NOCOUNT ON
+
+	SELECT @pdFechaFin = DATEADD(DAY,1,@pdFechaFin)
 	
 	CREATE TABLE #tbRemisionFactura (
 		  Id						INT IDENTITY(1,1)
@@ -26,6 +28,8 @@ BEGIN
 		, Remision					VARCHAR(20)
 		, ClaArticulo				INT
 		-- FacturaRemision
+		, NomProductoFacturar		VARCHAR(100)
+		, ComentariosFacturaDet		VARCHAR(8000)
 		, IdEstimacionFactura 		INT
 		, IdFabricacion 			INT
 		, IdFabricacionDet 			INT
@@ -50,17 +54,19 @@ BEGIN
 	
 	INSERT INTO #tbRemisionFactura (
 		  ClaCliente				, ClaProyecto 				, IdViaje					, Remision					
-		, ClaArticulo				, IdEstimacionFactura 		, IdFabricacion 			, IdFabricacionDet 			
-		, ClaUsuarioTra				, FechaTra					, CantSurtidaTra
-		, IdProforma  				, Estatus					, ObservacionEstimacion		, ComentariosFactura
-		
+		, ClaArticulo				, NomProductoFacturar		, ComentariosFacturaDet		, IdEstimacionFactura 		
+		, IdFabricacion 			, IdFabricacionDet 			, ClaUsuarioTra				, FechaTra					
+		, CantSurtidaTra			, IdProforma  				, Estatus					, ObservacionEstimacion		
+		, ComentariosFactura
 	)
 	SELECT
 			  ClaCliente				= a.ClienteProyectoAgp
 			, ClaProyecto 				= a.ProyectoAgrupador
 			, IdViaje					= a.IdViajeVenta				
 			, Remision					= a.FacturaAlfanumericoVenta	
-			, ClaArticulo				= a.ClaArticulo				
+			, ClaArticulo				= a.ClaArticulo	
+			, NomProductoFacturar		= c.NomProductoFacturar
+			, ComentariosFacturaDet		= c.ComentariosFacturaDet
 			, IdEstimacionFactura 		= b.IdEstimacionFactura
 			, IdFabricacion 			= b.IdFabricacion
 			, IdFabricacionDet 			= b.IdFabricacionDet
@@ -93,6 +99,7 @@ BEGIN
 	AND		(@pnFabricacionVenta	IS NULL OR (@pnFabricacionVenta = b.IdFabricacion))
 	AND		(@pnEstimacionFactura	IS NULL OR (@pnEstimacionFactura = b.IdEstimacionFactura))
 	AND		(@pnFolioProforma		IS NULL OR (@pnFolioProforma = d.IdProforma))
+	AND		(@pnArticuloDet			IS NULL OR (@pnArticuloDet = a.ClaArticulo))
 
 
 	UPDATE	a
@@ -130,7 +137,9 @@ BEGIN
 			, ClaProyecto 			
 			, IdViaje				
 			, Remision				
-			, ClaArticulo			
+			, ClaArticulo	
+			, NomProductoFacturar
+			, ComentariosFacturaDet
 			-- FacturaRemision
 			, IdEstimacionFactura 	
 			, IdFabricacion 		
@@ -152,7 +161,7 @@ BEGIN
 			, IVA					
 			, ImporteTotal			
 	FROM	#tbRemisionFactura 
-	WHERE	(@pdFechaInicio IS NULL OR @pdFechaFin IS NULL OR (FechaFactura BETWEEN @pdFechaInicio AND @pdFechaFin))
+	WHERE	(FechaFactura > @pdFechaInicio AND FechaFactura <= @pdFechaFin)
 	AND		(@pnCmbFactura IS NULL OR (@pnCmbFactura = IdFacturaNueva))
 	
 	
