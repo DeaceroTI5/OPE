@@ -50,29 +50,37 @@ BEGIN
             
 			IF ( @pnClaPedidoOrigen > 0 )
             BEGIN
-                SELECT  @ptFechaDesea = (CASE
-                                            WHEN    ISNULL( ClaEstatus,0 ) = 1 AND @pnClaTipoTraspaso = 3 AND @ptFechaDefault <= FechaPromesaOrigen
-                                            THEN    FechaPromesaOrigen
+                --SELECT  @ptFechaDesea = (CASE
+                --                            WHEN    ISNULL( ClaEstatus,0 ) = 1 AND @pnClaTipoTraspaso = 3 AND @ptFechaDefault <= FechaPromesaOrigen
+                --                            THEN    FechaPromesaOrigen
+                --                            ELSE    @ptFechaDesea 
+                --                        END)
+                --FROM    OpeSch.OpeTraFabricacionVw WITH(NOLOCK)  
+                --WHERE   IdFabricacion = @pnClaPedidoOrigen
+
+               SELECT  @ptFechaDesea = (CASE
+                                            WHEN    ISNULL( ClaEstatusFabricacion,0 ) = 1 AND @ptFechaDefault <= FechaPromesaOriginal
+                                            THEN    FechaPromesaOriginal
                                             ELSE    @ptFechaDesea 
                                         END)
-                FROM    OpeSch.OpeTraFabricacionVw WITH(NOLOCK)  
-                WHERE   IdFabricacion = @pnClaPedidoOrigen
-            END
+                FROM     DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)  
+                WHERE   IdFabricacion = @pnClaPedidoOrigen            
+			END
         END 
         ELSE IF ( @nClaEmpresaPide != @nClaEmpresaSurte AND @pnChkDoorToDoor = 1 )
         BEGIN
             SELECT  @pnClaTipoTraspaso = 4
         
-			--IF ( @pnClaPedidoOrigen > 0 )
-   --         BEGIN
-   --             SELECT  @ptFechaDesea = (CASE
-   --                                         WHEN    ISNULL( ClaEstatus,0 ) = 1 AND @pnClaTipoTraspaso = 3 AND @ptFechaDefault <= FechaPromesaOrigen
-   --                                         THEN    FechaPromesaOrigen
-   --                                         ELSE    @ptFechaDesea 
-   --                                     END)
-   --             FROM    OpeSch.OpeTraFabricacionVw WITH(NOLOCK)  
-   --             WHERE   IdFabricacion = @pnClaPedidoOrigen
-   --         END
+			IF ( @pnClaPedidoOrigen > 0 )
+            BEGIN
+				SELECT  @ptFechaDesea = (CASE
+                                            WHEN    ISNULL( ClaEstatusFabricacion,0 ) = 1 AND @ptFechaDefault <= FechaPromesaOriginal
+                                            THEN    FechaPromesaOriginal
+                                            ELSE    @ptFechaDesea 
+                                        END)
+                FROM     DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)  
+                WHERE   IdFabricacion = @pnClaPedidoOrigen    
+            END
         END 
         ELSE 
         BEGIN

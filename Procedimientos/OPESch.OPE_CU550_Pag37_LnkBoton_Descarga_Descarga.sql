@@ -5,9 +5,11 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT	FileData = ArchivoCertificado
-					,FileName = NumCertificado
-					,FileExt = 'pdf'
+	SELECT	FileData = ArchivoCertificado,
+			FileName = CASE WHEN ISNULL(NumCertificado,'')<> '' 
+							THEN NumCertificado 
+							ELSE CONVERT(VARCHAR(20),IdCertificado) END,
+			FileExt = 'pdf'
 	FROM	OpeSch.OpeRelFacturaSuministroDirecto a WITH(NOLOCK)
 	WHERE	a.ClaUbicacion = @pnClaUbicacion
 	AND		a.NumFacturaFilial = @psNumFacturaFilial

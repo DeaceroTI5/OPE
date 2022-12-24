@@ -22,7 +22,7 @@ BEGIN
     
     SET NOCOUNT ON
 
-	-- exec OPESch.OPE_CU550_Pag35_Grid_GridTraspasosManuales_Sel @pnClaUbicacion=325,@pnClaSolicitud=NULL,@pnClaPedido=NULL,@pnClaPedidoOrigen=NULL,@pnCmbEstatusSolicitud=NULL,@pnCmbPlantaPide=NULL,@pnCmbPlantaSurte=NULL,@ptFechaInicio='2022-09-06 00:00:00',@ptFechaFinal='2022-10-07 00:00:00'
+	-- exec OPESch.OPE_CU550_Pag35_Grid_GridTraspasosManuales_Sel @pnClaUbicacion=325,@pnClaSolicitud=NULL,@pnClaPedido=NULL,@pnClaPedidoOrigen=NULL,@pnCmbEstatusSolicitud=NULL,@pnCmbPlantaPide=NULL,@pnCmbPlantaSurte=NULL,@ptFechaInicio='2022-09-06 00:00:00',@ptFechaFinal='2022-12-13 00:00:00',@pnVerDetalle= 1, @pnDebug= 1
     
 	--Validación de Fecha Inicio y Fecha Fin
     IF (@ptFechaInicio IS NOT NULL AND @ptFechaFinal IS NOT NULL AND (@ptFechaFinal < @ptFechaInicio)) 
@@ -36,6 +36,7 @@ BEGIN
     (   Consecutivo             INT IDENTITY(1,1),
         NivelGrid               INT,
         Solicitud               INT,
+        IdSolicitud             INT,
         Fabricacion             INT,
         PedidoOrigen            INT,
         UbicacionSolicita       VARCHAR(250),
@@ -82,6 +83,8 @@ BEGIN
 		  Id			INT IDENTITY(1,1)
 		, IdFabricacion	INT
 		, ClaEstatus	INT
+		, FechaDesea	DATETIME
+
 	)
 
 	DECLARE @tbPedidosDet TABLE(
@@ -91,6 +94,12 @@ BEGIN
 		, ClaEstatus	INT
 		, FechaDesea	DATETIME
 		, CantidadSurtida NUMERIC(22,4)
+	)
+
+	DECLARE @tbTraspasosManualesTotal TABLE(
+		Id						INT IDENTITY(1,1),
+        Solicitud               INT,
+		KilosSurtidos       	NUMERIC(22,4)
 	)
 
 
@@ -119,7 +128,8 @@ BEGIN
 		NivelGrid,				Solicitud,				Fabricacion,			PedidoOrigen,        
 		UbicacionSolicita,		UbicacionSurte,			FechaCaptura,			EstatusSolicitud,    
 		HechaPor,				ClaUbicacionSolicita,	ClaUbicacionSurte,		ClaEstatusSolicitud,
-		ClaRelacion,			NomProyecto,			NombreCliente,			NombreConsignado	
+		ClaRelacion,			NomProyecto,			NombreCliente,			NombreConsignado,
+		IdSolicitud
 	)
     SELECT  NivelGrid               = 1,
             Solicitud               = a.IdSolicitudTraspaso,
@@ -136,7 +146,8 @@ BEGIN
             ClaRelacion             = a.IdSolicitudTraspaso,
 			NomProyecto				= f.NomProyecto,
 			NombreCliente			= CONVERT(VARCHAR(10),a.ClaCliente) +' - '+g.NombreCliente,
-			NombreConsignado		= CONVERT(VARCHAR(10),a.ClaConsignado) +' - '+h.NombreConsignado
+			NombreConsignado		= CONVERT(VARCHAR(10),a.ClaConsignado) +' - '+h.NombreConsignado,
+			IdSolicitud				= a.IdSolicitudTraspaso
     FROM    OpeSch.OpeTraSolicitudTraspasoEncVw a WITH(NOLOCK)  
     INNER JOIN  OpeSch.OpeTiCatUbicacionVw b WITH(NOLOCK)  
         ON  a.ClaUbicacionSolicita = b.ClaUbicacion
@@ -171,13 +182,15 @@ BEGIN
 	SELECT DISTINCT PedidoOrigen FROM #TraspasosManuales
 
 	UPDATE	a
-	SET		ClaEstatus = b.ClaEstatusFabricacion
+	SET		 ClaEstatus = b.ClaEstatusFabricacion
+			,FechaDesea = b.FechaPromesaOriginal
 	FROM	@tbPedidos a
 	INNER JOIN DEAOFINET05.Ventas.Vtasch.VtaTraFabricacionVw b
 	ON		a.IdFabricacion = b.IdFabricacion
 
 	UPDATE  a
 	SET		EstatusPedidoMP = j.NomEstatus
+			,FechaDesea		= i.FechaDesea
 	FROM	#TraspasosManuales a
 	INNER JOIN @tbPedidos i
 	ON		a.Fabricacion	= i.IdFabricacion
@@ -192,13 +205,6 @@ BEGIN
 	LEFT JOIN @tbEstatusFabricacion l
 	ON		k.ClaEstatus = l.ClaEstatus
 
-	UPDATE	a
-	SET		EsBitacora = 1
-	FROM	#TraspasosManuales a
-	WHERE	EXISTS (	SELECT	1
-						FROM	OpeSch.OpeVtaBitFabricacionCambioPlanta b WITH(NOLOCK)
-						WHERE	a.Fabricacion = b.IdFabricacionNueva
-					)
 
 	------------------------------------------------------------------------
 	IF ISNULL(@pnVerDetalle,0) = 1
@@ -210,7 +216,8 @@ BEGIN
 			MotivoRechazo,			HechaPor,					ClaUbicacionSolicita,   ClaUbicacionSurte,      
 			ClaEstatusSolicitud,    ClaEstatus,					ClaProducto,            ClaMotivoRechazo,        
 			ClaMotivoAutomatico,    ClaRelacion,				Fabricacion,			PedidoOrigen,
-			PesoTeorico
+			PesoTeorico			,	UbicacionSolicita,			UbicacionSurte,			NomProyecto,
+			NombreCliente		,	NombreConsignado,			FechaCaptura,			IdSolicitud
 		)
 		SELECT  NivelGrid               = 2,
 				EstatusSolicitud        = CONVERT(VARCHAR(10),e.ClaEstatus) + ' - '  + LTRIM(RTRIM(e.NombreEstatus)),
@@ -232,7 +239,14 @@ BEGIN
 				ClaRelacion             = a.ClaRelacion,
 				Fabricacion,            
 				PedidoOrigen,
-				c.PesoTeoricoKgs
+				c.PesoTeoricoKgs,
+				a.UbicacionSolicita,
+				a.UbicacionSurte, 
+				a.NomProyecto,
+				a.NombreCliente,
+				a.NombreConsignado,
+				a.FechaCaptura,
+				IdSolicitud
 		FROM    #TraspasosManuales a WITH(NOLOCK) 
 		INNER JOIN  OpeSch.OpeTraSolicitudTraspasoDetVw b WITH(NOLOCK)  
 			ON  a.ClaRelacion = b.IdSolicitudTraspaso
@@ -296,10 +310,31 @@ BEGIN
     END
 	--Retorno de Información Cargada
 
+
+	UPDATE	a
+	SET		EsBitacora = 1
+	FROM	#TraspasosManuales a
+	WHERE	EXISTS (	SELECT	1
+						FROM	OpeSch.OpeVtaBitFabricacionCambioPlanta b WITH(NOLOCK)
+						WHERE	a.Fabricacion = b.IdFabricacionNueva
+					)
+
+	INSERT INTO @tbTraspasosManualesTotal ( Solicitud, KilosSurtidos)
+	SELECT	  IdSolicitud                   	
+			, SUM(KilosSurtidos)
+	FROM	#TraspasosManuales 
+	WHERE	NivelGrid = 2
+	GROUP BY IdSolicitud               
+  
+
+	IF @pnDebug = 1
+		SELECT * FROM @tbTraspasosManualesTotal
+
+
     --Captura de Información de Registro Existente de Traspaso a Nivel Encabezado
     SELECT  ColSolicitud            = a.Solicitud,
-            ColFabricacion          = CASE WHEN NivelGrid=1 THEN a.Fabricacion ELSE NULL END,
-            ColPedidoOrigen         = CASE WHEN NivelGrid=1 THEN a.PedidoOrigen ELSE NULL END,
+            ColFabricacion          = a.Fabricacion,	-- CASE WHEN NivelGrid=1 THEN a.Fabricacion ELSE NULL END,
+            ColPedidoOrigen         = a.PedidoOrigen,	-- CASE WHEN NivelGrid=1 THEN a.PedidoOrigen ELSE NULL END,
             ColUbicacionSolicita    = a.UbicacionSolicita,
             ColUbicacionSurte       = a.UbicacionSurte,
             ColFechaCaptura         = a.FechaCaptura,
@@ -307,7 +342,7 @@ BEGIN
             ColRenglon              = a.Renglon,
             ColProducto             = a.Producto,
             ColUnidad               = a.Unidad,
-            ColCantPedida           = a.CantPedida,
+            ColCantPedida           = a.CantPedida,	---CASE WHEN NivelGrid = 1 THEN b.CantPedida ELSE a.CantPedida END,
             ColPrecioListaMP        = a.PrecioListaMP,
             ColPrecioLista          = a.PrecioLista,
             ColMotivoRechazo        = a.MotivoRechazo,
@@ -327,10 +362,13 @@ BEGIN
 			ColEstatusPedidoMPDet	= a.EstatusPedidoMPDet,		
 			ColEstatusPedidoOrigenDet =	a.EstatusPedidoOrigenDet,	
 			ColFechaDesea			 = CONVERT(VARCHAR(10),a.FechaDesea, 103),
-			ColCantSurtida			= a.CantidadSurtida,
-			ColKilosSurtidos		= a.KilosSurtidos,
-			EsBitacora				= ISNULL(a.EsBitacora,0)
+			ColCantSurtida			= a.CantidadSurtida, --CASE WHEN NivelGrid=1 THEN b.CantidadSurtida ELSE a.CantidadSurtida END,
+			ColKilosSurtidos		= CASE WHEN NivelGrid=1 THEN b.KilosSurtidos ELSE a.KilosSurtidos END,
+			EsBitacora				= ISNULL(a.EsBitacora,0),
+			NivelGrid
     FROM    #TraspasosManuales a WITH(NOLOCK) 
+	LEFT JOIN @tbTraspasosManualesTotal b
+	ON		a.IdSolicitud		= b.Solicitud
     ORDER BY
             a.ClaRelacion DESC,
             a.NivelGrid ASC,

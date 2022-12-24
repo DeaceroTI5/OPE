@@ -24,6 +24,7 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_IU
     @pnChkSurtirSinExcederse    INT = 0,
     @pnChkSuministroDirecto     INT = 0,
     @pnChkLlaveEnMano           INT = 0,
+	@pnChkDoorToDoor			INT = 0,
     @psObservaciones            VARCHAR(800),
     @pnClaEstatusSolicitud      INT = 0,
 	@pnEsMensajeTraspaso		TINYINT =0 OUTPUT,
@@ -72,7 +73,7 @@ BEGIN
                 THROW 127006, 'La Planta Pide no puede ser la misma que la Planta Surte.', 2;  
                 RETURN
             END
-            IF ( ISNULL( @pnChkSuministroDirecto,0 ) = 1 AND ISNULL( @pnClaPedidoOrigen,0 ) = 0 ) --Validamos Que Una Solicitud de Suministro Directo Tenga Informado el Pedido Origen
+            IF ( (ISNULL( @pnChkSuministroDirecto,0 ) = 1 OR ISNULL(@pnChkDoorToDoor,0) = 1 ) AND ISNULL( @pnClaPedidoOrigen,0 ) = 0 ) --Validamos Que Una Solicitud de Suministro Directo Tenga Informado el Pedido Origen
             BEGIN
                 THROW 127007, 'Es necesario registrar la referencia de Pedido Origen para las Solicitudes de Suministro Directo.', 3;  
                 RETURN
@@ -112,7 +113,7 @@ BEGIN
             IF ( NOT EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud )
                     OR ISNULL( @pnClaSolicitud,0 ) = 0  ) -- Proceso de Registro
             BEGIN
-                IF ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
+                IF ISNULL( @pnClaTipoTraspaso,0 ) IN (3)
                 BEGIN
                     SET @pnChkAceptaParcial = 0
                 END
@@ -123,13 +124,16 @@ BEGIN
                         ClaMotivoRechazo,           ComentariosRechazo,     EsAceptaAntes,          EsAceptaParcial,        EsSurtirSinExcederse,
                         EsSuministroDirecto,        EsLlaveEnMano,          EsCanceladaSolicitud,   EsCanceladoPedido,      FechaCancela,
                         ClaUsuarioCancela,          EsEnviadoVta,           EsEnviadoPta,           FechaAutorizacion,      ClaUsuarioAutoriza,
-                        FechaIns,                   ClaUsuarioIns,          FechaUltimaMod,         ClaUsuarioMod,          NombrePcMod)
+                        FechaIns,                   ClaUsuarioIns,          FechaUltimaMod,         ClaUsuarioMod,          NombrePcMod,
+						EsDoorToDoor)
                 SELECT  @pnClaPedidoCliente,        @pnClaPedidoOrigen,     @pnCmbCliente,          @pnCmbProyecto,         @pnCmbConsignado,
                         @pnCmbPlantaPide,           @pnCmbPlantaSurte,      @ptFechaDesea,          0,                      @psObservaciones,
                         NULL,                       NULL,                   @pnChkAceptaAntes,      @pnChkAceptaParcial,    @pnChkSurtirSinExcederse,
                         @pnChkSuministroDirecto,    @pnChkLlaveEnMano,      NULL,                   NULL,                   NULL,
                         NULL,                       0,                      0,                      NULL,                   NULL,
-                        GETDATE(),                  @pnClaUsuarioMod,       GETDATE(),              @pnClaUsuarioMod,       @psNombrePcMod
+                        GETDATE(),                  @pnClaUsuarioMod,       GETDATE(),              @pnClaUsuarioMod,       @psNombrePcMod,
+						@pnChkDoorToDoor
+
 
                 SELECT  @pnClaSolicitud = @@IDENTITY      
 
@@ -168,7 +172,8 @@ BEGIN
                         EsLlaveEnMano           = @pnChkLlaveEnMano,          
                         FechaUltimaMod          = GETDATE(),         
                         ClaUsuarioMod           = @pnClaUsuarioMod,          
-                        NombrePcMod             = @psNombrePcMod         
+                        NombrePcMod             = @psNombrePcMod,
+						EsDoorToDoor			= @pnChkDoorToDoor
                 FROM    OpeSch.OpeTraSolicitudTraspasoEncVw a 
                 WHERE   a.IdSolicitudTraspaso = @pnClaSolicitud
                 AND     a.ClaEstatusSolicitud = 0

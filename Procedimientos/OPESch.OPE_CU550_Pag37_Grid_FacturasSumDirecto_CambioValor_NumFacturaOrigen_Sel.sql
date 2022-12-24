@@ -1,3 +1,7 @@
+USE Operacion
+GO
+	-- 'OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_CambioValor_NumFacturaOrigen_Sel'
+GO
 ALTER PROCEDURE OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_CambioValor_NumFacturaOrigen_Sel
 	  @pnClaUbicacionOrigen	INT
 	, @psNumFacturaOrigen	VARCHAR(15)
@@ -19,7 +23,7 @@ BEGIN
 	FROM	OpeSch.OpeTiCatUbicacionVw
 	WHERE	ClaUbicacion = @pnClaUbicacionOrigen
 
-	IF @nTipoUbicacion = 2
+	IF @nTipoUbicacion IN ( 2, 3, 4, 7)
 	BEGIN
 		IF NOT EXISTS(
 					SELECT	1 

@@ -36,28 +36,52 @@ BEGIN
 						AND		ClaEstatusSolicitud NOT IN (0) ) 
 		AND @pnClaPedidoOrigen > 0 ) 
     BEGIN
+        --SELECT  @nClaUbicacionSolicita  =  (    CASE
+        --                                            WHEN    ISNULL( ClaEstatus,0 ) = 1
+        --                                            THEN    ClaPlanta
+        --                                            ELSE    @pnCmbPlantaPide
+        --                                        END),
+        --        @sClaPedidoCliente      =  (    CASE
+        --                                            WHEN    ISNULL( ClaEstatus,0 ) = 1
+        --                                            THEN    ClaPedidoCliente
+        --                                            ELSE    @psClaPedidoCliente
+        --                                        END),
+        --        @nClaEstatusPedidoOrigen =  (   CASE
+        --                                            WHEN    ISNULL( ClaEstatus,0 ) = 1
+        --                                            THEN    1
+        --                                            ELSE    0
+        --                                        END),
+        --        @ptFechaDesea           =  (    CASE
+        --                                            WHEN    ISNULL( ClaEstatus,0 ) = 1 AND @pnClaTipoTraspaso IN (3,4) AND @ptFechaDefault <= FechaPromesaOrigen
+        --                                            THEN    FechaPromesaOrigen
+        --                                            ELSE    @ptFechaDesea 
+        --                                        END)
+        --FROM    OpeSch.OpeTraFabricacionVw WITH(NOLOCK)  
+        --WHERE   IdFabricacion = @pnClaPedidoOrigen
+
         SELECT  @nClaUbicacionSolicita  =  (    CASE
-                                                    WHEN    ISNULL( ClaEstatus,0 ) = 1
-                                                    THEN    ClaPlanta
+                                                    WHEN    ISNULL( ClaEstatusFabricacion,0 ) = 1
+                                                    THEN    ClaUbicacion
                                                     ELSE    @pnCmbPlantaPide
                                                 END),
                 @sClaPedidoCliente      =  (    CASE
-                                                    WHEN    ISNULL( ClaEstatus,0 ) = 1
+                                                    WHEN    ISNULL( ClaEstatusFabricacion,0 ) = 1
                                                     THEN    ClaPedidoCliente
                                                     ELSE    @psClaPedidoCliente
                                                 END),
                 @nClaEstatusPedidoOrigen =  (   CASE
-                                                    WHEN    ISNULL( ClaEstatus,0 ) = 1
+                                                    WHEN    ISNULL( ClaEstatusFabricacion,0 ) = 1
                                                     THEN    1
                                                     ELSE    0
                                                 END),
                 @ptFechaDesea           =  (    CASE
-                                                    WHEN    ISNULL( ClaEstatus,0 ) = 1 AND @pnClaTipoTraspaso IN (3,4) AND @ptFechaDefault <= FechaPromesaOrigen
-                                                    THEN    FechaPromesaOrigen
+                                                    WHEN    ISNULL( ClaEstatusFabricacion,0 ) = 1 AND @pnClaTipoTraspaso IN (3,4) AND @ptFechaDefault <= FechaPromesaOriginal
+                                                    THEN    FechaPromesaOriginal
                                                     ELSE    @ptFechaDesea 
                                                 END)
-        FROM    OpeSch.OpeTraFabricacionVw WITH(NOLOCK)  
+        FROM    DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)  
         WHERE   IdFabricacion = @pnClaPedidoOrigen
+
 
 		SELECT	DISTINCT
                 @nClaProyecto  = a.ClaProyecto

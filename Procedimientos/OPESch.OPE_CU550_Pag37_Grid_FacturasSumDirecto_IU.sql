@@ -1,3 +1,7 @@
+USE Operacion
+GO
+	-- 'OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_IU'
+GO
 ALTER PROCEDURE  OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_IU
 	  @pnClaUbicacion		INT
 	, @psNumFacturaFilial	VARCHAR(15)
@@ -85,7 +89,7 @@ BEGIN
 			, @psNumFacturaOrigen		-- NumFacturaOrigen
 			, @nIdFacturaOrigen			-- IdFacturaOrigen
 			, 1							-- ClaEstatus			--Esperando generarse
-			, ''						-- MensajeError
+			, NULL						-- MensajeError
 			, NULL						-- IdCertificado
 			, NULL						-- NumCertificado
 			, NULL						-- ArchivoCertificado

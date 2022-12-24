@@ -8,16 +8,18 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
-	SELECT	  a.ClaUbicacionOrigen
+	-- exec OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_Sel @pnClaUbicacion=324,@psNumFacturaFilial='',@psClaUbicacionOrigen=191,@psNumFacturaOrigen='',@pnVerBajas=0
+
+	SELECT	  a.NumFacturaFilial
+			, a.ClaUbicacionOrigen
 			, NomUbicacionOrigen = b.NomUbicacion
-			, a.NumFacturaFilial
 			, a.NumFacturaOrigen
-			, a.Numcertificado
+			, Numcertificado = ISNULL(a.Numcertificado,'')
 			, Estatus = CASE	WHEN a.ClaEstatus = 1 THEN 'Pendiente'
 								WHEN a.ClaEstatus = 2 THEN 'En Proceso'
 								WHEN a.ClaEstatus = 3 THEN 'Generado'
 								ELSE 'Error' END
-			, a.MensajeError
+			, MensajeError = NULLIF(a.MensajeError,'')
 			, Descarga = 'Descargar'
 			, a.BajaLogica
 	FROM	OpeSch.OpeRelFacturaSuministroDirecto a WITH(NOLOCK)
