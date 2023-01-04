@@ -1,6 +1,6 @@
 USE Operacion
 GO
--- 'OpeSch.OPE_CU550_Pag37_GeneraCertificadoFilial'
+	-- 'OpeSch.OPE_CU550_Pag37_GeneraCertificadoFilial'
 GO
 ALTER PROCEDURE OpeSch.OPE_CU550_Pag37_GeneraCertificadoFilial
 	  @pnClaUbicacion		INT
@@ -123,16 +123,18 @@ BEGIN
 				@psNombrePcMod			= 'GeneraCertificadoFilial',
 				@pnClaUsuarioMod		= 1,
 				@pnIdCertificado		= @nIdCertificado OUT,
+				@pnClaEstatus			= @nClaEstatus OUT,
+				@psMensajeError			= @sMensajeError OUT,
 				@pbArchivo				= @iArchivo --OUT
  
 				IF @pnDebug =1
-					SELECT @nIdCertificado AS IdCertificado--, @iArchivo AS Archivo
+					SELECT @nIdCertificado AS IdCertificado, @sMensajeError AS MensajeError , @nClaEstatus AS ClaEstatus--, @iArchivo AS Archivo
 			END
 			ELSE 
-			--IF @nClaTipoUbicacion IN (2, 5)
+			IF @nClaTipoUbicacion IN (2, 5)
 			BEGIN
 				IF @pnDebug =1
-					SELECT 'Acerias, Bodegas&Cedis'
+					SELECT 'Acerias, Bodegas Ansa'
 
 				--Regresar numcertificado e idcertificado
 				EXEC DEAOFINET04.Operacion.AceSch.AceGeneraCertificadoSumDirectoSrv
@@ -153,7 +155,7 @@ BEGIN
 		END TRY
 		BEGIN CATCH
 			DECLARE @sMsj VARCHAR(MAX)
-			SELECT @sMsj = 'Error: ' + ERROR_MESSAGE()
+			SELECT @sMsj = ERROR_MESSAGE()
 			SELECT @sMsj 
 
 			UPDATE	OpeSch.OpeRelFacturaSuministroDirecto
@@ -168,7 +170,6 @@ BEGIN
 		IF @pnDebug = 1
 			SELECT @nClaEstatus AS '@nClaEstatus'
 
-		--Ajustar if con retorno 0
 		IF(@nClaEstatus <> 0)
 		BEGIN
 			UPDATE	OpeSch.OpeRelFacturaSuministroDirecto
@@ -218,38 +219,37 @@ BEGIN
 						FechaUltimaMod = GETDATE()
 				WHERE	ClaUbicacion = @nClaUbicacionFilial
 				AND		NumFacturaFilial = @sNumFacturaFilial
+
+				IF NOT EXISTS (
+					SELECT	1
+					FROM	OpeSch.OpeReporteFactura WITH(NOLOCK)
+					WHERE	ClaUbicacion	= @nClaUbicacionFilial
+					AND		IdFactura		= @nIdFacturaFilial
+					AND		ClaFormatoImpresion = 27	-- Certificado Calidad 
+					AND		IdCertificado	= @nIdCertificado
+				)
+				BEGIN
+					INSERT INTO OpeSch.OpeReporteFactura(
+						  ClaUbicacion
+						, IdFactura
+						, ClaFormatoImpresion
+						, IdCertificado
+						, Impresion
+						, FechaUltimaMod
+						, NombrePcMod
+						, ClaUsuarioMod
+					) VALUES (
+						  @nClaUbicacionFilial
+						, @nIdFacturaFilial
+						, 27						-- Certificado Calidad 
+						, @nIdCertificado
+						, @iArchivo
+						, GETDATE()
+						, HOST_NAME()
+						, 1				
+					)
+				END
 			END
-
-			--IF NOT EXISTS (
-			--	SELECT	1
-			--	FROM	OpeSch.OpeReporteFactura WITH(NOLOCK)
-			--	WHERE	ClaUbicacion	= @nClaUbicacionFilial
-			--	AND		IdFactura		= @pnIdFacturaFilial
-			--	AND		ClaFormatoImpresion = 27	-- Certificado Calidad 
-			--	AND		IdCertificado	= @nIdCertificado
-			--)
-			--BEGIN
-			--	INSERT INTO OpeSch.OpeReporteFactura(
-			--		  ClaUbicacion
-			--		, IdFactura
-			--		, ClaFormatoImpresion
-			--		, IdCertificado
-			--		, Impresion
-			--		, FechaUltimaMod
-			--		, NombrePcMod
-			--		, ClaUsuarioMod
-			--	) VALUES (
-			--		  @nClaUbicacionFilial
-			--		, @pnIdFacturaFilial
-			--		, 27						-- Certificado Calidad 
-			--		, @nIdCertificado
-			--		, @iArchivo
-			--		, GETDATE()
-			--		, HOST_NAME()
-			--		, 1				
-			--	)
-			--END
-
 		END
 
 		SELECT	@nId = MIN(Id)
