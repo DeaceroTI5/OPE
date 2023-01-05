@@ -126,7 +126,7 @@ BEGIN
              ON  b.ClaArticulo = i.ClaArticulo
          WHERE  a.IdFabricacion = @pnClaPedidoOrigen
 		 AND	b.ClaEstatus IN (1)
-		 AND	c.NomArticulo NOT LIKE '%Varilla%C5%'
+	--	 AND	c.NomArticulo NOT LIKE '%Varilla%C5%'
 
 		IF ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
 		BEGIN

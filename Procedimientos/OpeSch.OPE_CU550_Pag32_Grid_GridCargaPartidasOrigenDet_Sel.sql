@@ -122,7 +122,7 @@ BEGIN
     LEFT JOIN   TiCatalogo.dbo.TiCatEstatus l WITH(NOLOCK)  
         ON  h.ClaEstatus = l.ClaEstatus AND l.ClaClasificacionEstatus = 1270105 AND ISNULL( l.BajaLogica,0 ) = 0
     WHERE   a.IdFabricacion = @pnClaPedidoOrigen
-	AND		c.NomArticulo NOT LIKE '%Varilla%C5%'
+--	AND		c.NomArticulo NOT LIKE '%Varilla%C5%'
 
 
 	IF ISNULL(@pnClaTipoTraspaso,0) IN (3,4)
