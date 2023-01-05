@@ -1,3 +1,7 @@
+USE Operacion
+GO
+	-- 'OpeSch.OPETraspasosProductoCmb'
+GO
 ALTER PROCEDURE OpeSch.OPETraspasosProductoCmb
     @psValor                    VARCHAR(100),   -- Texto a Buscar
 	@pnTipo                     INT,		    -- 1 = Buscar poe la Clave

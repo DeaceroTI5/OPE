@@ -512,7 +512,7 @@ BEGIN
 		END
 
 
-        IF ( ISNULL( @nClaConsignado,0 )  = 0 )
+        IF ( ISNULL( @nClaConsignado,0 ) IN ( 0, -1 ) )
         BEGIN
 			-- Consignado ya existe
 			SELECT @sMensajeError = ISNULL(ERROR_MESSAGE(),'')  + '. Consignado[0,-1] (OpeSch.OPE_CU550_Pag32_Servicio_GeneracionConsignado_Proc).'

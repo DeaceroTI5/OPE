@@ -1,6 +1,6 @@
 USE Operacion
 GO
--- 'OpeSch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_Sel'
+	-- 'OpeSch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_Sel'
 GO
 ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_Sel
 	@pnClaUbicacion     INT,	
@@ -13,7 +13,7 @@ BEGIN
     
     SET NOCOUNT ON
 
-	-- Exec OPESch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_Sel @pnClaUbicacion=325,@pnClaSolicitud=155,@pnClaPedidoOrigen=23416945,@pnClaTipoTraspaso=3,@pnDebug=1
+	-- exec OPESch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_Sel @pnClaUbicacion=325,@pnClaSolicitud=291,@pnClaPedidoOrigen=24391091,@pnClaTipoTraspaso=3,@pnDebug=1
 
     --Inicialización de Proceso de Envio de Datos Nivel Detalle
     SELECT  @pnClaSolicitud     = ISNULL( @pnClaSolicitud,0 ),
@@ -38,6 +38,8 @@ BEGIN
 		, ColNoRenglonCPD			INT
 		, ColClaProductoCPD			INT
 		, ColClaEstatusCPD        	INT
+		, ClaProyecto				INT
+		, ClaEstatusDet				INT
 	)
 
 	DECLARE @tbOtrasSolicitudes TABLE(
@@ -67,7 +69,6 @@ BEGIN
 		, ColKilosPedidosCPD		
 		, ColCantSurtidaCPD			
 		, ColKilosSurtidosCPD		
-		, ColPrecioListaMPCPD		
 		, ColPrecioListaCPD			
 		, ColPesoTeoricoCPD			
 		, ColCantidadMinAgrupCPD	
@@ -75,7 +76,9 @@ BEGIN
 		, ColEstatusCPD				
 		, ColNoRenglonCPD			
 		, ColClaProductoCPD			
-		, ColClaEstatusCPD        	
+		, ColClaEstatusCPD
+		, ClaProyecto
+		, ClaEstatusDet
 	)
     SELECT  DISTINCT
             ColSeleccionCPD         = ( CASE
@@ -89,11 +92,6 @@ BEGIN
             ColKilosPedidosCPD      = ISNULL( (b.CantPedida*c.PesoTeoricoKgs), 0.00 ),
             ColCantSurtidaCPD       = ISNULL( b.CantSurtida,0.00 ),
             ColKilosSurtidosCPD     = ISNULL( (b.CantSurtida*c.PesoTeoricoKgs), 0.00 ),
-            ColPrecioListaMPCPD     = ( CASE
-                                            WHEN ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
-                                            THEN ISNULL( ISNULL( j.PrecioMP,k.PrecioMP ),0.00 )
-                                            ELSE 0.00
-                                        END),
             ColPrecioListaCPD       = ISNULL( b.PrecioLista,0.00 ),
             ColPesoTeoricoCPD       = c.PesoTeoricoKgs,
             ColCantidadMinAgrupCPD  = ISNULL( i.CantidadMinAgrup,0.00 ),
@@ -101,7 +99,9 @@ BEGIN
             ColEstatusCPD           = ISNULL( l.NombreEstatus,'Por Capturar' ),
             ColNoRenglonCPD         = b.IdFabricacionDet,
             ColClaProductoCPD       = c.ClaArticulo,
-            ColClaEstatusCPD        = h.ClaEstatus
+            ColClaEstatusCPD        = h.ClaEstatus,
+			e.ClaProyecto,
+			ClaEstatusDet			= b.ClaEstatus
     FROM    OpeSch.OpeTraFabricacionVw a WITH(NOLOCK)  
     INNER JOIN  OpeSch.OpeTraFabricacionDetVw b WITH(NOLOCK)  
         ON  a.IdFabricacion = b.IdFabricacion
@@ -119,14 +119,38 @@ BEGIN
         ON  g.IdSolicitudTraspaso = h.IdSolicitudTraspaso AND b.ClaArticulo = h.ClaProducto  
     LEFT JOIN   OpeSch.OpeManCatArticuloDimensionVw i WITH(NOLOCK)  
         ON  b.ClaArticulo = i.ClaArticulo
-    LEFT JOIN   DEAOFINET05.Ventas.VtaSch.VtaTraControlProyectoDet j WITH(NOLOCK)  
-        ON  f.ClaProyecto = j.ClaProyecto AND b.ClaArticulo = j.ValorLlaveCriterio 
-    LEFT JOIN   DEAOFINET05.Ventas.VtaSch.VtaTraControlProyectoDet k WITH(NOLOCK)  
-        ON  f.ClaProyecto = k.ClaProyecto AND b.PrecioLista = k.Precio
     LEFT JOIN   TiCatalogo.dbo.TiCatEstatus l WITH(NOLOCK)  
         ON  h.ClaEstatus = l.ClaEstatus AND l.ClaClasificacionEstatus = 1270105 AND ISNULL( l.BajaLogica,0 ) = 0
     WHERE   a.IdFabricacion = @pnClaPedidoOrigen
+	AND		c.NomArticulo NOT LIKE '%Varilla%C5%'
 
+
+	IF ISNULL(@pnClaTipoTraspaso,0) IN (3,4)
+	BEGIN
+		UPDATE	a
+		SET		ColPrecioListaMPCPD     = ISNULL( ISNULL( j.PrecioMP,k.PrecioMP ),0.00 )
+		FROM	@tbFabricacionOrigen a
+		OUTER APPLY (
+			SELECT	TOP 1 jj.PrecioMP
+			FROM	DEAOFINET05.Ventas.VtaSch.VtaTraControlProyectoDet jj WITH(NOLOCK)
+			WHERE	a.ClaProyecto		= jj.ClaProyecto 
+			AND		a.ColClaProductoCPD = jj.ValorLlaveCriterio
+			ORDER BY jj.FechaUltimaMod DESC
+		) j
+		OUTER APPLY (
+			SELECT	TOP 1 kk.PrecioMP
+			FROM	DEAOFINET05.Ventas.VtaSch.VtaTraControlProyectoDet kk WITH(NOLOCK)  
+			WHERE	a.ClaProyecto		= kk.ClaProyecto 
+			AND		a.ColPrecioListaCPD = kk.Precio
+			ORDER BY kk.FechaUltimaMod DESC
+		) k
+	END
+	ELSE
+	BEGIN
+		UPDATE	a
+		SET		ColPrecioListaMPCPD     = 0.00
+		FROM	@tbFabricacionOrigen a
+	END
 
 
 	IF @pnClaPedidoOrigen IS NOT NULL -- AND @pnClaTipoTraspaso = 3
@@ -168,9 +192,13 @@ BEGIN
 			, ColClaEstatusCPD
 			, ColCantidadDisponible = ISNULL(b.CantidadDisponible,ColCantPedidaCPD)
 			, ColCantidadSolicitada = ISNULL(b.CantidadSolicitada,0)
+			, ColEstatusDet			= c.NombreEstatus
 	FROM	@tbFabricacionOrigen a
 	LEFT JOIN @tbCantidadProducto b
 	ON		a.ColClaProductoCPD = b.ClaProducto
+	LEFT JOIN OPESch.OPETiCatEstatusVw c WITH(NOLOCK)
+	ON		a.ClaEstatusDet			  = c.ClaEstatus
+	AND		c.ClaClasificacionEstatus = 1270004
 
     SET NOCOUNT OFF       
 

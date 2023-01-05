@@ -1,6 +1,6 @@
-Use Operacion
+USE Operacion
 GO
--- 'OpeSch.OPE_CU550_Pag32_Grid_GridTraspasoManualDet_CambioValor_ColProducto_Sel'
+	-- 'OpeSch.OPE_CU550_Pag32_Grid_GridTraspasoManualDet_CambioValor_ColProducto_Sel'
 GO
 ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Grid_GridTraspasoManualDet_CambioValor_ColProducto_Sel
     @pnClaUbicacion     INT,
@@ -60,13 +60,13 @@ BEGIN
 
 	---- PrecioMP
 	INSERT INTO @tbPrecioMP (ClaArticulo, PrecioMP)
-	SELECT DISTINCT
+	SELECT TOP 1
 			  d.ValorLlaveCriterio
 			, ISNULL( d.PrecioMP,0.00 )
 	FROM	DEAOFINET05.Ventas.VtaSch.VtaTraControlProyectoDet d WITH(NOLOCK)	-- PK ClaProyecto, ClaTipoCriterio, ClaCriterio, ValorLlaveCriterio, AnioMes
 	WHERE	d.ClaProyecto		 = @pnCmbProyecto
 	AND		d.ValorLlaveCriterio = @pnColProducto
-
+	ORDER BY d.FechaUltimaMod DESC
 
 	---- PrecioMP
 	IF  ISNULL(@pnClaPedidoOrigen,0) > 0
@@ -81,12 +81,13 @@ BEGIN
 		AND		ClaArticulo		= @pnColProducto
 
 		INSERT INTO @tbPrecioMP (ClaArticulo, PrecioMP)
-		SELECT DISTINCT
-				  d.ValorLlaveCriterio
+		SELECT TOP 1
+				  @pnColProducto
 				, ISNULL( d.PrecioMP,0.00 )
 		FROM	DEAOFINET05.Ventas.VtaSch.VtaTraControlProyectoDet d WITH(NOLOCK)	-- PK ClaProyecto, ClaTipoCriterio, ClaCriterio, ValorLlaveCriterio, AnioMes
 		WHERE	d.ClaProyecto	= @pnCmbProyecto
-		AND		d.Precio		= @nPrecioLista		
+		AND		d.Precio		= @nPrecioLista
+		ORDER BY d.FechaUltimaMod DESC
 	END
 
 

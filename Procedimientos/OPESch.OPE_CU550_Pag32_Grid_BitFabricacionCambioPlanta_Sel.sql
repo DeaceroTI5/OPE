@@ -1,3 +1,7 @@
+USE Operacion
+GO
+-- 'OPESch.OPE_CU550_Pag32_Grid_BitFabricacionCambioPlanta_Sel'
+GO
 ALTER PROCEDURE OPESch.OPE_CU550_Pag32_Grid_BitFabricacionCambioPlanta_Sel
 	@pnClaPedidoBit	INT = NULL
 AS
@@ -10,7 +14,7 @@ BEGIN
 			, NomUbicacionBit		= CONVERT(VARCHAR(10),a.ClaUbicacion) + ' - ' + b.NomUbicacion
 			, NomUbicacionNuevoBit	= CONVERT(VARCHAR(10),a.ClaUbicacionNuevo) + ' - ' + c.NomUbicacion
 			, NombreMotivoBit		= d.NombreMotivo
-			, FechaUltimaModBit		= a.FechaUltimaMod
+			, FechaUltimaModBit		= MIN(a.FechaUltimaMod)
 			, NombrePcModBit		= a.NombrePcMod
 	FROM	OpeSch.OpeVtaBitFabricacionCambioPlanta a WITH(NOLOCK)
 	INNER JOIN OpeSch.OpeTiCatUbicacionVw b
@@ -21,6 +25,14 @@ BEGIN
 	ON		a.ClaMotivoCambio = d.ClaMotivo
 	WHERE	(@pnClaPedidoBit IS NULL 
 			OR(IdFabricacion = @pnClaPedidoBit ) OR (IdFabricacionNueva = @pnClaPedidoBit))
+	GROUP BY a.IdFabricacion
+			, a.IdFabricacionNueva
+			, CONVERT(VARCHAR(10),a.ClaUbicacion) + ' - ' + b.NomUbicacion
+			, CONVERT(VARCHAR(10),a.ClaUbicacionNuevo) + ' - ' + c.NomUbicacion
+			, d.NombreMotivo
+			, a.NombrePcMod
+
+
 
 	SET NOCOUNT OFF
 END

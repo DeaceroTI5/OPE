@@ -34,6 +34,7 @@ BEGIN
 		, PesoTeoricoCPO		NUMERIC(22,7)
 		, CantidadMinAgrupCPO	NUMERIC(18,4)
 		, EsMultiploCPO			INT
+		, ClaProyecto			INT
 	)
 
 	DECLARE @tbOtrasSolicitudes TABLE
@@ -93,11 +94,11 @@ BEGIN
 			, ClaProductoCPO		
 			, UnidadCPO				
 			, CantPedidaCPO			
-			, PrecioListaMPCPO		
 			, PrecioListaCPO		
 			, PesoTeoricoCPO		
 			, CantidadMinAgrupCPO	
 			, EsMultiploCPO
+			, ClaProyecto
 		)
          SELECT  DISTINCT
                  FabricacionCPO      = a.IdFabricacion,
@@ -105,15 +106,11 @@ BEGIN
                  ClaProductoCPO      = c.ClaArticulo,
                  UnidadCPO           = d.NomCortoUnidad,
                  CantPedidaCPO       = ISNULL( b.CantPedida,0.00 ),
-                 PrecioListaMPCPO    = ( CASE
-                                             WHEN ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
-                                             THEN ISNULL( ISNULL( j.PrecioMP,k.PrecioMP ),0.00 )
-                                             ELSE 0.00
-                                         END),
                  PrecioListaCPO      = ISNULL( b.PrecioLista,0.00 ),
                  PesoTeoricoCPO      = c.PesoTeoricoKgs,
                  CantidadMinAgrupCPO = ISNULL( i.CantidadMinAgrup,0.00 ),
-                 EsMultiploCPO       = ISNULL( i.Multiplo,0 )
+                 EsMultiploCPO       = ISNULL( i.Multiplo,0 ),
+				 e.ClaProyecto
          FROM    OpeSch.OpeTraFabricacionVw a WITH(NOLOCK)  
          INNER JOIN  OpeSch.OpeTraFabricacionDetVw b WITH(NOLOCK)  
              ON  a.IdFabricacion = b.IdFabricacion
@@ -127,12 +124,38 @@ BEGIN
              ON  e.ClaProyecto = f.ClaProyecto
          LEFT JOIN   OpeSch.OpeManCatArticuloDimensionVw i WITH(NOLOCK)  
              ON  b.ClaArticulo = i.ClaArticulo
-         LEFT JOIN   DEAOFINET05.Ventas.VtaSch.VtaTraControlProyectoDet j WITH(NOLOCK)  
-             ON  f.ClaProyecto = j.ClaProyecto AND b.ClaArticulo = j.ValorLlaveCriterio 
-         LEFT JOIN   DEAOFINET05.Ventas.VtaSch.VtaTraControlProyectoDet k WITH(NOLOCK)  
-             ON  f.ClaProyecto = k.ClaProyecto AND b.PrecioLista = k.Precio
-         WHERE   a.IdFabricacion = @pnClaPedidoOrigen
-		 AND		b.ClaEstatus IN (1)
+         WHERE  a.IdFabricacion = @pnClaPedidoOrigen
+		 AND	b.ClaEstatus IN (1)
+		 AND	c.NomArticulo NOT LIKE '%Varilla%C5%'
+
+		IF ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
+		BEGIN
+			UPDATE	a
+			SET		PrecioListaMPCPO     = ISNULL( ISNULL( j.PrecioMP,k.PrecioMP ),0.00 )
+			FROM	@tbCargaPartidasOrigen a
+			OUTER APPLY (
+				SELECT	TOP 1 jj.PrecioMP
+				FROM	DEAOFINET05.Ventas.VtaSch.VtaTraControlProyectoDet jj WITH(NOLOCK)
+				WHERE	a.ClaProyecto		= jj.ClaProyecto 
+				AND		a.ClaProductoCPO	= jj.ValorLlaveCriterio
+				ORDER BY jj.FechaUltimaMod DESC
+			) j
+			OUTER APPLY (
+				SELECT	TOP 1 kk.PrecioMP
+				FROM	DEAOFINET05.Ventas.VtaSch.VtaTraControlProyectoDet kk WITH(NOLOCK)  
+				WHERE	a.ClaProyecto		= kk.ClaProyecto 
+				AND		a.PrecioListaCPO = kk.Precio
+				ORDER BY kk.FechaUltimaMod DESC
+			) k
+		END
+		ELSE
+		BEGIN
+			UPDATE	a
+			SET		PrecioListaMPCPO     =  0.00
+			FROM	@tbCargaPartidasOrigen a
+		END
+
+
 
 
 		IF @pnDebug = 1
