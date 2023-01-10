@@ -27,8 +27,7 @@ BEGIN
 	BEGIN
 		/*Validaciones*/
 		EXEC OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_CambioValor_NumFacturaOrigen_Sel
-			  @pnClaUbicacionOrigen	= @pnClaUbicacionOrigen	
-			, @psNumFacturaOrigen	= @psNumFacturaOrigen
+			  @psNumFacturaOrigen	= @psNumFacturaOrigen
 
 		EXEC OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_CambioValor_NumFacturaFilial_Sel
 			  @pnClaUbicacion		= @pnClaUbicacion	

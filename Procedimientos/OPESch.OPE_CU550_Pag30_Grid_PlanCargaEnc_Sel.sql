@@ -15,7 +15,13 @@ BEGIN
 	-- EXEC OPESch.OPE_CU550_Pag30_Grid_PlanCargaEnc_Sel @pnClaUbicacion=325,@pnIdPlanCargaFiltro=NULL,@pnIdViajeFiltro=NULL,@pnClaCliente=NULL,@pdFechaInicio='2022-11-07 00:00:00',@pdFechaFin='2022-11-07 00:00:00'
 
 	SET NOCOUNT ON
-			
+	
+	IF @pdFechaInicio > @pdFechaFin
+	BEGIN
+		RAISERROR('La fecha inicio no puede ser mayor a la fecha fin. Favor de verificar.',16,1)
+		RETURN
+	END
+
 	SELECT 
 		'' AS ShippingTicketImg,
 		'' AS Certificado,
