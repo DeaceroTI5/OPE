@@ -69,6 +69,14 @@ BEGIN
         ON  cc.ClaClienteCuenta = f.ClaCliente
 	WHERE   f.IdFabricacion = @pnFabricacionOrigen
 
+
+	IF ISNULL( @ClaConsignadoFab, 0) = 0
+	BEGIN
+		SELECT @Mensaje = 'El pedido Origen '+ ISNULL(CONVERT(VARCHAR(10),@pnFabricacionOrigen),'') +' no tiene consignado. (OpeSch.OPE_CU550_Pag32_Servicio_GeneracionConsignado_Proc).'
+		GOTO ABORT
+	END
+
+
    	--Vamos a Ventas a Traer el consignado
 	SELECT	@ClaMedioEmbarque = ClaMedioEmbarque,
 			@NomConsignado = NomConsignado,
@@ -147,33 +155,40 @@ BEGIN
 		RETURN
 	END
 
-    EXEC    DEAOFINET05.Ventas.VtaSch.VtaCatConsignadoClienteIUProc 
-            @ClaEstatus OUTPUT, 
-            @Mensaje OUTPUT, 
-            @ClaClienteUnico, 
-            @pnClaConsignado OUTPUT, 
-            @NomConsignado,
-            NULL, 
-            @ClaCiudadCons, 
-            @ClaColoniaUnico, 
-            @ClaCodigoPostal, 
-            NULL, 
-            @Calle, 
-            @NumExterior, 
-            @NumInterior, 
-            @EntreCalles, 
-            0, 0,
-            @ClaMedioEmbarque, 
-            NULL, NULL, NULL, NULL, 
-            @ClaveInternacional, 
-            @Lada, 
-            @Telefono, 
-            NULL, NULL, 
-            @pnClaUsuarioMod, 
-            @psNombrePcMod,
-            @pnEsResultset = 0,
-            @psContacto= @Contacto, 
-            @psTaxId= @TaxId	
+	EXEC DEAOFINET05.Ventas.VtaSch.VtaCatConsignadoClienteIUProc 
+		@pnClaEstatus				 = @ClaEstatus		OUTPUT, 
+		@pnsMensaje					 = @Mensaje			OUTPUT, 
+		@pnClaClienteUnico			 = @ClaClienteUnico, 
+		@pnClaConsignado			 = @pnClaConsignado OUTPUT, 
+		@psNomConsignado			 = @NomConsignado,
+		@pnEsSiempreVigente			 = NULL, 
+		@pnClaCiudadUnico			 = @ClaCiudadCons, 
+		@pnClaColoniaUnico			 = @ClaColoniaUnico, 
+		@pnClaCodigoPostal			 = @ClaCodigoPostal, 
+		@pnCPImprime				 = NULL, 
+		@psCalle					 = @Calle, 
+		@psNumExterior				 = @NumExterior, 
+		@psNumInterior				 = @NumInterior, 
+		@psEntreCalles				 = @EntreCalles, 
+		@pnEsDomicilioEnLegal		 = 0,
+		@pnBajalogica				 = 0,
+		@pnClaMedioEmbarque			 = @ClaMedioEmbarque, 
+		@pnClaFerroviaria			 = NULL,
+		@psNombreNotificante		 = NULL, 
+		@psEspuela					 = NULL, 
+		@psCorreo					 = NULL, 
+		@psLadaPais					 = @ClaveInternacional, 
+		@psladaestado				 = @Lada, 
+		@pstelefono					 = @Telefono, 
+		@psNotas					 = NULL, 
+		@pnEsAutofleteo				 = NULL, 
+		@pnClaUsuarioMod			 = @pnClaUsuarioMod, 
+		@psNombrePcMod				 = @psNombrePcMod,
+		@pnEsResultset				 = 0,
+		@psContacto					 = @Contacto, 
+		@psTaxId					 = @TaxId	
+
+
 
 	IF ISNULL(@Mensaje,'') <> ''
 		SELECT @psMensaje = ISNULL(@Mensaje,'') +  ' (VtaSch.VtaCatConsignadoClienteIUProc).'
