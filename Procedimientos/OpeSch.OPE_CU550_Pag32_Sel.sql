@@ -191,7 +191,7 @@ BEGIN
                                                 ELSE 0
                                             END)
     FROM    OpeSch.OpeTraSolicitudTraspasoEncVw a WITH(NOLOCK)  
-    LEFT JOIN  DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion b WITH(NOLOCK)  
+    LEFT JOIN  OpeSch.OpeVtaTraFabricacionVw b WITH(NOLOCK)  -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion
         ON  a.ClaPedido = b.IdFabricacion --AND a.ClaUbicacionSurte = b.ClaUbicacion /*Se identifican casos con discrepancia entre ClaUbicación y ClaUbicacionVenta al generarse las Fabricaciones*/
     LEFT JOIN   OpeSch.OpeTraFabricacionVw c WITH(NOLOCK)  
         ON  a.ClaPedidoOrigen = c.IdFabricacion

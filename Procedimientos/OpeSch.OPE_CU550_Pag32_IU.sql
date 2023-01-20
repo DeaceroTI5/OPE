@@ -113,10 +113,10 @@ BEGIN
             IF ( NOT EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud )
                     OR ISNULL( @pnClaSolicitud,0 ) = 0  ) -- Proceso de Registro
             BEGIN
-                IF ISNULL( @pnClaTipoTraspaso,0 ) IN (3)
-                BEGIN
-                    SET @pnChkAceptaParcial = 0
-                END
+                --IF ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
+                --BEGIN
+                --    SET @pnChkAceptaParcial = 0
+                --END
                 
                 INSERT INTO OpeSch.OpeTraSolicitudTraspasoEncVw
                         (ClaPedidoCliente,          ClaPedidoOrigen,        ClaCliente,             ClaProyecto,            ClaConsignado,
@@ -150,10 +150,10 @@ BEGIN
             END
             ELSE IF ( EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud AND ClaEstatusSolicitud IN (0) ) ) -- Proceso de Edición
             BEGIN
-                IF ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
-                BEGIN
-                    SET @pnChkAceptaParcial = 0
-                END
+                --IF ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
+                --BEGIN
+                --    SET @pnChkAceptaParcial = 0
+                --END
 
                 UPDATE  a
                 SET     ClaPedidoCliente        = @pnClaPedidoCliente,  

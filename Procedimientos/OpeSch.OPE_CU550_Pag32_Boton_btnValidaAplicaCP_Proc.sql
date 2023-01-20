@@ -22,7 +22,8 @@ BEGIN
             @pnClaPedido        = ISNULL( @pnClaPedido,0 )
 
     IF ( EXISTS ( SELECT 1  FROM OpeSch.OpeTraSolicitudTraspasoEncVw a
-                            INNER JOIN DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion b ON a.ClaPedido = b.IdFabricacion
+                            INNER JOIN OpeSch.OpeVtaTraFabricacionVw b -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion
+							ON a.ClaPedido = b.IdFabricacion
                             WHERE a.IdSolicitudTraspaso = @pnClaSolicitud AND a.ClaPedido = @pnClaPedido AND b.ClaEstatusFabricacion IN (4,5) ) 
         AND @pnClaSolicitud > 0 AND @pnClaPedido > 0 ) 
     BEGIN

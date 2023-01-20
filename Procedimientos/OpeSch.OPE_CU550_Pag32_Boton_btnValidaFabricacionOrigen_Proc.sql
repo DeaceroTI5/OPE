@@ -60,26 +60,26 @@ BEGIN
         --WHERE   IdFabricacion = @pnClaPedidoOrigen
 
         SELECT  @nClaUbicacionSolicita  =  (    CASE
-                                                    WHEN    ISNULL( ClaEstatusFabricacion,0 ) = 1
+                                                    WHEN    ISNULL( ClaEstatus,0 ) = 1
                                                     THEN    ClaUbicacion
                                                     ELSE    @pnCmbPlantaPide
                                                 END),
                 @sClaPedidoCliente      =  (    CASE
-                                                    WHEN    ISNULL( ClaEstatusFabricacion,0 ) = 1
+                                                    WHEN    ISNULL( ClaEstatus,0 ) = 1
                                                     THEN    ClaPedidoCliente
                                                     ELSE    @psClaPedidoCliente
                                                 END),
                 @nClaEstatusPedidoOrigen =  (   CASE
-                                                    WHEN    ISNULL( ClaEstatusFabricacion,0 ) = 1
+                                                    WHEN    ISNULL( ClaEstatus,0 ) = 1
                                                     THEN    1
                                                     ELSE    0
                                                 END),
                 @ptFechaDesea           =  (    CASE
-                                                    WHEN    ISNULL( ClaEstatusFabricacion,0 ) = 1 AND @pnClaTipoTraspaso IN (3,4) AND @ptFechaDefault <= FechaPromesaOriginal
+                                                    WHEN    ISNULL( ClaEstatus,0 ) = 1 AND @pnClaTipoTraspaso IN (3,4) AND @ptFechaDefault <= FechaPromesaOriginal
                                                     THEN    FechaPromesaOriginal
                                                     ELSE    @ptFechaDesea 
                                                 END)
-        FROM    DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)  
+        FROM    OpeSch.OpeVtaTraFabricacionVw WITH(NOLOCK)  -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw
         WHERE   IdFabricacion = @pnClaPedidoOrigen
 
 

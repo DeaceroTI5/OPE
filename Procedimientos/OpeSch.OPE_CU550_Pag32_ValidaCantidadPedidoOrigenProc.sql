@@ -47,7 +47,7 @@ BEGIN
 	UPDATE	a
 	SET		CantidadFabricacion		= ISNULL(c.CantidadPedida,0)
 	FROM	@tbOtrasSolicitudes a
-	INNER JOIN DEAOFINET05.Ventas.VtaSch.vtatrafabricacionDetVw c
+	INNER JOIN OpeSch.OpeVtaTraFabricacionDetVw c	-- DEAOFINET05.Ventas.VtaSch.vtatrafabricacionDetVw
 	ON		c.IdFabricacion			= @pnClaPedidoOrigen
 	AND		a.ClaProducto			= c.ClaArticulo
 	WHERE	c.ClaEstatusFabricacion IN (4,5,6)
@@ -59,7 +59,7 @@ BEGIN
 	SET		  ClaEstatus			= c.ClaEstatusFabricacion
 			, CantidadSolicitada	= ISNULL(c.CantidadPedida,0)
 	FROM	@tbOtrasSolicitudes a
-	INNER JOIN DEAOFINET05.Ventas.VtaSch.vtatrafabricacionDetVw c
+	INNER JOIN OpeSch.OpeVtaTraFabricacionDetVw c	-- DEAOFINET05.Ventas.VtaSch.vtatrafabricacionDetVw
 	ON		a.ClaPedido				= c.IdFabricacion
 	AND		a.ClaProducto			= c.ClaArticulo
 	WHERE	c.ClaEstatusFabricacion IN (4,5,6)

@@ -140,7 +140,7 @@ BEGIN
 	SELECT	  a.IdFabricacion 
 			, a.ClaArticulo
 			, a.CantidadSurtida
-	FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDet a WITH(NOLOCK)
+	FROM	OpeSch.OpeVtaTraFabricacionDetVw a WITH(NOLOCK) -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDet
 	INNER JOIN (
 			SELECT	DISTINCT 
 					  ClaPedido

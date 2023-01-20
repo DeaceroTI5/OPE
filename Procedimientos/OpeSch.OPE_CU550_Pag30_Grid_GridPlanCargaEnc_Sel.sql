@@ -2,33 +2,12 @@ USE Operacion
 GO
 --- 'OpeSch.OPE_CU550_Pag30_Grid_GridPlanCargaEnc_Sel'
 GO
-ALTER PROCEDURE [OpeSch].[OPE_CU550_Pag30_Grid_GridPlanCargaEnc_Sel]
+ALTER PROCEDURE OpeSch.OPE_CU550_Pag30_Grid_GridPlanCargaEnc_Sel
 	@pnClaUbicacion         INT,
     @pnIdViajeMod3          INT,
     @pnIdPlanCargaMod3      INT
 AS
 BEGIN
-	SET NOCOUNT OFF
-
-	DECLARE @tbUniverso		TABLE (
-		  ColFabricacion	INT
-		, ColBoleta			INT
-		, ColTransportista	VARCHAR(100)	
-		, ColTransporte		VARCHAR(200)
-		, ColPlaca			VARCHAR(12)			
-		, ColChofer			VARCHAR(100)
-		, ColPesoEmbarcado	NUMERIC(22,4)
-		, ColViaje			INT
-		, ColPlanCarga		INT
-	)
-
-
-
-	INSERT INTO @tbUniverso (
-		  ColFabricacion			, ColBoleta			, ColTransportista			, ColTransporte		
-		, ColPlaca					, ColChofer			, ColPesoEmbarcado			, ColViaje			
-		, ColPlanCarga		
-	)
 	SELECT 
             t3.IdFabricacion AS ColFabricacion,
             t4.IdBoleta AS ColBoleta,
@@ -51,6 +30,8 @@ BEGIN
                     ON t5.ClaUbicacion = t1.ClaUbicacion AND t5.ClaTransportista = t1.ClaTransportista
         LEFT JOIN   FleSch.FLECatTransporteVw t6 WITH(NOLOCK)
                     ON t6.ClaTransporte = t2.ClaTransporte
+		LEFT JOIN	OpeSch.OpeTiCatEstatusPlanCargaVw t7
+		ON			t2.ClaEstatusPlanCarga = t7.ClaEstatus
     WHERE   t1.IdViaje = @pnIdViajeMod3
     AND     t2.IdPlanCarga = @pnIdPlanCargaMod3
 	AND		t1.ClaUbicacion = @pnClaUbicacion
@@ -58,7 +39,7 @@ BEGIN
 	GROUP BY
 			t1.IdViaje, t2.IdPlanCarga, t3.IdFabricacion, t4.IdBoleta, t4.NomTransportista, t6.NomTransporte, t1.Placa, t4.NomChofer
 
-	UNION
+UNION
 	-- AGREGAMOS ESCENARIO DE CAMIONES EN PLANTA NO FACTURADOS
 	SELECT 
             t3.IdFabricacion AS ColFabricacion,
@@ -80,25 +61,13 @@ BEGIN
                     ON t5.ClaUbicacion = t2.ClaUbicacion AND t5.ClaTransportista = t2.ClaTransportista
         LEFT JOIN   FleSch.FLECatTransporteVw t6 WITH(NOLOCK)
                     ON t6.ClaTransporte = t2.ClaTransporte
+		LEFT JOIN	OpeSch.OpeTiCatEstatusPlanCargaVw t7
+		ON			t2.ClaEstatusPlanCarga = t7.ClaEstatus
     WHERE   t2.IdPlanCarga = @pnIdPlanCargaMod3
 	AND		t2.ClaUbicacion = @pnClaUbicacion
 	AND		t2.ClaEstatusPlanCarga = 1
 	GROUP BY
 			t2.IdPlanCarga, t3.IdFabricacion, t4.IdBoleta, t4.NomTransportista, t6.NomTransporte, t2.Placa, t4.NomChofer
 
-	
 
-	SELECT	  ColFabricacion	
-			, ColBoleta			
-			, ColTransportista	
-			, ColTransporte		
-			, ColPlaca			
-			, ColChofer			
-			, ColPesoEmbarcado	
-			, ColViaje			
-			, ColPlanCarga		
-	FROM	@tbUniverso
-
-
-	SET NOCOUNT OFF
 END

@@ -712,7 +712,7 @@ BEGIN
                 @tFechaVerde = GETDATE(), 
                 @nEnviadoSn = 0, --T1.EsEnviado
                 @nVersion = 1, --Version Declarada en Ejemplos de Compra Filial Ingetek
-                @nTipoPuntoFinEmb = NULL, --Variable que se informar NULL o 1 para Casos de Compra Filial Ingetek
+                @nTipoPuntoFinEmb = 17, --Variable que se informar NULL o 1 para Casos de Compra Filial Ingetek
                 @nPagamosDescargaSn = 0, --Paga Descarga Declarada en Ejemplos de Compra Filial Ingetek
                 @nParidadConvenida = NULL --Paridad Convenida Declarada en Ejemplos de Compra Filial Ingetek
         FROM    OpeSch.OpeTraSolicitudTraspasoEncVw T1 WITH(NOLOCK)  

@@ -63,7 +63,7 @@ BEGIN
                                             THEN    FechaPromesaOriginal
                                             ELSE    @ptFechaDesea 
                                         END)
-                FROM     DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)  
+                FROM     OpeSch.OpeVtaTraFabricacionVw WITH(NOLOCK)  -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw
                 WHERE   IdFabricacion = @pnClaPedidoOrigen            
 			END
         END 
@@ -78,7 +78,7 @@ BEGIN
                                             THEN    FechaPromesaOriginal
                                             ELSE    @ptFechaDesea 
                                         END)
-                FROM     DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)  
+                FROM     OpeSch.OpeVtaTraFabricacionVw WITH(NOLOCK) -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw  
                 WHERE   IdFabricacion = @pnClaPedidoOrigen    
             END
         END 

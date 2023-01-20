@@ -43,7 +43,7 @@ BEGIN
 		
 	--Validacion de la Existencia y Estatus de la Fabricacion
 	IF NOT EXISTS (	SELECT	1
-					FROM	[Ventas].[VtaSch].[VtaCTraFabricacionEnc]
+					FROM	[Ventas].[VtaSch].[VtaCTraFabricacionEnc] WITH(NOLOCK) -- OpeSch.OpeVtaTraFabricacionVw
 					WHERE	IdFabricacion = @pnFabricacionOrigen)
 	BEGIN
 		SELECT @Mensaje = 'El pedido Origen '+ ISNULL(CONVERT(VARCHAR(10),@pnFabricacionOrigen),'') +' no existe. (OpeSch.OPE_CU550_Pag32_Servicio_GeneracionConsignado_Proc).'
@@ -64,7 +64,7 @@ BEGIN
 	SELECT	@ClaClienteCuentaFab = f.ClaCliente,
 			@ClaConsignadoFab = ISNULL(f.ClaConsignado, 0),
 			@ClaClienteUnicoFab = cc.ClaClienteUnico
-	FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion f WITH(NOLOCK)
+	FROM	OpeSch.OpeVtaTraFabricacionVw f WITH(NOLOCK)	-- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion
 	INNER JOIN  DEAOFINET05.Ventas.VtaSch.VtaCatClienteCuentaVw cc WITH(NOLOCK) 
         ON  cc.ClaClienteCuenta = f.ClaCliente
 	WHERE   f.IdFabricacion = @pnFabricacionOrigen

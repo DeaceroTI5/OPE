@@ -1,6 +1,6 @@
 USE Operacion
 GO
--- 'OpeSch.OPE_CU550_Pag32_Grid_GridTraspasoManualDet_ColCantPedida_ActualizaValores_Sel'
+--'OpeSch.OPE_CU550_Pag32_Grid_GridTraspasoManualDet_ColCantPedida_ActualizaValores_Sel'
 GO
 ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Grid_GridTraspasoManualDet_ColCantPedida_ActualizaValores_Sel
     @pnClaUbicacion         INT,
@@ -14,7 +14,8 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Grid_GridTraspasoManualDet_ColCantPedida_
     @pnValorMultiplo        NUMERIC(22,4),
     @pnColCantPedida        NUMERIC(22,4),
 	@pnColKilosPedidos		NUMERIC(22,4),
-    @pnColPesoTeorico       NUMERIC(22,4)
+    @pnColPesoTeorico       NUMERIC(22,4),
+	@pnCantMinimaAgrupFila	NUMERIC(22,4)
 AS
 BEGIN
 
@@ -28,7 +29,7 @@ BEGIN
     BEGIN
         --SELECT  ColCantPedida		= 0.00
 		--		, ColKilosPedidos	= 0.00
-		SELECT	  ColCantPedida		= CASE WHEN @pnIdIndice = @pnColIdIndice THEN 0.00 ELSE @pnColCantPedida END
+		SELECT	  ColCantPedida		= CASE WHEN @pnIdIndice = @pnColIdIndice THEN @pnCantMinimaAgrupFila ELSE @pnColCantPedida END
 				, ColKilosPedidos	= CASE WHEN @pnIdIndice = @pnColIdIndice THEN 0.00 ELSE @pnColKilosPedidos END
     END    
     ELSE IF ( @pnAvisoValidacionDet = 1 AND @pnEsValidaCantMultiplo = 0 AND @pnEsMultiploFila = 1 )
