@@ -179,18 +179,20 @@ BEGIN
 					@pnEsRegeneraCertificado = @nEsRegeneraCertificado,
 					@psNombrePcMod			= 'GeneraCertificadoFilial',
 					@pnClaUsuarioMod		= 1,
-					@psIdCertificado		= @sIdCertificado	OUT,
+					@psIdCertificado		= @nIdCertificado	OUT,
 					@pnClaEstatus			= @nNumError		OUT,
 					@psMensajeError			= @sMensajeError	OUT,
 					@pbArchivo				= @iArchivo 
 
+				SET @sIdCertificado = CONVERT(VARCHAR(20),@nIdCertificado)
 
-					IF @pnDebug =1
-					BEGIN
-						SELECT 'Otros', @nId AS '@nId', @sIdCertificado as '@sIdCertificado', @nClaUbicacionFilial AS '@nClaUbicacionFilial', @nIdFacturaFilial AS '@nIdFacturaFilial'
-						,@nClaUbicacionOrigen AS '@nClaUbicacionOrigen', @nIdFacturaOrigen AS '@nIdFacturaOrigen', @sNumFacturaFilial AS '@sNumFacturaFilial', @sNumFacturaOrigen AS '@sNumFacturaOrigen'
-						, @sMensajeError AS MensajeError , @nNumError AS NumError, @nClaTipoUbicacion as '@nClaTipoUbicacion'
-					END
+
+				IF @pnDebug =1
+				BEGIN
+					SELECT 'Otros', @nId AS '@nId', @sIdCertificado as '@sIdCertificado', @nClaUbicacionFilial AS '@nClaUbicacionFilial', @nIdFacturaFilial AS '@nIdFacturaFilial'
+					,@nClaUbicacionOrigen AS '@nClaUbicacionOrigen', @nIdFacturaOrigen AS '@nIdFacturaOrigen', @sNumFacturaFilial AS '@sNumFacturaFilial', @sNumFacturaOrigen AS '@sNumFacturaOrigen'
+					, @sMensajeError AS MensajeError , @nNumError AS NumError, @nClaTipoUbicacion as '@nClaTipoUbicacion'
+				END
 		
 			END
 		END TRY
