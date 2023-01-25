@@ -126,6 +126,7 @@ BEGIN
 		BEGIN TRY
 			IF @nClaTipoUbicacion IN (2)	-- Acerias
 			BEGIN
+				SELECT 'Acerias'
 				--Regresar numcertificado e idcertificado
 				EXEC DEAOFINET04.Operacion.AceSch.AceGeneraCertificadoSumDirectoSrv
 					@pnClaUbicacion			=	@nClaUbicacionFilial,
@@ -143,7 +144,7 @@ BEGIN
 
 				IF @pnDebug =1
 				BEGIN
-					SELECT 'Acerias', @nId AS '@nId', @nIdCertificado as '@nIdCertificado', @nClaUbicacionFilial AS '@nClaUbicacionFilial', @nIdFacturaFilial AS '@nIdFacturaFilial'
+					SELECT 'Acerias', @nId AS '@nId', @sIdCertificado as '@sIdCertificado', @nClaUbicacionFilial AS '@nClaUbicacionFilial', @nIdFacturaFilial AS '@nIdFacturaFilial'
 					,@nClaUbicacionOrigen AS '@nClaUbicacionOrigen', @nIdFacturaOrigen AS '@nIdFacturaOrigen', @sNumFacturaFilial AS '@sNumFacturaFilial', @sNumFacturaOrigen AS '@sNumFacturaOrigen'
 					, @sMensajeError AS MensajeError , @nNumError AS NumError, @nClaTipoUbicacion as '@nClaTipoUbicacion'
 				END
@@ -158,20 +159,24 @@ BEGIN
 					AND		IdFactura		= @nIdFacturaFilial
 				)
 				BEGIN
-						SELECT	  @nIdCertificado = IdCertificado
-								, @nEsRegeneraCertificado = CASE	WHEN Archivo IS NULL THEN 1 
+						SELECT	  @nEsRegeneraCertificado = CASE	WHEN Archivo IS NULL THEN 1 
 																	ELSE 0 END
+								, @sIdCertificado = CONVERT(VARCHAR(20),IdCertificado)
 						FROM	DEAOFINET04.Operacion.ACESch.AceTraCertificado WITH(NOLOCK)
 						WHERE	ClaUbicacion	= @nClaUbicacionFilial
 						AND		IdFactura		= @nIdFacturaFilial
+
 
 						IF @nEsRegeneraCertificado = 0	
 						BEGIN
 							GOTO SALTO	-- Ya existe Certificado
 						END
 				END
-				
-				EXEC DEAOFINET04.Operacion.ACESch.AceGeneraCertificadoSobrePuntoLogisticoSrv
+
+				SET @sIdCertificado = ''
+				SELECT 'Otros Certificados'
+
+				EXEC DEAOFINET04.Operacion.ACESch.AceGeneraCertificadoSobrePuntoLogisticoSrv--_DEV
 					@pnClaUbicacion			= @nClaUbicacionFilial,
 					@pnIdFactura			= @nIdFacturaFilial,
 					@pnClaUbicacionOrigen	= @nClaUbicacionOrigen,
@@ -179,13 +184,14 @@ BEGIN
 					@pnEsRegeneraCertificado = @nEsRegeneraCertificado,
 					@psNombrePcMod			= 'GeneraCertificadoFilial',
 					@pnClaUsuarioMod		= 1,
-					@psIdCertificado		= @nIdCertificado	OUT,
+					@psIdCertificado		= @sIdCertificado	OUT,
 					@pnClaEstatus			= @nNumError		OUT,
-					@psMensajeError			= @sMensajeError	OUT,
-					@pbArchivo				= @iArchivo 
+					@psMensajeError			= @sMensajeError	OUT
+					--@pbArchivo				= @iArchivo 
 
-				SET @sIdCertificado = CONVERT(VARCHAR(20),@nIdCertificado)
+				--SET @sIdCertificado = CONVERT(VARCHAR(20),@nIdCertificado)
 
+				--select 'pasó'
 
 				IF @pnDebug =1
 				BEGIN
@@ -203,8 +209,13 @@ BEGIN
 				SET @nNumError  = 0 -- Ya existe un certificado
 			END
 
+			--SET @sIdCertificado = CONVERT(VARCHAR(20),@nIdCertificado)
+
 			SET @sErrorMsj = NULL
 			SELECT @sErrorMsj = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
+
+			IF @pnDebug =1
+				SELECT @sErrorMsj AS '@sErrorMsj'
 
 			IF ISNULL(@sIdCertificado,'') = '' AND ISNULL(@sErrorMsj,'') <> ''
 			BEGIN
@@ -214,7 +225,7 @@ BEGIN
 
 			IF @pnDebug =1
 			BEGIN
-				SELECT 'CATCH ERROR', @nId AS '@nId', @sIdCertificado as '@nIdCertificado',@nIdCertificado AS '@nIdCertificado', @nClaUbicacionFilial AS '@nClaUbicacionFilial', @nIdFacturaFilial AS '@nIdFacturaFilial'
+				SELECT 'CATCH ERROR', @nId AS '@nId', @sIdCertificado as '@sIdCertificado',@nIdCertificado AS '@nIdCertificado', @nClaUbicacionFilial AS '@nClaUbicacionFilial', @nIdFacturaFilial AS '@nIdFacturaFilial'
 				,@nClaUbicacionOrigen AS '@nClaUbicacionOrigen', @nIdFacturaOrigen AS '@nIdFacturaOrigen', @sNumFacturaFilial AS '@sNumFacturaFilial', @sNumFacturaOrigen AS '@sNumFacturaOrigen'
 				, @sMensajeError AS MensajeError , @nNumError AS NumError, @nClaTipoUbicacion as '@nClaTipoUbicacion'
 			END
