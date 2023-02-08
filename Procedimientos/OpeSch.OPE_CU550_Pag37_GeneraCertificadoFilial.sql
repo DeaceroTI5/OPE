@@ -144,9 +144,7 @@ BEGIN
 
 				IF @pnDebug =1
 				BEGIN
-					SELECT 'Acerias', @nId AS '@nId', @sIdCertificado as '@sIdCertificado', @nClaUbicacionFilial AS '@nClaUbicacionFilial', @nIdFacturaFilial AS '@nIdFacturaFilial'
-					,@nClaUbicacionOrigen AS '@nClaUbicacionOrigen', @nIdFacturaOrigen AS '@nIdFacturaOrigen', @sNumFacturaFilial AS '@sNumFacturaFilial', @sNumFacturaOrigen AS '@sNumFacturaOrigen'
-					, @sMensajeError AS MensajeError , @nNumError AS NumError, @nClaTipoUbicacion as '@nClaTipoUbicacion'
+					SELECT 'Acerias', @nId AS '@nId', @sIdCertificado as '@sIdCertificado', @sMensajeError AS '@sMensajeError', Error = ISNULL(ERROR_MESSAGE(),'') + ' [' + ISNULL(ERROR_PROCEDURE(),'') +']'
 				END
 			END
 			ELSE
@@ -176,7 +174,7 @@ BEGIN
 				SET @sIdCertificado = ''
 				SELECT 'Otros Certificados'
 
-				EXEC DEAOFINET04.Operacion.ACESch.AceGeneraCertificadoSobrePuntoLogisticoSrv--_DEV
+				EXEC DEAOFINET04.Operacion.ACESch.AceGeneraCertificadoSobrePuntoLogisticoSrv_DEV
 					@pnClaUbicacion			= @nClaUbicacionFilial,
 					@pnIdFactura			= @nIdFacturaFilial,
 					@pnClaUbicacionOrigen	= @nClaUbicacionOrigen,
@@ -187,29 +185,20 @@ BEGIN
 					@psIdCertificado		= @sIdCertificado	OUT,
 					@pnClaEstatus			= @nNumError		OUT,
 					@psMensajeError			= @sMensajeError	OUT
-					--@pbArchivo				= @iArchivo 
-
-				--SET @sIdCertificado = CONVERT(VARCHAR(20),@nIdCertificado)
-
-				--select 'pasó'
 
 				IF @pnDebug =1
 				BEGIN
-					SELECT 'Otros', @nId AS '@nId', @sIdCertificado as '@sIdCertificado', @nClaUbicacionFilial AS '@nClaUbicacionFilial', @nIdFacturaFilial AS '@nIdFacturaFilial'
-					,@nClaUbicacionOrigen AS '@nClaUbicacionOrigen', @nIdFacturaOrigen AS '@nIdFacturaOrigen', @sNumFacturaFilial AS '@sNumFacturaFilial', @sNumFacturaOrigen AS '@sNumFacturaOrigen'
-					, @sMensajeError AS MensajeError , @nNumError AS NumError, @nClaTipoUbicacion as '@nClaTipoUbicacion'
+					SELECT 'Otros Cert', @nId AS '@nId', @sIdCertificado as '@sIdCertificado', @sMensajeError AS '@sMensajeError', Error = ISNULL(ERROR_MESSAGE(),'') + ' [' + ISNULL(ERROR_PROCEDURE(),'') +']'
 				END
 		
 			END
 		END TRY
 		BEGIN CATCH
 			-- Validación temporal debido a RAISERROR
-			IF @nClaTipoUbicacion <> 2 AND @nNumError = 1
-			BEGIN
-				SET @nNumError  = 0 -- Ya existe un certificado
-			END
-
-			--SET @sIdCertificado = CONVERT(VARCHAR(20),@nIdCertificado)
+			--IF @nClaTipoUbicacion <> 2 AND @nNumError = 1
+			--BEGIN
+			--	SET @nNumError  = 0 -- Ya existe un certificado
+			--END
 
 			SET @sErrorMsj = NULL
 			SELECT @sErrorMsj = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
@@ -225,9 +214,7 @@ BEGIN
 
 			IF @pnDebug =1
 			BEGIN
-				SELECT 'CATCH ERROR', @nId AS '@nId', @sIdCertificado as '@sIdCertificado',@nIdCertificado AS '@nIdCertificado', @nClaUbicacionFilial AS '@nClaUbicacionFilial', @nIdFacturaFilial AS '@nIdFacturaFilial'
-				,@nClaUbicacionOrigen AS '@nClaUbicacionOrigen', @nIdFacturaOrigen AS '@nIdFacturaOrigen', @sNumFacturaFilial AS '@sNumFacturaFilial', @sNumFacturaOrigen AS '@sNumFacturaOrigen'
-				, @sMensajeError AS MensajeError , @nNumError AS NumError, @nClaTipoUbicacion as '@nClaTipoUbicacion'
+				SELECT 'CATCH ERROR', @nId AS '@nId', @sIdCertificado as '@sIdCertificado', @sMensajeError AS '@sMensajeError', Error = ISNULL(ERROR_MESSAGE(),'') + ' [' + ISNULL(ERROR_PROCEDURE(),'') +']'
 			END
 
 		END CATCH	
@@ -341,6 +328,9 @@ BEGIN
 		END
 		ELSE
 		BEGIN
+			SELECT @sErrorMsj = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
+			SELECT @sMensajeError = ISNULL(@sMensajeError, @sErrorMsj)
+
 			UPDATE	OpeSch.OpeRelFacturaSuministroDirecto
 			SET		ClaEstatus		= 4,
 					NumError		= @nNumError, 

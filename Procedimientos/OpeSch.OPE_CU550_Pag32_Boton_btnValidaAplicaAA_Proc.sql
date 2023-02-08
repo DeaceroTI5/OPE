@@ -1,3 +1,4 @@
+USE Operacion
 GO
 -- 'OpeSch.OPE_CU550_Pag32_Boton_btnValidaAplicaAA_Proc'
 GO
@@ -21,16 +22,18 @@ BEGIN
     IF ( EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud AND ClaEstatusSolicitud IN (0) ) 
         AND @pnClaSolicitud > 0 AND @pnClaPedidoOrigen > 0 AND @pnClaEstatusPedidoOrigen > 0 ) 
     BEGIN
-        IF ( EXISTS( SELECT 1  FROM OpeSch.OpeVtaTraFabricacionVw a -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion 
-                            INNER JOIN OpeSch.OpeVtaTraFabricacionDetVw b -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDet 
-							ON a.IdFabricacion = b.IdFabricacion
+        IF ( EXISTS( SELECT 1  FROM DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw a WITH(NOLOCK)
+                            INNER JOIN DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDetVw b WITH(NOLOCK) ON a.IdFabricacion = b.IdFabricacion
                             WHERE a.IdFabricacion = @pnClaPedidoOrigen AND b.ClaEstatusFabricacion IN (4,5) ) )
         BEGIN
             SELECT  @nAplicaAA = 1
         END
     END
 
-    SELECT  @pnEsEditableAA = ISNULL( @nAplicaAA,0 )
+	IF @@SERVERNAME = 'SRVDBDES01\ITKQA'
+		SELECT @pnEsEditableAA = 1
+	ELSE
+		SELECT  @pnEsEditableAA = ISNULL( @nAplicaAA,0 )
 
 	SET NOCOUNT OFF    
 

@@ -13,10 +13,14 @@ BEGIN
 	SET NOCOUNT ON
 
     IF ( EXISTS ( SELECT 1  FROM OpeSch.OpeTraSolicitudTraspasoEncVw a
-                            INNER JOIN OpeSch.OpeVtaTraFabricacionVw b -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion
+                            INNER JOIN DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw b WITH(NOLOCK)
 							ON a.ClaPedido = b.IdFabricacion
-                            WHERE a.IdSolicitudTraspaso = @pnClaSolicitud AND a.ClaPedido = @pnClaPedido AND b.ClaEstatusFabricacion IN (4,5) ) 
-        AND @pnClaSolicitud > 0 AND @pnClaPedido > 0 ) 
+                            WHERE a.IdSolicitudTraspaso = @pnClaSolicitud 
+							AND a.ClaPedido = @pnClaPedido 
+							AND b.ClaEstatusFabricacion IN (4,5) 
+				) 
+        AND @pnClaSolicitud > 0 AND @pnClaPedido > 0 
+		) 
     BEGIN
         --Declaración de Variables Cancelacion
         DECLARE @nFabricacionCancelacion INT = NULL, @nErrorCancelacion INT = NULL, @sResMensajeCancelacion VARCHAR(200) = NULL, @sNoUtilCancelacion VARCHAR(4000) = Null
@@ -33,8 +37,8 @@ BEGIN
         --Proceso de llenado de Fabriaciones a Cancelar
         INSERT INTO @PedidosCancelacion (IdFabricacion, Partidas, ClaEstatusFab, PartidasActivas, Error, Mensaje)
         SELECT	a.IdFabricacion, COUNT(b.NumeroRenglon), a.ClaEstatusFabricacion, SUM(CASE WHEN b.ClaEstatusFabricacion IN (4,5) THEN 1 ELSE 0 END), NULL, NULL
-        FROM	OpeSch.OpeVtaTraFabricacionVw  a WITH(NOLOCK) -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion
-            INNER JOIN	OpeSch.OpeVtaTraFabricacionDetVw b WITH(NOLOCK) -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDet
+        FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw a WITH(NOLOCK)
+            INNER JOIN	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDet b WITH(NOLOCK)
                         ON b.IdFabricacion = a.IdFabricacion
         WHERE	a.IdFabricacion IN (@pnClaPedido)
         GROUP BY

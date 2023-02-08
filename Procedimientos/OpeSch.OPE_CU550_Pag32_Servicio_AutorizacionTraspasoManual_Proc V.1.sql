@@ -25,7 +25,9 @@ BEGIN
             @nParidadConvenida INT,	            @nClaIdioma SMALLINT,	        @nEsMidContinent BIT,			@nEsUbicacionLegacy	TINYINT,
 			@nEsProforma SMALLINT,	            @nEsBack SMALLINT,              @nClaMetodoPago TINYINT,	    @sObservacion VARCHAR(255),		
             @nFabricacion INT,                  @nPedidoExpress SMALLINT, 	    @nClaProyecto INT,              @tFechaNecesitaCliente DATETIME,
-			@nEsFabOriginal INT,				@sCuentaPago VARCHAR(30),		@nEstatusFab INT
+			@nEsFabOriginal INT,				@sCuentaPago VARCHAR(30),		@nEstatusFab INT,				@nAutorizadaSN SMALLINT,
+			@nClaMotivoRechazo INT,				@nIdAsignaUbicacion INT,		@nClaUbicacionSurteP INT,		@dFechaPromesaP	DATETIME,
+			@nClaConsignadoP INT
 
     --Asignación de Valores Default a Variables Encabezado Fabricación
 
@@ -218,11 +220,76 @@ BEGIN
             AND     IdRenglon > @nNumRenglon	
         END
 
+		----------------------------------------------------------------------------------
         --Ejecución de Proceso de Autorización Legacy
+        --EXEC    DEAOFINET05.Ventas.VtaSch.ReplicaTraspasoaLegacy 
+        --        @idFabricacion = @nFabricacion
 
-        EXEC    DEAOFINET05.Ventas.VtaSch.ReplicaTraspasoaLegacy 
-                @idFabricacion = @nFabricacion
+		-- Bitacora pedidos autorizados.
+		SELECT  @nIdAsignaUbicacion = ISNULL(MAX(IdAsignaUbicacion),0) + 1        
+		FROM	OpeSch.OpeVtaBitAsignaUbicacion WITH(NOLOCK)
+		
+		INSERT INTO OpeSch.OpeVtaBitAsignaUbicacion (IdAsignaUbicacion, IdFabricacion, ClaUbicacionSurte, FechaDesea, ClaConsignado, NombrePcMod, ClaUsuarioMod, EsActualiza, FechaUltimaMod)
+		SELECT	@nIdAsignaUbicacion, @nFabricacion, @nUbicacion, @tFechaPromesa, @nClaConsignado, @psNombrePcMod, @pnClaUsuarioMod, 0, GETDATE()
 
+		BEGIN TRY
+			---Ejecución de Proceso de Autorización AG
+			EXEC    DEAOFINET05.Ventas.VtaSch.VtaAsignaUbicacion 
+					@pnIdFabricacion			= @nFabricacion,
+					@pnAutorizadaSN				= @nAutorizadaSN OUTPUT,	-- retorna si se autorizo
+					@pnClaMotivoRechazo			= @nClaMotivoRechazo OUTPUT,	-- retorna si se rechazo
+					@EsDebug					= 0,		
+					@pnEsActualizaDatos			= 1,
+					@psNombrePcMod				= @psNombrePcMod,
+					@pnClaUsuarioMod			= @pnClaUsuarioMod,
+					@pnTipoCambio				= null, -- Se le envia al asignador, 1 - Cambio de planta por cambio de consignado, 2 - Respeta la fecha
+					@pnIdFabricacionOriginal	= null, --(para casos de cambio de planta)
+					@pnEsReenviar				= 0		-- En caso que no haya respuesta hasta que la operación se lleve a cabo. 
+		END TRY
+		BEGIN CATCH
+			UPDATE	a	-- actualiza si cacha un error no controlado
+			SET		MensajeError = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
+			FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+			WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+		END CATCH
+		
+		UPDATE	a	
+		SET		  AutorizadaSN		= @nAutorizadaSN
+				, ClaMotivoRechazo	= @nClaMotivoRechazo
+		FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+		WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+
+		SELECT	  @nClaUbicacionSurteP	= ClaUbicacion
+				, @dFechaPromesaP		= ISNULL(FechaPromesaActual,FechaPromesaOriginal)
+				, @nClaConsignadoP		= ISNULL(ClaConsignado,0)
+		FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)
+		WHERE	IdFabricacion = @nFabricacion
+
+		IF	@nAutorizadaSN = 1
+		AND EXISTS (
+			SELECT	1	
+			FROM	OpeSch.OpeTraSolicitudTraspasoEncVw
+			WHERE	IdSolicitudTraspaso		= @pnClaSolicitud
+			AND		ClaPedido				= @nFabricacion
+			AND	(	ClaUbicacionSurte		<> @nClaUbicacionSurteP
+			OR		FechaDesea				<> @dFechaPromesaP
+			OR		ISNULL(ClaConsignado,0) <> @nClaConsignadoP)
+		)
+		BEGIN
+			UPDATE	a	
+			SET		EsActualiza	= 1
+			FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+			WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+
+			UPDATE	a
+			SET		  ClaUbicacionSurte	= @nClaUbicacionSurteP
+					, FechaDesea		= @dFechaPromesaP
+					, ClaConsignado		= @nClaConsignadoP
+			FROM	OpeSch.OpeTraSolicitudTraspasoEncVw a
+			WHERE	IdSolicitudTraspaso		= @pnClaSolicitud
+			AND		ClaPedido				= @nFabricacion
+		END
+		----------------------------------------------------------------------------------
         --Actualización de Solicitud de Traspaso
 
         IF ( ISNULL( @nFabricacion,0 ) NOT IN ( 0, -1 ) )
@@ -416,11 +483,76 @@ BEGIN
             AND     IdRenglon > @nNumRenglon	
         END
 
+		----------------------------------------------------------------------------------
         --Ejecución de Proceso de Autorización Legacy
+        --EXEC    DEAOFINET05.Ventas.VtaSch.ReplicaTraspasoaLegacy 
+        --        @idFabricacion = @nFabricacion
 
-        EXEC    DEAOFINET05.Ventas.VtaSch.ReplicaTraspasoaLegacy 
-                @idFabricacion = @nFabricacion
+		-- Bitacora pedidos autorizados.
+		SELECT  @nIdAsignaUbicacion = ISNULL(MAX(IdAsignaUbicacion),0) + 1        
+		FROM	OpeSch.OpeVtaBitAsignaUbicacion WITH(NOLOCK)
+		
+		INSERT INTO OpeSch.OpeVtaBitAsignaUbicacion (IdAsignaUbicacion, IdFabricacion, ClaUbicacionSurte, FechaDesea, ClaConsignado, NombrePcMod, ClaUsuarioMod, EsActualiza, FechaUltimaMod)
+		SELECT	@nIdAsignaUbicacion, @nFabricacion, @nUbicacion, @tFechaPromesa, @nClaConsignado, @psNombrePcMod, @pnClaUsuarioMod, 0, GETDATE()
 
+		BEGIN TRY
+			---Ejecución de Proceso de Autorización AG
+			EXEC    DEAOFINET05.Ventas.VtaSch.VtaAsignaUbicacion 
+					@pnIdFabricacion			= @nFabricacion,
+					@pnAutorizadaSN				= @nAutorizadaSN OUTPUT,	-- retorna si se autorizo
+					@pnClaMotivoRechazo			= @nClaMotivoRechazo OUTPUT,	-- retorna si se rechazo
+					@EsDebug					= 0,		
+					@pnEsActualizaDatos			= 1,
+					@psNombrePcMod				= @psNombrePcMod,
+					@pnClaUsuarioMod			= @pnClaUsuarioMod,
+					@pnTipoCambio				= null, -- Se le envia al asignador, 1 - Cambio de planta por cambio de consignado, 2 - Respeta la fecha
+					@pnIdFabricacionOriginal	= null, --(para casos de cambio de planta)
+					@pnEsReenviar				= 0		-- En caso que no haya respuesta hasta que la operación se lleve a cabo. 
+		END TRY
+		BEGIN CATCH
+			UPDATE	a	-- actualiza si cacha un error no controlado
+			SET		MensajeError = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
+			FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+			WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+		END CATCH
+		
+		UPDATE	a	
+		SET		  AutorizadaSN		= @nAutorizadaSN
+				, ClaMotivoRechazo	= @nClaMotivoRechazo
+		FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+		WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+
+		SELECT	  @nClaUbicacionSurteP	= ClaUbicacion
+				, @dFechaPromesaP		= ISNULL(FechaPromesaActual,FechaPromesaOriginal)
+				, @nClaConsignadoP		= ISNULL(ClaConsignado,0)
+		FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)
+		WHERE	IdFabricacion = @nFabricacion
+
+		IF	@nAutorizadaSN = 1
+		AND EXISTS (
+			SELECT	1	
+			FROM	OpeSch.OpeTraSolicitudTraspasoEncVw
+			WHERE	IdSolicitudTraspaso		= @pnClaSolicitud
+			AND		ClaPedido				= @nFabricacion
+			AND	(	ClaUbicacionSurte		<> @nClaUbicacionSurteP
+			OR		FechaDesea				<> @dFechaPromesaP
+			OR		ISNULL(ClaConsignado,0) <> @nClaConsignadoP)
+		)
+		BEGIN
+			UPDATE	a	
+			SET		EsActualiza	= 1
+			FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+			WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+
+			UPDATE	a
+			SET		  ClaUbicacionSurte	= @nClaUbicacionSurteP
+					, FechaDesea		= @dFechaPromesaP
+					, ClaConsignado		= @nClaConsignadoP
+			FROM	OpeSch.OpeTraSolicitudTraspasoEncVw a
+			WHERE	IdSolicitudTraspaso		= @pnClaSolicitud
+			AND		ClaPedido				= @nFabricacion
+		END
+		----------------------------------------------------------------------------------
         --Actualización de Solicitud de Traspaso
 
         IF ( ISNULL( @nFabricacion,0 ) NOT IN ( 0, -1 ) )
@@ -499,7 +631,8 @@ BEGIN
                 @pnClaUsuarioMod        = @pnClaUsuarioMod,
                 @psNombrePcMod          = @psNombrePcMod,
                 @pnClaConsignado        = @nClaConsignado OUTPUT,
-				@psMensaje				= @sMensajeError OUTPUT
+				@psMensaje				= @sMensajeError OUTPUT,
+				@pnEsExportacion		= 0
 		
 
 		IF @@SERVERNAME = 'SRVDBDES01\ITKQA'
@@ -647,11 +780,76 @@ BEGIN
             AND     IdRenglon > @nNumRenglon	
         END
 
+		----------------------------------------------------------------------------------
         --Ejecución de Proceso de Autorización Legacy
+        --EXEC    DEAOFINET05.Ventas.VtaSch.ReplicaTraspasoaLegacy 
+        --        @idFabricacion = @nFabricacion
 
-        EXEC    DEAOFINET05.Ventas.VtaSch.ReplicaTraspasoaLegacy 
-                @idFabricacion = @nFabricacion
+		-- Bitacora pedidos autorizados.
+		SELECT  @nIdAsignaUbicacion = ISNULL(MAX(IdAsignaUbicacion),0) + 1        
+		FROM	OpeSch.OpeVtaBitAsignaUbicacion WITH(NOLOCK)
+		
+		INSERT INTO OpeSch.OpeVtaBitAsignaUbicacion (IdAsignaUbicacion, IdFabricacion, ClaUbicacionSurte, FechaDesea, ClaConsignado, NombrePcMod, ClaUsuarioMod, EsActualiza, FechaUltimaMod)
+		SELECT	@nIdAsignaUbicacion, @nFabricacion, @nUbicacion, @tFechaPromesa, @nClaConsignado, @psNombrePcMod, @pnClaUsuarioMod, 0, GETDATE()
 
+		BEGIN TRY
+			---Ejecución de Proceso de Autorización AG
+			EXEC    DEAOFINET05.Ventas.VtaSch.VtaAsignaUbicacion 
+					@pnIdFabricacion			= @nFabricacion,
+					@pnAutorizadaSN				= @nAutorizadaSN OUTPUT,	-- retorna si se autorizo
+					@pnClaMotivoRechazo			= @nClaMotivoRechazo OUTPUT,	-- retorna si se rechazo
+					@EsDebug					= 0,		
+					@pnEsActualizaDatos			= 1,
+					@psNombrePcMod				= @psNombrePcMod,
+					@pnClaUsuarioMod			= @pnClaUsuarioMod,
+					@pnTipoCambio				= null, -- Se le envia al asignador, 1 - Cambio de planta por cambio de consignado, 2 - Respeta la fecha
+					@pnIdFabricacionOriginal	= null, --(para casos de cambio de planta)
+					@pnEsReenviar				= 0		-- En caso que no haya respuesta hasta que la operación se lleve a cabo. 
+		END TRY
+		BEGIN CATCH
+			UPDATE	a	-- actualiza si cacha un error no controlado
+			SET		MensajeError = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
+			FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+			WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+		END CATCH
+		
+		UPDATE	a	
+		SET		  AutorizadaSN		= @nAutorizadaSN
+				, ClaMotivoRechazo	= @nClaMotivoRechazo
+		FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+		WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+
+		SELECT	  @nClaUbicacionSurteP	= ClaUbicacion
+				, @dFechaPromesaP		= ISNULL(FechaPromesaActual,FechaPromesaOriginal)
+				, @nClaConsignadoP		= ISNULL(ClaConsignado,0)
+		FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)
+		WHERE	IdFabricacion = @nFabricacion
+
+		IF	@nAutorizadaSN = 1
+		AND EXISTS (
+			SELECT	1	
+			FROM	OpeSch.OpeTraSolicitudTraspasoEncVw
+			WHERE	IdSolicitudTraspaso		= @pnClaSolicitud
+			AND		ClaPedido				= @nFabricacion
+			AND	(	ClaUbicacionSurte		<> @nClaUbicacionSurteP
+			OR		FechaDesea				<> @dFechaPromesaP
+			OR		ISNULL(ClaConsignado,0) <> @nClaConsignadoP)
+		)
+		BEGIN
+			UPDATE	a	
+			SET		EsActualiza	= 1
+			FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+			WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+
+			UPDATE	a
+			SET		  ClaUbicacionSurte	= @nClaUbicacionSurteP
+					, FechaDesea		= @dFechaPromesaP
+					, ClaConsignado		= @nClaConsignadoP
+			FROM	OpeSch.OpeTraSolicitudTraspasoEncVw a
+			WHERE	IdSolicitudTraspaso		= @pnClaSolicitud
+			AND		ClaPedido				= @nFabricacion
+		END
+		----------------------------------------------------------------------------------
         --Actualización de Solicitud de Traspaso
 
         IF ( ISNULL( @nFabricacion,0 ) NOT IN ( 0, -1 ) )
@@ -732,7 +930,8 @@ BEGIN
                 @pnClaUsuarioMod        = @pnClaUsuarioMod,
                 @psNombrePcMod          = @psNombrePcMod,
                 @pnClaConsignado        = @nClaConsignado OUTPUT,
-				@psMensaje				= @sMensajeError OUTPUT
+				@psMensaje				= @sMensajeError OUTPUT,
+				@pnEsExportacion		= 1
 		
 
 		IF @@SERVERNAME = 'SRVDBDES01\ITKQA'
@@ -880,11 +1079,76 @@ BEGIN
             AND     IdRenglon > @nNumRenglon	
         END
 
+		----------------------------------------------------------------------------------
         --Ejecución de Proceso de Autorización Legacy
+        --EXEC    DEAOFINET05.Ventas.VtaSch.ReplicaTraspasoaLegacy 
+        --        @idFabricacion = @nFabricacion
 
-        EXEC    DEAOFINET05.Ventas.VtaSch.ReplicaTraspasoaLegacy 
-                @idFabricacion = @nFabricacion
+		-- Bitacora pedidos autorizados.
+		SELECT  @nIdAsignaUbicacion = ISNULL(MAX(IdAsignaUbicacion),0) + 1        
+		FROM	OpeSch.OpeVtaBitAsignaUbicacion WITH(NOLOCK)
+		
+		INSERT INTO OpeSch.OpeVtaBitAsignaUbicacion (IdAsignaUbicacion, IdFabricacion, ClaUbicacionSurte, FechaDesea, ClaConsignado, NombrePcMod, ClaUsuarioMod, EsActualiza, FechaUltimaMod)
+		SELECT	@nIdAsignaUbicacion, @nFabricacion, @nUbicacion, @tFechaPromesa, @nClaConsignado, @psNombrePcMod, @pnClaUsuarioMod, 0, GETDATE()
 
+		BEGIN TRY
+			---Ejecución de Proceso de Autorización AG
+			EXEC    DEAOFINET05.Ventas.VtaSch.VtaAsignaUbicacion 
+					@pnIdFabricacion			= @nFabricacion,
+					@pnAutorizadaSN				= @nAutorizadaSN OUTPUT,	-- retorna si se autorizo
+					@pnClaMotivoRechazo			= @nClaMotivoRechazo OUTPUT,	-- retorna si se rechazo
+					@EsDebug					= 0,		
+					@pnEsActualizaDatos			= 1,
+					@psNombrePcMod				= @psNombrePcMod,
+					@pnClaUsuarioMod			= @pnClaUsuarioMod,
+					@pnTipoCambio				= null, -- Se le envia al asignador, 1 - Cambio de planta por cambio de consignado, 2 - Respeta la fecha
+					@pnIdFabricacionOriginal	= null, --(para casos de cambio de planta)
+					@pnEsReenviar				= 0		-- En caso que no haya respuesta hasta que la operación se lleve a cabo. 
+		END TRY
+		BEGIN CATCH
+			UPDATE	a	-- actualiza si cacha un error no controlado
+			SET		MensajeError = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
+			FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+			WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+		END CATCH
+		
+		UPDATE	a	
+		SET		  AutorizadaSN		= @nAutorizadaSN
+				, ClaMotivoRechazo	= @nClaMotivoRechazo
+		FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+		WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+
+		SELECT	  @nClaUbicacionSurteP	= ClaUbicacion
+				, @dFechaPromesaP		= ISNULL(FechaPromesaActual,FechaPromesaOriginal)
+				, @nClaConsignadoP		= ISNULL(ClaConsignado,0)
+		FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)
+		WHERE	IdFabricacion = @nFabricacion
+
+		IF	@nAutorizadaSN = 1
+		AND EXISTS (
+			SELECT	1	
+			FROM	OpeSch.OpeTraSolicitudTraspasoEncVw
+			WHERE	IdSolicitudTraspaso		= @pnClaSolicitud
+			AND		ClaPedido				= @nFabricacion
+			AND	(	ClaUbicacionSurte		<> @nClaUbicacionSurteP
+			OR		FechaDesea				<> @dFechaPromesaP
+			OR		ISNULL(ClaConsignado,0) <> @nClaConsignadoP)
+		)
+		BEGIN
+			UPDATE	a	
+			SET		EsActualiza	= 1
+			FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+			WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+
+			UPDATE	a
+			SET		  ClaUbicacionSurte	= @nClaUbicacionSurteP
+					, FechaDesea		= @dFechaPromesaP
+					, ClaConsignado		= @nClaConsignadoP
+			FROM	OpeSch.OpeTraSolicitudTraspasoEncVw a
+			WHERE	IdSolicitudTraspaso		= @pnClaSolicitud
+			AND		ClaPedido				= @nFabricacion
+		END
+		----------------------------------------------------------------------------------
         --Actualización de Solicitud de Traspaso
 
         IF ( ISNULL( @nFabricacion,0 ) NOT IN ( 0, -1 ) )

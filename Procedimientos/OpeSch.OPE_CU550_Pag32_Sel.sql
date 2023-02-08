@@ -103,7 +103,7 @@ BEGIN
 				ChkLlaveEnMano = 0,
 				ChkDoorToDoor = 0,
                 HechoPor = NULL,
-                ClaHechoPor = NULL,
+				ClaHechoPor = NULL,
                 FechaCaptura = NULL,
                 FechaAutorizacion = NULL,
                 EstatusSolicitud = NULL,
@@ -176,7 +176,7 @@ BEGIN
                                             END),
             @sObservaciones             = a.Observaciones,
             @nClaEstatusPedidoOrigen    = ( CASE    
-                                                WHEN ISNULL( c.ClaEstatus,0 ) = 1
+                                                WHEN ISNULL( c.ClaEstatusFabricacion,0 ) IN (4,5)
                                                 THEN 1
                                                 ELSE 0
                                             END),
@@ -191,9 +191,9 @@ BEGIN
                                                 ELSE 0
                                             END)
     FROM    OpeSch.OpeTraSolicitudTraspasoEncVw a WITH(NOLOCK)  
-    LEFT JOIN  OpeSch.OpeVtaTraFabricacionVw b WITH(NOLOCK)  -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion
+    LEFT JOIN  DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw b WITH(NOLOCK)  
         ON  a.ClaPedido = b.IdFabricacion --AND a.ClaUbicacionSurte = b.ClaUbicacion /*Se identifican casos con discrepancia entre ClaUbicación y ClaUbicacionVenta al generarse las Fabricaciones*/
-    LEFT JOIN   OpeSch.OpeTraFabricacionVw c WITH(NOLOCK)  
+    LEFT JOIN DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw c WITH(NOLOCK)  
         ON  a.ClaPedidoOrigen = c.IdFabricacion
     LEFT JOIN   OpeSch.OpeVtaCatClienteCuentaVw d WITH(NOLOCK)  
         ON  a.ClaCliente = d.ClaClienteCuenta

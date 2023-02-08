@@ -1,6 +1,6 @@
-USE  Operacion
+USE Operacion
 GO
---	'OpeSch.OPE_CU550_Pag32_Boton_btnValidaTipoTraspaso_Proc'
+-- 'OpeSch.OPE_CU550_Pag32_Boton_btnValidaTipoTraspaso_Proc'
 GO
 ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Boton_btnValidaTipoTraspaso_Proc
     @pnClaUbicacion         INT,	
@@ -10,7 +10,8 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Boton_btnValidaTipoTraspaso_Proc
     @pnChkSuministroDirecto	INT = 0,
 	@pnChkDoorToDoor		INT = 0,
     @ptFechaDefault         DATETIME,
-    @pnClaTipoTraspaso	    INT OUT, -- 0: No Muestra Resultados / 1: Escenario Traspaso Muestra El Cliente Declarado para Ubicacion Pide / 2: Escenario Compra Filial para MP Muestra Los Clientes Declarados para Relación Filial / 3: Escenario Compra Filial para SM Muestra Los Clientes Declarados para Relación Filial
+    @pnClaTipoTraspaso	    INT OUT, -- 0: No Muestra Resultados / 1: Escenario Traspaso Muestra El Cliente Declarado para Ubicacion Pide / 2: Escenario Compra Filial para MP Muestra Los Clientes Declarados para Relación Filial 
+										-- / 3: Escenario Compra Filial para SM Muestra Los Clientes Declarados para Relación Filial
     @ptFechaDesea           DATETIME OUT
 AS
 BEGIN
@@ -59,11 +60,11 @@ BEGIN
                 --WHERE   IdFabricacion = @pnClaPedidoOrigen
 
                SELECT  @ptFechaDesea = (CASE
-                                            WHEN    ISNULL( ClaEstatusFabricacion,0 ) = 1 AND @ptFechaDefault <= FechaPromesaOriginal
+                                            WHEN    ISNULL( ClaEstatusFabricacion,0 ) IN (4,5) AND @ptFechaDefault <= FechaPromesaOriginal
                                             THEN    FechaPromesaOriginal
                                             ELSE    @ptFechaDesea 
                                         END)
-                FROM     OpeSch.OpeVtaTraFabricacionVw WITH(NOLOCK)  -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw
+                FROM     DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)  
                 WHERE   IdFabricacion = @pnClaPedidoOrigen            
 			END
         END 
@@ -74,11 +75,11 @@ BEGIN
 			IF ( @pnClaPedidoOrigen > 0 )
             BEGIN
 				SELECT  @ptFechaDesea = (CASE
-                                            WHEN    ISNULL( ClaEstatusFabricacion,0 ) = 1 AND @ptFechaDefault <= FechaPromesaOriginal
+                                            WHEN    ISNULL( ClaEstatusFabricacion,0 )IN (4,5) AND @ptFechaDefault <= FechaPromesaOriginal
                                             THEN    FechaPromesaOriginal
                                             ELSE    @ptFechaDesea 
                                         END)
-                FROM     OpeSch.OpeVtaTraFabricacionVw WITH(NOLOCK) -- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw  
+                FROM     DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)  
                 WHERE   IdFabricacion = @pnClaPedidoOrigen    
             END
         END 

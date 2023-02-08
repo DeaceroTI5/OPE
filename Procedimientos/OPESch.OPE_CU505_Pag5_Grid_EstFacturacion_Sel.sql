@@ -1,15 +1,6 @@
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
---*==============================================================
---*Objeto:		'OPESch.OPE_CU505_Pag5_Grid_EstFacturacion_Sel'
---*Autor:		Luis F Verastegui
---*Fecha:		10/12/2015
---*Objetivo:	
---*Entrada:
---*Salida:
---*Precondiciones:
---*Revisiones: 
---*==============================================================
 USE Operacion
+GO
+-- 'OPESch.OPE_CU505_Pag5_Grid_EstFacturacion_Sel'
 GO
 ALTER PROCEDURE OPESch.OPE_CU505_Pag5_Grid_EstFacturacion_Sel
 	 @pnNumVersion			INT
@@ -118,8 +109,8 @@ BEGIN
 	AND		BajaLogica = 0
 
 	--*	Ubicación utiliza Módulo de Estimaciones
-	SELECT	  @nEsEstimacionActivo	= nValor1
-			, @nUbicacionEstimacion = nValor2
+	SELECT	@nEsEstimacionActivo  = nValor1,
+			@nUbicacionEstimacion = nValor2
 	from	OPESch.OpeTiCatConfiguracionVw (NOLOCK)   
 	where	ClaSistema = 127 
 	and		ClaUbicacion = @pnClaUbicacion 
@@ -342,7 +333,10 @@ BEGIN
 			,NombreCortoMoneda
 			,ShipID
 			,Remision
-	FROM	#tPedidos /*WITH (NOLOCK)*/
+			,NomUbicacionDestino = CONVERT(VARCHAR(10),a.ClaUbicacionDestino)+' - '+b.NombreUbicacion
+	FROM	#tPedidos a /*WITH (NOLOCK)*/
+	LEFT JOIN OpeSch.OpeTiCatUbicacionVw b
+	ON		a.ClaUbicacionDestino = b.ClaUbicacion
 	ORDER BY FechaViaje,IdPlanCarga, ClaArticulo	
 
 	SET NOCOUNT OFF

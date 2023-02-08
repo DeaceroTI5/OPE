@@ -76,7 +76,7 @@ BEGIN
 	)
 	BEGIN
 		SELECT	@nPrecioLista	= PrecioLista
-		FROM	OpeSch.OpeTraFabricacionDetVw 
+		FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDetVw WITH(NOLOCK)
 		WHERE	IdFabricacion	= @pnClaPedidoOrigen 
 		AND		ClaArticulo		= @pnColProducto
 

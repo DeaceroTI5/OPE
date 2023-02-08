@@ -12,7 +12,6 @@ ALTER PROCEDURE  OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_IU
 	, @pnClaUsuarioMod		INT
 	, @pnAccionSp			TINYINT = -1 
 	, @pnDebug				TINYINT = 0
-
 AS
 BEGIN
 	SET NOCOUNT ON
@@ -32,6 +31,15 @@ BEGIN
 		EXEC OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_CambioValor_NumFacturaFilial_Sel
 			  @pnClaUbicacion		= @pnClaUbicacion	
 			, @psNumFacturaFilial	= @psNumFacturaFilial
+
+		IF ISNULL(ERROR_MESSAGE(),'') <> ''
+		BEGIN
+			DECLARE @sMsj VARCHAR(300) 
+			SET @sMsj = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
+			
+			RAISERROR(@sMsj,16,1)
+			RETURN
+		END
 	END
 	
 	DECLARE	  @nIdFacturaFilial		INT
@@ -55,6 +63,9 @@ BEGIN
 	FROM	DEAOFINET04.Operacion.AceSch.VtaCTraFacturaVw
 	WHERE	ClaUbicacion			= @nClaUbicacionVentas
 	AND		IdFacturaAlfanumerico	= @psNumFacturaOrigen
+
+	IF @pnDebug = 1
+		SELECT @nIdFacturaFilial AS '@nIdFacturaFilial', @nIdFacturaOrigen AS '@nIdFacturaOrigen', @nClaUbicacionVentas AS '@nClaUbicacionVentas'
 
 
 	IF NOT EXISTS (

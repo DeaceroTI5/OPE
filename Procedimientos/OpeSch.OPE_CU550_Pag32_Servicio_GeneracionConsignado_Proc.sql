@@ -8,7 +8,8 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Servicio_GeneracionConsignado_Proc
     @pnClaUsuarioMod            INT, --Usuario Autorizador
     @psNombrePcMod              VARCHAR(64),
     @pnClaConsignado            INT OUT,
-	@psMensaje					VARCHAR(255) = '' OUTPUT
+	@psMensaje					VARCHAR(255) = '' OUTPUT,
+	@pnEsExportacion			TINYINT = 0
 AS
 BEGIN
 
@@ -42,13 +43,25 @@ BEGIN
 	SET @psMensaje = ''
 		
 	--Validacion de la Existencia y Estatus de la Fabricacion
-	IF NOT EXISTS (	SELECT	1
-					FROM	[Ventas].[VtaSch].[VtaCTraFabricacionEnc] WITH(NOLOCK) -- OpeSch.OpeVtaTraFabricacionVw
+	IF @pnEsExportacion = 0
+	AND NOT EXISTS (	SELECT	1
+					FROM	[Ventas].[VtaSch].[VtaCTraFabricacionEnc]
 					WHERE	IdFabricacion = @pnFabricacionOrigen)
 	BEGIN
 		SELECT @Mensaje = 'El pedido Origen '+ ISNULL(CONVERT(VARCHAR(10),@pnFabricacionOrigen),'') +' no existe. (OpeSch.OPE_CU550_Pag32_Servicio_GeneracionConsignado_Proc).'
 		GOTO ABORT
 	END
+	ELSE
+	IF @pnEsExportacion = 1
+	AND NOT EXISTS (SELECT	1
+					FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)
+					WHERE	IdFabricacion = @pnFabricacionOrigen)
+	BEGIN
+		SELECT @Mensaje = 'El pedido Origen '+ ISNULL(CONVERT(VARCHAR(10),@pnFabricacionOrigen),'') +' no existe. (OpeSch.OPE_CU550_Pag32_Servicio_GeneracionConsignado_Proc).'
+		GOTO ABORT
+	END
+
+
 
 	SELECT	@ClaClienteUnico = ClaClienteUnico
 	FROM	DEAOFINET05.Ventas.VtaSch.VtaCatClienteCuentaVw WITH(NOLOCK)
@@ -64,7 +77,7 @@ BEGIN
 	SELECT	@ClaClienteCuentaFab = f.ClaCliente,
 			@ClaConsignadoFab = ISNULL(f.ClaConsignado, 0),
 			@ClaClienteUnicoFab = cc.ClaClienteUnico
-	FROM	OpeSch.OpeVtaTraFabricacionVw f WITH(NOLOCK)	-- DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion
+	FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw f WITH(NOLOCK)
 	INNER JOIN  DEAOFINET05.Ventas.VtaSch.VtaCatClienteCuentaVw cc WITH(NOLOCK) 
         ON  cc.ClaClienteCuenta = f.ClaCliente
 	WHERE   f.IdFabricacion = @pnFabricacionOrigen
@@ -146,7 +159,7 @@ BEGIN
 	IF ISNULL( @pnClaConsignado, 0 ) != 0
 	BEGIN
 		IF EXISTS (	SELECT	1 
-                    FROM	DEAOFINET05.Ventas.VtaSch.VtaCatConsignadoClienteVw 
+                    FROM	DEAOFINET05.Ventas.VtaSch.VtaCatConsignadoClienteVw WITH(NOLOCK)
                     WHERE	claClienteUnico = @ClaClienteUnico
                     AND		claConsignado = @pnClaConsignado	)
 		BEGIN

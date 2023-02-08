@@ -87,47 +87,89 @@ BEGIN
 
         SELECT  @nRenglon = ISNULL( @nRenglon,0 )
 
-
-		INSERT INTO @tbCargaPartidasOrigen (
-			  FabricacionCPO		
-			, NoRenglonCPO			
-			, ClaProductoCPO		
-			, UnidadCPO				
-			, CantPedidaCPO			
-			, PrecioListaCPO		
-			, PesoTeoricoCPO		
-			, CantidadMinAgrupCPO	
-			, EsMultiploCPO
-			, ClaProyecto
-			, ClaEstatusDet
-		)
-         SELECT  DISTINCT
-                 FabricacionCPO      = a.IdFabricacion,
-                 NoRenglonCPO        = b.IdFabricacionDet,
-                 ClaProductoCPO      = c.ClaArticulo,
-                 UnidadCPO           = d.NomCortoUnidad,
-                 CantPedidaCPO       = ISNULL( b.CantPedida,0.00 ),
-                 PrecioListaCPO      = ISNULL( b.PrecioLista,0.00 ),
-                 PesoTeoricoCPO      = c.PesoTeoricoKgs,
-                 CantidadMinAgrupCPO = ISNULL( i.CantidadMinAgrup,0.00 ),
-                 EsMultiploCPO       = ISNULL( i.Multiplo,0 ),
-				 ClaProyecto		= e.ClaProyecto,
-				 ClaEstatusDet		= ISNULL(b.ClaEstatus,0)
-         FROM    OpeSch.OpeTraFabricacionVw a WITH(NOLOCK)  
-         INNER JOIN  OpeSch.OpeTraFabricacionDetVw b WITH(NOLOCK)  
-             ON  a.IdFabricacion = b.IdFabricacion
-         INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
-             ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1
-         INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
-             ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
-         INNER JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw e WITH(NOLOCK)  
-             ON  a.IdFabricacion = e.IdFabricacion
-         INNER JOIN  OpeSch.OpeVtaCatProyectoVw f WITH(NOLOCK)  
-             ON  e.ClaProyecto = f.ClaProyecto
-         LEFT JOIN   OpeSch.OpeManCatArticuloDimensionVw i WITH(NOLOCK)  
-             ON  b.ClaArticulo = i.ClaArticulo
-         WHERE  a.IdFabricacion = @pnClaPedidoOrigen
-
+		IF @pnClaTipoTraspaso <> 4 --Si es exportación Consulta desde comercial
+		BEGIN
+			INSERT INTO @tbCargaPartidasOrigen (
+				  FabricacionCPO		
+				, NoRenglonCPO			
+				, ClaProductoCPO		
+				, UnidadCPO				
+				, CantPedidaCPO			
+				, PrecioListaCPO		
+				, PesoTeoricoCPO		
+				, CantidadMinAgrupCPO	
+				, EsMultiploCPO
+				, ClaProyecto
+				, ClaEstatusDet
+			)
+			 SELECT  DISTINCT
+					 FabricacionCPO      = a.IdFabricacion,
+					 NoRenglonCPO        = b.IdFabricacionDet,
+					 ClaProductoCPO      = c.ClaArticulo,
+					 UnidadCPO           = d.NomCortoUnidad,
+					 CantPedidaCPO       = ISNULL( b.CantPedida,0.00 ),
+					 PrecioListaCPO      = ISNULL( b.PrecioLista,0.00 ),
+					 PesoTeoricoCPO      = c.PesoTeoricoKgs,
+					 CantidadMinAgrupCPO = ISNULL( i.CantidadMinAgrup,0.00 ),
+					 EsMultiploCPO       = ISNULL( i.Multiplo,0 ),
+					 ClaProyecto		= e.ClaProyecto,
+					 ClaEstatusDet		= ISNULL(b.ClaEstatus,0)
+			 FROM    OpeSch.OpeTraFabricacionVw a WITH(NOLOCK)  
+			 INNER JOIN  OpeSch.OpeTraFabricacionDetVw b WITH(NOLOCK)  
+				 ON  a.IdFabricacion = b.IdFabricacion
+			 INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
+				 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1
+			 INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
+				 ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
+			 INNER JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw e WITH(NOLOCK)  
+				 ON  a.IdFabricacion = e.IdFabricacion
+			 INNER JOIN  OpeSch.OpeVtaCatProyectoVw f WITH(NOLOCK)  
+				 ON  e.ClaProyecto = f.ClaProyecto
+			 LEFT JOIN   OpeSch.OpeManCatArticuloDimensionVw i WITH(NOLOCK)  
+				 ON  b.ClaArticulo = i.ClaArticulo
+			 WHERE  a.IdFabricacion = @pnClaPedidoOrigen
+		END
+		ELSE
+		BEGIN
+			INSERT INTO @tbCargaPartidasOrigen (
+				  FabricacionCPO		
+				, NoRenglonCPO			
+				, ClaProductoCPO		
+				, UnidadCPO				
+				, CantPedidaCPO			
+				, PrecioListaCPO		
+				, PesoTeoricoCPO		
+				, CantidadMinAgrupCPO	
+				, EsMultiploCPO
+				, ClaProyecto
+				, ClaEstatusDet
+			)
+			 SELECT  DISTINCT
+					 FabricacionCPO      = a.IdFabricacion,
+					 NoRenglonCPO        = b.NumeroRenglon,
+					 ClaProductoCPO      = c.ClaArticulo,
+					 UnidadCPO           = d.NomCortoUnidad,
+					 CantPedidaCPO       = ISNULL( b.CantidadPedida,0.00 ),
+					 PrecioListaCPO      = ISNULL( b.PrecioLista,0.00 ),
+					 PesoTeoricoCPO      = c.PesoTeoricoKgs,
+					 CantidadMinAgrupCPO = ISNULL( i.CantidadMinAgrup,0.00 ),
+					 EsMultiploCPO       = ISNULL( i.Multiplo,0 ),
+					 ClaProyecto		=  ISNULL(e.ClaProyecto,a.ClaProyecto),
+					 ClaEstatusDet		= CASE WHEN ISNULL(b.ClaEstatusFabricacion,0) IN (4,5)
+											THEN 1 ELSE 0 END
+			 FROM    DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion a WITH(NOLOCK)  
+			 INNER JOIN  DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDetVw b WITH(NOLOCK)  
+				 ON  a.IdFabricacion = b.IdFabricacion
+			 INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
+				 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1
+			 INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
+				 ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
+			 LEFT JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw e WITH(NOLOCK)  
+				 ON  a.IdFabricacion = e.IdFabricacion
+			 LEFT JOIN   OpeSch.OpeManCatArticuloDimensionVw i WITH(NOLOCK)  
+				 ON  b.ClaArticulo = i.ClaArticulo
+			 WHERE  a.IdFabricacion = @pnClaPedidoOrigen
+		END
 
 		IF ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
 		BEGIN
@@ -336,8 +378,8 @@ BEGIN
 					a.CantidadMinAgrupCPO,
 					a.EsMultiploCPO,
 					a.PrecioListaCPO,
-					a.PrecioListaMPCPO,
-					a.PrecioListaMPCPO,
+					CASE WHEN ISNULL(@pnClaTipoTraspaso,0) = 4 AND a.ClaProyecto IS NULL THEN a.PrecioListaCPO ELSE a.PrecioListaMPCPO END,
+					CASE WHEN ISNULL(@pnClaTipoTraspaso,0) = 4 AND a.ClaProyecto IS NULL THEN a.PrecioListaCPO ELSE a.PrecioListaMPCPO END,
 					0,
 					0,
 					0,
