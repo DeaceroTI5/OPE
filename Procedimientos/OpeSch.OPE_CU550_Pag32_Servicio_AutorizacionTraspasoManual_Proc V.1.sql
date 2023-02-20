@@ -232,27 +232,30 @@ BEGIN
 		INSERT INTO OpeSch.OpeVtaBitAsignaUbicacion (IdAsignaUbicacion, IdFabricacion, ClaUbicacionSurte, FechaDesea, ClaConsignado, NombrePcMod, ClaUsuarioMod, EsActualiza, FechaUltimaMod)
 		SELECT	@nIdAsignaUbicacion, @nFabricacion, @nUbicacion, @tFechaPromesa, @nClaConsignado, @psNombrePcMod, @pnClaUsuarioMod, 0, GETDATE()
 
-		BEGIN TRY
-			---Ejecución de Proceso de Autorización AG
-			EXEC    DEAOFINET05.Ventas.VtaSch.VtaAsignaUbicacion 
-					@pnIdFabricacion			= @nFabricacion,
-					@pnAutorizadaSN				= @nAutorizadaSN OUTPUT,	-- retorna si se autorizo
-					@pnClaMotivoRechazo			= @nClaMotivoRechazo OUTPUT,	-- retorna si se rechazo
-					@EsDebug					= 0,		
-					@pnEsActualizaDatos			= 1,
-					@psNombrePcMod				= @psNombrePcMod,
-					@pnClaUsuarioMod			= @pnClaUsuarioMod,
-					@pnTipoCambio				= null, -- Se le envia al asignador, 1 - Cambio de planta por cambio de consignado, 2 - Respeta la fecha
-					@pnIdFabricacionOriginal	= null, --(para casos de cambio de planta)
-					@pnEsReenviar				= 0		-- En caso que no haya respuesta hasta que la operación se lleve a cabo. 
-		END TRY
-		BEGIN CATCH
-			UPDATE	a	-- actualiza si cacha un error no controlado
-			SET		MensajeError = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
-			FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
-			WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
-		END CATCH
-		
+		IF @@SERVERNAME <> 'SRVDBDES01\ITKQA'
+		BEGIN
+			BEGIN TRY
+				---Ejecución de Proceso de Autorización AG
+				EXEC    DEAOFINET05.Ventas.VtaSch.VtaAsignaUbicacion 
+						@pnIdFabricacion			= @nFabricacion,
+						@pnAutorizadaSN				= @nAutorizadaSN OUTPUT,	-- retorna si se autorizo
+						@pnClaMotivoRechazo			= @nClaMotivoRechazo OUTPUT,	-- retorna si se rechazo
+						@EsDebug					= 0,		
+						@pnEsActualizaDatos			= 1,
+						@psNombrePcMod				= @psNombrePcMod,
+						@pnClaUsuarioMod			= @pnClaUsuarioMod,
+						@pnTipoCambio				= null, -- Se le envia al asignador, 1 - Cambio de planta por cambio de consignado, 2 - Respeta la fecha
+						@pnIdFabricacionOriginal	= null, --(para casos de cambio de planta)
+						@pnEsReenviar				= 0		-- En caso que no haya respuesta hasta que la operación se lleve a cabo. 
+			END TRY
+			BEGIN CATCH
+				UPDATE	a	-- actualiza si cacha un error no controlado
+				SET		MensajeError = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
+				FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+				WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+			END CATCH
+		END
+
 		UPDATE	a	
 		SET		  AutorizadaSN		= @nAutorizadaSN
 				, ClaMotivoRechazo	= @nClaMotivoRechazo
@@ -495,26 +498,29 @@ BEGIN
 		INSERT INTO OpeSch.OpeVtaBitAsignaUbicacion (IdAsignaUbicacion, IdFabricacion, ClaUbicacionSurte, FechaDesea, ClaConsignado, NombrePcMod, ClaUsuarioMod, EsActualiza, FechaUltimaMod)
 		SELECT	@nIdAsignaUbicacion, @nFabricacion, @nUbicacion, @tFechaPromesa, @nClaConsignado, @psNombrePcMod, @pnClaUsuarioMod, 0, GETDATE()
 
-		BEGIN TRY
-			---Ejecución de Proceso de Autorización AG
-			EXEC    DEAOFINET05.Ventas.VtaSch.VtaAsignaUbicacion 
-					@pnIdFabricacion			= @nFabricacion,
-					@pnAutorizadaSN				= @nAutorizadaSN OUTPUT,	-- retorna si se autorizo
-					@pnClaMotivoRechazo			= @nClaMotivoRechazo OUTPUT,	-- retorna si se rechazo
-					@EsDebug					= 0,		
-					@pnEsActualizaDatos			= 1,
-					@psNombrePcMod				= @psNombrePcMod,
-					@pnClaUsuarioMod			= @pnClaUsuarioMod,
-					@pnTipoCambio				= null, -- Se le envia al asignador, 1 - Cambio de planta por cambio de consignado, 2 - Respeta la fecha
-					@pnIdFabricacionOriginal	= null, --(para casos de cambio de planta)
-					@pnEsReenviar				= 0		-- En caso que no haya respuesta hasta que la operación se lleve a cabo. 
-		END TRY
-		BEGIN CATCH
-			UPDATE	a	-- actualiza si cacha un error no controlado
-			SET		MensajeError = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
-			FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
-			WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
-		END CATCH
+		IF @@SERVERNAME <> 'SRVDBDES01\ITKQA'
+		BEGIN
+			BEGIN TRY
+				---Ejecución de Proceso de Autorización AG
+				EXEC    DEAOFINET05.Ventas.VtaSch.VtaAsignaUbicacion 
+						@pnIdFabricacion			= @nFabricacion,
+						@pnAutorizadaSN				= @nAutorizadaSN OUTPUT,	-- retorna si se autorizo
+						@pnClaMotivoRechazo			= @nClaMotivoRechazo OUTPUT,	-- retorna si se rechazo
+						@EsDebug					= 0,		
+						@pnEsActualizaDatos			= 1,
+						@psNombrePcMod				= @psNombrePcMod,
+						@pnClaUsuarioMod			= @pnClaUsuarioMod,
+						@pnTipoCambio				= null, -- Se le envia al asignador, 1 - Cambio de planta por cambio de consignado, 2 - Respeta la fecha
+						@pnIdFabricacionOriginal	= null, --(para casos de cambio de planta)
+						@pnEsReenviar				= 0		-- En caso que no haya respuesta hasta que la operación se lleve a cabo. 
+			END TRY
+			BEGIN CATCH
+				UPDATE	a	-- actualiza si cacha un error no controlado
+				SET		MensajeError = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
+				FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+				WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+			END CATCH
+		END
 		
 		UPDATE	a	
 		SET		  AutorizadaSN		= @nAutorizadaSN
@@ -792,26 +798,29 @@ BEGIN
 		INSERT INTO OpeSch.OpeVtaBitAsignaUbicacion (IdAsignaUbicacion, IdFabricacion, ClaUbicacionSurte, FechaDesea, ClaConsignado, NombrePcMod, ClaUsuarioMod, EsActualiza, FechaUltimaMod)
 		SELECT	@nIdAsignaUbicacion, @nFabricacion, @nUbicacion, @tFechaPromesa, @nClaConsignado, @psNombrePcMod, @pnClaUsuarioMod, 0, GETDATE()
 
-		BEGIN TRY
-			---Ejecución de Proceso de Autorización AG
-			EXEC    DEAOFINET05.Ventas.VtaSch.VtaAsignaUbicacion 
-					@pnIdFabricacion			= @nFabricacion,
-					@pnAutorizadaSN				= @nAutorizadaSN OUTPUT,	-- retorna si se autorizo
-					@pnClaMotivoRechazo			= @nClaMotivoRechazo OUTPUT,	-- retorna si se rechazo
-					@EsDebug					= 0,		
-					@pnEsActualizaDatos			= 1,
-					@psNombrePcMod				= @psNombrePcMod,
-					@pnClaUsuarioMod			= @pnClaUsuarioMod,
-					@pnTipoCambio				= null, -- Se le envia al asignador, 1 - Cambio de planta por cambio de consignado, 2 - Respeta la fecha
-					@pnIdFabricacionOriginal	= null, --(para casos de cambio de planta)
-					@pnEsReenviar				= 0		-- En caso que no haya respuesta hasta que la operación se lleve a cabo. 
-		END TRY
-		BEGIN CATCH
-			UPDATE	a	-- actualiza si cacha un error no controlado
-			SET		MensajeError = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
-			FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
-			WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
-		END CATCH
+		IF @@SERVERNAME <> 'SRVDBDES01\ITKQA'
+		BEGIN
+			BEGIN TRY
+				---Ejecución de Proceso de Autorización AG
+				EXEC    DEAOFINET05.Ventas.VtaSch.VtaAsignaUbicacion 
+						@pnIdFabricacion			= @nFabricacion,
+						@pnAutorizadaSN				= @nAutorizadaSN OUTPUT,	-- retorna si se autorizo
+						@pnClaMotivoRechazo			= @nClaMotivoRechazo OUTPUT,	-- retorna si se rechazo
+						@EsDebug					= 0,		
+						@pnEsActualizaDatos			= 1,
+						@psNombrePcMod				= @psNombrePcMod,
+						@pnClaUsuarioMod			= @pnClaUsuarioMod,
+						@pnTipoCambio				= null, -- Se le envia al asignador, 1 - Cambio de planta por cambio de consignado, 2 - Respeta la fecha
+						@pnIdFabricacionOriginal	= null, --(para casos de cambio de planta)
+						@pnEsReenviar				= 0		-- En caso que no haya respuesta hasta que la operación se lleve a cabo. 
+			END TRY
+			BEGIN CATCH
+				UPDATE	a	-- actualiza si cacha un error no controlado
+				SET		MensajeError = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
+				FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+				WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+			END CATCH
+		END
 		
 		UPDATE	a	
 		SET		  AutorizadaSN		= @nAutorizadaSN
@@ -1091,26 +1100,29 @@ BEGIN
 		INSERT INTO OpeSch.OpeVtaBitAsignaUbicacion (IdAsignaUbicacion, IdFabricacion, ClaUbicacionSurte, FechaDesea, ClaConsignado, NombrePcMod, ClaUsuarioMod, EsActualiza, FechaUltimaMod)
 		SELECT	@nIdAsignaUbicacion, @nFabricacion, @nUbicacion, @tFechaPromesa, @nClaConsignado, @psNombrePcMod, @pnClaUsuarioMod, 0, GETDATE()
 
-		BEGIN TRY
-			---Ejecución de Proceso de Autorización AG
-			EXEC    DEAOFINET05.Ventas.VtaSch.VtaAsignaUbicacion 
-					@pnIdFabricacion			= @nFabricacion,
-					@pnAutorizadaSN				= @nAutorizadaSN OUTPUT,	-- retorna si se autorizo
-					@pnClaMotivoRechazo			= @nClaMotivoRechazo OUTPUT,	-- retorna si se rechazo
-					@EsDebug					= 0,		
-					@pnEsActualizaDatos			= 1,
-					@psNombrePcMod				= @psNombrePcMod,
-					@pnClaUsuarioMod			= @pnClaUsuarioMod,
-					@pnTipoCambio				= null, -- Se le envia al asignador, 1 - Cambio de planta por cambio de consignado, 2 - Respeta la fecha
-					@pnIdFabricacionOriginal	= null, --(para casos de cambio de planta)
-					@pnEsReenviar				= 0		-- En caso que no haya respuesta hasta que la operación se lleve a cabo. 
-		END TRY
-		BEGIN CATCH
-			UPDATE	a	-- actualiza si cacha un error no controlado
-			SET		MensajeError = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
-			FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
-			WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
-		END CATCH
+		IF @@SERVERNAME <> 'SRVDBDES01\ITKQA'
+		BEGIN
+			BEGIN TRY
+				---Ejecución de Proceso de Autorización AG
+				EXEC    DEAOFINET05.Ventas.VtaSch.VtaAsignaUbicacion 
+						@pnIdFabricacion			= @nFabricacion,
+						@pnAutorizadaSN				= @nAutorizadaSN OUTPUT,	-- retorna si se autorizo
+						@pnClaMotivoRechazo			= @nClaMotivoRechazo OUTPUT,	-- retorna si se rechazo
+						@EsDebug					= 0,		
+						@pnEsActualizaDatos			= 1,
+						@psNombrePcMod				= @psNombrePcMod,
+						@pnClaUsuarioMod			= @pnClaUsuarioMod,
+						@pnTipoCambio				= null, -- Se le envia al asignador, 1 - Cambio de planta por cambio de consignado, 2 - Respeta la fecha
+						@pnIdFabricacionOriginal	= null, --(para casos de cambio de planta)
+						@pnEsReenviar				= 0		-- En caso que no haya respuesta hasta que la operación se lleve a cabo. 
+			END TRY
+			BEGIN CATCH
+				UPDATE	a	-- actualiza si cacha un error no controlado
+				SET		MensajeError = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
+				FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
+				WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
+			END CATCH
+		END
 		
 		UPDATE	a	
 		SET		  AutorizadaSN		= @nAutorizadaSN

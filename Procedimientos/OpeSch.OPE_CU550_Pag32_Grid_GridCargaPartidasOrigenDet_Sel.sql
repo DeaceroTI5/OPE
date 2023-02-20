@@ -61,68 +61,138 @@ BEGIN
 
 	IF @pnClaTipoTraspaso <> 4 -- Consulta desde comercial si es Exportación
 	BEGIN
-		--Captura de Información de Registro Existente de Traspaso a Nivel Encabezado
-		INSERT INTO @tbFabricacionOrigen (
-			  ColSeleccionCPD			
-			, ColProductoCPD			
-			, ColUnidadCPD				
-			, ColCantPedidaCPD			
-			, ColKilosPedidosCPD		
-			, ColCantSurtidaCPD			
-			, ColKilosSurtidosCPD		
-			, ColPrecioListaCPD			
-			, ColPesoTeoricoCPD			
-			, ColCantidadMinAgrupCPD	
-			, ColEsMultiploCPD			
-			, ColEstatusCPD				
-			, ColNoRenglonCPD			
-			, ColClaProductoCPD			
-			, ColClaEstatusCPD
-			, ClaProyecto
-			, ClaEstatusDet
+		IF EXISTS (
+			SELECT	1
+			FROM	OpeSch.OpeTraFabricacionVw WITH(NOLOCK)
+			WHERE	IdFabricacion = @pnClaPedidoOrigen
 		)
-		SELECT  DISTINCT
-				ColSeleccionCPD         = ( CASE
-												WHEN ISNULL( h.ClaProducto,0 ) > 0
-												THEN 1
-												ELSE 0
-											END ),
-				ColProductoCPD          = CONVERT(VARCHAR(10),c.ClaveArticulo) + ' - '  + LTRIM(RTRIM(c.NomArticulo)),
-				ColUnidadCPD            = d.NomCortoUnidad,
-				ColCantPedidaCPD        = ISNULL( b.CantPedida,0.00 ),
-				ColKilosPedidosCPD      = ISNULL( (b.CantPedida*c.PesoTeoricoKgs), 0.00 ),
-				ColCantSurtidaCPD       = ISNULL( b.CantSurtida,0.00 ),
-				ColKilosSurtidosCPD     = ISNULL( (b.CantSurtida*c.PesoTeoricoKgs), 0.00 ),
-				ColPrecioListaCPD       = ISNULL( b.PrecioLista,0.00 ),
-				ColPesoTeoricoCPD       = c.PesoTeoricoKgs,
-				ColCantidadMinAgrupCPD  = ISNULL( i.CantidadMinAgrup,0.00 ),
-				ColEsMultiploCPD        = ISNULL( i.Multiplo,0 ),
-				ColEstatusCPD           = ISNULL( l.NombreEstatus,'Por Capturar' ),
-				ColNoRenglonCPD         = b.IdFabricacionDet,
-				ColClaProductoCPD       = c.ClaArticulo,
-				ColClaEstatusCPD        = h.ClaEstatus,
-				e.ClaProyecto,
-				ClaEstatusDet			= b.ClaEstatus
-		FROM    OpeSch.OpeTraFabricacionVw a WITH(NOLOCK)  
-		INNER JOIN  OpeSch.OpeTraFabricacionDetVw b WITH(NOLOCK)  
-			ON  a.IdFabricacion = b.IdFabricacion
-		INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
-			ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1
-		INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
-			ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
-		INNER JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw e WITH(NOLOCK)  
-			ON  a.IdFabricacion = e.IdFabricacion
-		INNER JOIN  OpeSch.OpeVtaCatProyectoVw f WITH(NOLOCK)  
-			ON  e.ClaProyecto = f.ClaProyecto
-		LEFT JOIN   OpeSch.OpeTraSolicitudTraspasoEncVw g WITH(NOLOCK)  
-			ON  a.IdFabricacion = g.ClaPedidoOrigen AND g.IdSolicitudTraspaso = @pnClaSolicitud
-		LEFT JOIN   OpeSch.OpeTraSolicitudTraspasoDetVw h WITH(NOLOCK)  
-			ON  g.IdSolicitudTraspaso = h.IdSolicitudTraspaso AND b.ClaArticulo = h.ClaProducto  
-		LEFT JOIN   OpeSch.OpeManCatArticuloDimensionVw i WITH(NOLOCK)  
-			ON  b.ClaArticulo = i.ClaArticulo
-		LEFT JOIN   TiCatalogo.dbo.TiCatEstatus l WITH(NOLOCK)  
-			ON  h.ClaEstatus = l.ClaEstatus AND l.ClaClasificacionEstatus = 1270105 AND ISNULL( l.BajaLogica,0 ) = 0
-		WHERE   a.IdFabricacion = @pnClaPedidoOrigen
+		BEGIN
+			--Captura de Información de Registro Existente de Traspaso a Nivel Encabezado
+			INSERT INTO @tbFabricacionOrigen (
+				  ColSeleccionCPD			
+				, ColProductoCPD			
+				, ColUnidadCPD				
+				, ColCantPedidaCPD			
+				, ColKilosPedidosCPD		
+				, ColCantSurtidaCPD			
+				, ColKilosSurtidosCPD		
+				, ColPrecioListaCPD			
+				, ColPesoTeoricoCPD			
+				, ColCantidadMinAgrupCPD	
+				, ColEsMultiploCPD			
+				, ColEstatusCPD				
+				, ColNoRenglonCPD			
+				, ColClaProductoCPD			
+				, ColClaEstatusCPD
+				, ClaProyecto
+				, ClaEstatusDet
+			)
+			SELECT  DISTINCT
+					ColSeleccionCPD         = ( CASE
+													WHEN ISNULL( h.ClaProducto,0 ) > 0
+													THEN 1
+													ELSE 0
+												END ),
+					ColProductoCPD          = CONVERT(VARCHAR(10),c.ClaveArticulo) + ' - '  + LTRIM(RTRIM(c.NomArticulo)),
+					ColUnidadCPD            = d.NomCortoUnidad,
+					ColCantPedidaCPD        = ISNULL( b.CantPedida,0.00 ),
+					ColKilosPedidosCPD      = ISNULL( (b.CantPedida*c.PesoTeoricoKgs), 0.00 ),
+					ColCantSurtidaCPD       = ISNULL( b.CantSurtida,0.00 ),
+					ColKilosSurtidosCPD     = ISNULL( (b.CantSurtida*c.PesoTeoricoKgs), 0.00 ),
+					ColPrecioListaCPD       = ISNULL( b.PrecioLista,0.00 ),
+					ColPesoTeoricoCPD       = c.PesoTeoricoKgs,
+					ColCantidadMinAgrupCPD  = ISNULL( i.CantidadMinAgrup,0.00 ),
+					ColEsMultiploCPD        = ISNULL( i.Multiplo,0 ),
+					ColEstatusCPD           = ISNULL( l.NombreEstatus,'Por Capturar' ),
+					ColNoRenglonCPD         = b.IdFabricacionDet,
+					ColClaProductoCPD       = c.ClaArticulo,
+					ColClaEstatusCPD        = h.ClaEstatus,
+					e.ClaProyecto,
+					ClaEstatusDet			= b.ClaEstatus
+			FROM    OpeSch.OpeTraFabricacionVw a WITH(NOLOCK)  
+			INNER JOIN  OpeSch.OpeTraFabricacionDetVw b WITH(NOLOCK)  
+				ON  a.IdFabricacion = b.IdFabricacion
+			INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
+				ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1
+			INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
+				ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
+			INNER JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw e WITH(NOLOCK)  
+				ON  a.IdFabricacion = e.IdFabricacion
+			INNER JOIN  OpeSch.OpeVtaCatProyectoVw f WITH(NOLOCK)  
+				ON  e.ClaProyecto = f.ClaProyecto
+			LEFT JOIN   OpeSch.OpeTraSolicitudTraspasoEncVw g WITH(NOLOCK)  
+				ON  a.IdFabricacion = g.ClaPedidoOrigen AND g.IdSolicitudTraspaso = @pnClaSolicitud
+			LEFT JOIN   OpeSch.OpeTraSolicitudTraspasoDetVw h WITH(NOLOCK)  
+				ON  g.IdSolicitudTraspaso = h.IdSolicitudTraspaso AND b.ClaArticulo = h.ClaProducto  
+			LEFT JOIN   OpeSch.OpeManCatArticuloDimensionVw i WITH(NOLOCK)  
+				ON  b.ClaArticulo = i.ClaArticulo
+			LEFT JOIN   TiCatalogo.dbo.TiCatEstatus l WITH(NOLOCK)  
+				ON  h.ClaEstatus = l.ClaEstatus AND l.ClaClasificacionEstatus = 1270105 AND ISNULL( l.BajaLogica,0 ) = 0
+			WHERE   a.IdFabricacion = @pnClaPedidoOrigen
+		END
+		ELSE
+		BEGIN
+			INSERT INTO @tbFabricacionOrigen (
+				  ColSeleccionCPD			
+				, ColProductoCPD			
+				, ColUnidadCPD				
+				, ColCantPedidaCPD			
+				, ColKilosPedidosCPD		
+				, ColCantSurtidaCPD			
+				, ColKilosSurtidosCPD		
+				, ColPrecioListaCPD			
+				, ColPesoTeoricoCPD			
+				, ColCantidadMinAgrupCPD	
+				, ColEsMultiploCPD			
+				, ColEstatusCPD				
+				, ColNoRenglonCPD			
+				, ColClaProductoCPD			
+				, ColClaEstatusCPD
+				, ClaProyecto
+				, ClaEstatusDet
+			)
+			SELECT  DISTINCT
+					ColSeleccionCPD         = ( CASE
+													WHEN ISNULL( h.ClaProducto,0 ) > 0
+													THEN 1
+													ELSE 0
+												END ),
+					ColProductoCPD          = CONVERT(VARCHAR(10),c.ClaveArticulo) + ' - '  + LTRIM(RTRIM(c.NomArticulo)),
+					ColUnidadCPD            = d.NomCortoUnidad,
+					ColCantPedidaCPD        = ISNULL( b.CantidadPedida,0.00 ),
+					ColKilosPedidosCPD      = ISNULL( (b.CantidadPedida*c.PesoTeoricoKgs), 0.00 ),
+					ColCantSurtidaCPD       = ISNULL( b.CantidadSurtida,0.00 ),
+					ColKilosSurtidosCPD     = ISNULL( (b.CantidadSurtida*c.PesoTeoricoKgs), 0.00 ),
+					ColPrecioListaCPD       = ISNULL( b.PrecioLista,0.00 ),
+					ColPesoTeoricoCPD       = c.PesoTeoricoKgs,
+					ColCantidadMinAgrupCPD  = ISNULL( i.CantidadMinAgrup,0.00 ),
+					ColEsMultiploCPD        = ISNULL( i.Multiplo,0 ),
+					ColEstatusCPD           = ISNULL( l.NombreEstatus,'Por Capturar' ),
+					ColNoRenglonCPD         = b.NumeroRenglon,
+					ColClaProductoCPD       = c.ClaArticulo,
+					ColClaEstatusCPD        = h.ClaEstatus,
+					ClaProyecto				= ISNULL(e.ClaProyecto,a.ClaProyecto),
+					ClaEstatusDet			= CASE WHEN ISNULL(b.ClaEstatusFabricacion,0) IN (4,5)
+													THEN 1 ELSE 0 END
+			FROM    DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion a WITH(NOLOCK)  
+			INNER JOIN  DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDetVw b WITH(NOLOCK)  
+				ON  a.IdFabricacion = b.IdFabricacion
+			INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
+				ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1
+			INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
+				ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
+			LEFT JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw e WITH(NOLOCK)  
+				ON  a.IdFabricacion = e.IdFabricacion
+			LEFT JOIN   OpeSch.OpeTraSolicitudTraspasoEncVw g WITH(NOLOCK)  
+				ON  a.IdFabricacion = g.ClaPedidoOrigen AND g.IdSolicitudTraspaso = @pnClaSolicitud
+			LEFT JOIN   OpeSch.OpeTraSolicitudTraspasoDetVw h WITH(NOLOCK)  
+				ON  g.IdSolicitudTraspaso = h.IdSolicitudTraspaso AND b.ClaArticulo = h.ClaProducto  
+			LEFT JOIN   OpeSch.OpeManCatArticuloDimensionVw i WITH(NOLOCK)  
+				ON  b.ClaArticulo = i.ClaArticulo
+			LEFT JOIN   TiCatalogo.dbo.TiCatEstatus l WITH(NOLOCK)  
+				ON  h.ClaEstatus = l.ClaEstatus AND l.ClaClasificacionEstatus = 1270105 AND ISNULL( l.BajaLogica,0 ) = 0
+			WHERE   a.IdFabricacion = @pnClaPedidoOrigen
+		END
 	END	
 	ELSE
 	BEGIN

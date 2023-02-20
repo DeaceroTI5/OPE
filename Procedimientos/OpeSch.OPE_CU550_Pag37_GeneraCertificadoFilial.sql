@@ -186,6 +186,9 @@ BEGIN
 					@pnClaEstatus			= @nNumError		OUT,
 					@psMensajeError			= @sMensajeError	OUT
 
+					IF ISNULL(@sIdCertificado,'') <> '' AND @nNumError IS NULL
+						SELECT @nNumError = 0
+
 				IF @pnDebug =1
 				BEGIN
 					SELECT 'Otros Cert', @nId AS '@nId', @sIdCertificado as '@sIdCertificado', @sMensajeError AS '@sMensajeError', Error = ISNULL(ERROR_MESSAGE(),'') + ' [' + ISNULL(ERROR_PROCEDURE(),'') +']'

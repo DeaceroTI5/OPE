@@ -21,17 +21,44 @@ BEGIN
 
 	IF ISNULL(@nEsExportacion,0) = 0
 	BEGIN
-		SELECT  @sClienteCP       = CONVERT(VARCHAR(10),d.ClaClienteCuenta) + ' - '  + LTRIM(RTRIM(d.NomClienteCuenta)),
-				@sProyectoCP      = CONVERT(VARCHAR(10),c.ClaProyecto) + ' - '  + LTRIM(RTRIM(c.NomProyecto)),
-				@nFabricacionCP   = a.IdFabricacion
-		FROM    OpeSch.OpeTraFabricacionVw a WITH(NOLOCK)  
-		INNER JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw b WITH(NOLOCK)  
-			ON  a.IdFabricacion = b.IdFabricacion
-		INNER JOIN  OpeSch.OpeVtaCatProyectoVw c WITH(NOLOCK)  
-			ON  b.ClaProyecto = c.ClaProyecto
-		INNER JOIN  OpeSch.OpeVtaCatClienteCuentaVw d WITH(NOLOCK)  
-			ON  c.ClaClienteCuenta = d.ClaClienteCuenta
-		WHERE a.IdFabricacion = @pnClaPedidoOrigen
+		IF EXISTS (
+			SELECT	1
+			FROM	OpeSch.OpeTraFabricacionVw
+			WHERE	IdFabricacion = @pnClaPedidoOrigen
+		)
+		BEGIN
+			SELECT  @sClienteCP       = CONVERT(VARCHAR(10),d.ClaClienteCuenta) + ' - '  + LTRIM(RTRIM(d.NomClienteCuenta)),
+					@sProyectoCP      = CONVERT(VARCHAR(10),c.ClaProyecto) + ' - '  + LTRIM(RTRIM(c.NomProyecto)),
+					@nFabricacionCP   = a.IdFabricacion
+			FROM    OpeSch.OpeTraFabricacionVw a WITH(NOLOCK)  
+			INNER JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw b WITH(NOLOCK)  
+				ON  a.IdFabricacion = b.IdFabricacion
+			INNER JOIN  OpeSch.OpeVtaCatProyectoVw c WITH(NOLOCK)  
+				ON  b.ClaProyecto = c.ClaProyecto
+			INNER JOIN  OpeSch.OpeVtaCatClienteCuentaVw d WITH(NOLOCK)  
+				ON  c.ClaClienteCuenta = d.ClaClienteCuenta
+			WHERE a.IdFabricacion = @pnClaPedidoOrigen
+		END
+		ELSE
+		BEGIN
+			SELECT  @sClienteCP       = CASE WHEN d.ClaClienteCuenta IS NOT NULL 
+												THEN CONVERT(VARCHAR(10),d.ClaClienteCuenta) + ' - '  + LTRIM(RTRIM(d.NomClienteCuenta))
+												ELSE CONVERT(VARCHAR(10),f.ClaClienteCuenta) + ' - '  + LTRIM(RTRIM(f.NomClienteCuenta)) END,
+					@sProyectoCP      = CONVERT(VARCHAR(10),c.ClaProyecto) + ' - '  + LTRIM(RTRIM(c.NomProyecto)),
+					@nFabricacionCP   = a.IdFabricacion
+			FROM    DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion a WITH(NOLOCK)  
+			LEFT JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw b WITH(NOLOCK)  
+				ON  a.IdFabricacion = b.IdFabricacion
+			LEFT JOIN  OpeSch.OpeVtaCatProyectoVw c WITH(NOLOCK)  
+				ON  b.ClaProyecto = c.ClaProyecto
+			LEFT JOIN  OpeSch.OpeVtaCatClienteCuentaVw d WITH(NOLOCK)  
+				ON  c.ClaClienteCuenta = d.ClaClienteCuenta
+			LEFT JOIN  OpeSch.OpeVtaCatProyectoVw e WITH(NOLOCK)  
+				ON  a.ClaProyecto = e.ClaProyecto
+			LEFT JOIN  OpeSch.OpeVtaCatClienteCuentaVw f WITH(NOLOCK)  
+				ON  e.ClaClienteCuenta = f.ClaClienteCuenta
+			WHERE a.IdFabricacion = @pnClaPedidoOrigen
+		END
 	END
 	ELSE
 	BEGIN

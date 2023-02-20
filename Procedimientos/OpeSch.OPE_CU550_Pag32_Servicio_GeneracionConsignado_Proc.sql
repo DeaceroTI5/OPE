@@ -44,12 +44,19 @@ BEGIN
 		
 	--Validacion de la Existencia y Estatus de la Fabricacion
 	IF @pnEsExportacion = 0
-	AND NOT EXISTS (	SELECT	1
-					FROM	[Ventas].[VtaSch].[VtaCTraFabricacionEnc]
-					WHERE	IdFabricacion = @pnFabricacionOrigen)
+	AND  NOT EXISTS (	SELECT	1
+						FROM	[Ventas].[VtaSch].[VtaCTraFabricacionEnc]
+						WHERE	IdFabricacion = @pnFabricacionOrigen
+					)
 	BEGIN
-		SELECT @Mensaje = 'El pedido Origen '+ ISNULL(CONVERT(VARCHAR(10),@pnFabricacionOrigen),'') +' no existe. (OpeSch.OPE_CU550_Pag32_Servicio_GeneracionConsignado_Proc).'
-		GOTO ABORT
+		IF NOT EXISTS (	SELECT	1
+						FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)
+						WHERE	IdFabricacion = @pnFabricacionOrigen
+					)
+		BEGIN
+			SELECT @Mensaje = 'El pedido Origen '+ ISNULL(CONVERT(VARCHAR(10),@pnFabricacionOrigen),'') +' no existe. (OpeSch.OPE_CU550_Pag32_Servicio_GeneracionConsignado_Proc).'
+			GOTO ABORT
+		END
 	END
 	ELSE
 	IF @pnEsExportacion = 1
