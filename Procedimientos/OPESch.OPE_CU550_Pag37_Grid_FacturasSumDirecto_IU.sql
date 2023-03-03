@@ -61,8 +61,8 @@ BEGIN
 
 	SELECT	@nIdFacturaOrigen		= IdFactura
 	FROM	DEAOFINET04.Operacion.AceSch.VtaCTraFacturaVw
-	WHERE	ClaUbicacion			= @nClaUbicacionVentas
-	AND		IdFacturaAlfanumerico	= @psNumFacturaOrigen
+	WHERE	IdFacturaAlfanumerico	= @psNumFacturaOrigen
+--	AND		ClaUbicacion			= @nClaUbicacionVentas
 
 	IF @pnDebug = 1
 		SELECT @nIdFacturaFilial AS '@nIdFacturaFilial', @nIdFacturaOrigen AS '@nIdFacturaOrigen', @nClaUbicacionVentas AS '@nClaUbicacionVentas'

@@ -7,14 +7,18 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Servicio_AutorizacionTraspasoManual_Proc
     @pnClaSolicitud             INT, --Clave de Solicitud de Traspaso Manual 
     @pnClaUsuarioMod            INT, --Usuario Autorizador
     @psNombrePcMod              VARCHAR(64),
-    @pnFabricacionGenerada      INT OUT -- Identificador de Fabricación Generada para Traspaso Manual
+    @pnFabricacionGenerada      INT OUT, -- Identificador de Fabricación Generada para Traspaso Manual
+	@pnDebug					TINYINT = 0
 AS
 BEGIN
 
 	SET NOCOUNT ON
 
-    --Declaración de Variables Encabezado Fabricación
+	IF @pnDebug = 1
+		SELECT 'OPE_CU550_Pag32_Servicio_AutorizacionTraspasoManual_Proc'
 
+
+    --Declaración de Variables Encabezado Fabricación
     DECLARE @nClaCliente INT,		            @nClaConsignado INT,	        @tFechaBase DATETIME,	        @tFechaPromesa DATETIME,	
 			@tFechaAct DATETIME,	            @nMedioEmbarque INT,	        @tFechaVenceCarta DATETIME,     @nEsAceptaFabAntes SMALLINT,	
             @nEsAceptaParcialidad SMALLINT,     @tFechaPedido DATETIME,	        @nTipoFlete INT,                @nClaFormaPago INT,		
@@ -101,6 +105,26 @@ BEGIN
 		FROM	OpeSch.OpeTiCatUbicacionVw 
 		WHERE	ClaUbicacion		= @nUbicacion
 
+		IF @pnDebug = 1
+			SELECT	'[DEAOFINET05].Ventas.VtaSch.VtaInsVtaTraFab ',
+					tFechaBase				= @tFechaBase,					tFechaPromesa			= @tFechaPromesa,				tFechaAct				= @tFechaAct,					
+					nClaUbicacionVentas 	= @nClaUbicacionVentas, 		nClaCliente				= @nClaCliente,					nClaConsignado			= @nClaConsignado,
+					sObservacion			= @sObservacion,				sObservEnv				= @sObservEnv,					sObservVenta			= @sObservVenta,				
+					nMedioEmbarque			= @nMedioEmbarque,				nFabricacion_OUTPUT		= @nFabricacion ,				tFechaVence				= @tFechaVence,	
+					nEsAceptaFabAntes		= @nEsAceptaFabAntes,			nEsAceptaParcialidad	= @nEsAceptaParcialidad,		nEsBack					= @nEsBack,						
+					nPctParcialidad			= @nPctParcialidad,				nPedidoExpress			= @nPedidoExpress,				nClaProyecto			= @nClaProyecto,	
+					nClaMetodoPago			= @nClaMetodoPago,				sCuentaPago				= @sCuentaPago,					nEstatusFab				= @nEstatusFab,		
+					nVersion				= @nVersion,					nPedidoVerde			= @nPedidoVerde,				tFechaVerde				= @tFechaVerde,		
+					sPedidoCliente			= @sPedidoCliente,				tFechaPedido			= @tFechaPedido,				nTipoFlete				= @nTipoFlete,					
+					nClaFormaPago			= @nClaFormaPago,				nCargoFinanciero		= @nCargoFinanciero,			nClaTransportista		= @nClaTransportista,			
+					nEnviadoSn				= @nEnviadoSn,					nTipoPuntoFinEmb		= @nTipoPuntoFinEmb,			nClaTipoEmbarque		= @nClaTipoEmbarque,			
+					tFechaVenceCarta		= @tFechaVenceCarta,			nEsFabOriginal			= @nEsFabOriginal,				nParidadConvenida		= @nParidadConvenida,	
+					nPagamosDescargaSn		= @nPagamosDescargaSn,			nEsProforma				= @nEsProforma,					nClaClienteFacturar		= @nClaClienteFacturar,			
+					nEsUbicacionLegacy		= @nEsUbicacionLegacy,			tFechaNecesitaCliente	= @tFechaNecesitaCliente,		nClaIdioma				= @nClaIdioma,	
+					nEsMidContinent			= @nEsMidContinent
+
+
+
         --Creación de Fabricación Encabezado
         EXEC    [DEAOFINET05].Ventas.VtaSch.VtaInsVtaTraFab 
                 @FechaBase		        = @tFechaBase,	
@@ -183,8 +207,19 @@ BEGIN
             WHERE	T1.IdSolicitudTraspaso = @pnClaSolicitud
             AND		T1.IdRenglon = @nNumRenglon
 
-            --Creación de Fabricación Detalle
+			IF @pnDebug = 1
+				SELECT '[DEAOFINET05].Ventas.VtaSch.VtaInsVtaTraFabDet',
+				nFabricacion				= @nFabricacion,			nClaArticulo				= @nClaArticulo,				nCantPedida					= @nCantPedida,
+				nNumRenglonPedido_OUTPUT	= @nNumRenglonPedido ,		nIdListaPrecio				= @nIdListaPrecio,				nTipoDesctoConf				= @nTipoDesctoConf,
+				nArgumento					= @nArgumento,				nCriterio					= @nCriterio,					nPctPreco					= @nPctPreco,		
+				nEsProformaDet				= @nEsProformaDet,			nEstatusFabDet				= @nEstatusFabDet,				nClaTipoDescuento			= @nClaTipoDescuento,			
+				sDesctoAdicTexto			= @sDesctoAdicTexto,		nCantXRenglon				= @nCantXRenglon,				nClaClasifCliente			= @nClaClasifCliente,
+				sNomAlto					= @sNomAlto,				sNomLargo					= @sNomLargo,					nError_OUTPUT				= @nError ,
+				sMensajeError_OUTPUT		= @sMensajeError ,			nPrecioLista				= @nPrecioLista	
 
+
+
+            --Creación de Fabricación Detalle
             EXEC    [DEAOFINET05].Ventas.VtaSch.VtaInsVtaTraFabDet
                     @IdFabricacion	    = @nFabricacion,		
                     @ClaArticulo	    = @nClaArticulo,	
@@ -231,6 +266,9 @@ BEGIN
 		
 		INSERT INTO OpeSch.OpeVtaBitAsignaUbicacion (IdAsignaUbicacion, IdFabricacion, ClaUbicacionSurte, FechaDesea, ClaConsignado, NombrePcMod, ClaUsuarioMod, EsActualiza, FechaUltimaMod)
 		SELECT	@nIdAsignaUbicacion, @nFabricacion, @nUbicacion, @tFechaPromesa, @nClaConsignado, @psNombrePcMod, @pnClaUsuarioMod, 0, GETDATE()
+
+		IF @pnDebug = 1
+			SELECT '' AS 'OpeSch.OpeVtaBitAsignaUbicacion', * FROM OpeSch.OpeVtaBitAsignaUbicacion
 
 		IF @@SERVERNAME <> 'SRVDBDES01\ITKQA'
 		BEGIN
@@ -667,6 +705,25 @@ BEGIN
 		WHERE	ClaUbicacion		= @nUbicacion
 
 
+		IF @pnDebug = 1
+			SELECT	'[DEAOFINET05].Ventas.VtaSch.VtaInsVtaTraFab ',
+					tFechaBase				= @tFechaBase,					tFechaPromesa			= @tFechaPromesa,				tFechaAct				= @tFechaAct,					
+					nClaUbicacionVentas 	= @nClaUbicacionVentas, 		nClaCliente				= @nClaCliente,					nClaConsignado			= @nClaConsignado,
+					sObservacion			= @sObservacion,				sObservEnv				= @sObservEnv,					sObservVenta			= @sObservVenta,				
+					nMedioEmbarque			= @nMedioEmbarque,				nFabricacion_OUTPUT		= @nFabricacion ,				tFechaVence				= @tFechaVence,	
+					nEsAceptaFabAntes		= @nEsAceptaFabAntes,			nEsAceptaParcialidad	= @nEsAceptaParcialidad,		nEsBack					= @nEsBack,						
+					nPctParcialidad			= @nPctParcialidad,				nPedidoExpress			= @nPedidoExpress,				nClaProyecto			= @nClaProyecto,	
+					nClaMetodoPago			= @nClaMetodoPago,				sCuentaPago				= @sCuentaPago,					nEstatusFab				= @nEstatusFab,		
+					nVersion				= @nVersion,					nPedidoVerde			= @nPedidoVerde,				tFechaVerde				= @tFechaVerde,		
+					sPedidoCliente			= @sPedidoCliente,				tFechaPedido			= @tFechaPedido,				nTipoFlete				= @nTipoFlete,					
+					nClaFormaPago			= @nClaFormaPago,				nCargoFinanciero		= @nCargoFinanciero,			nClaTransportista		= @nClaTransportista,			
+					nEnviadoSn				= @nEnviadoSn,					nTipoPuntoFinEmb		= @nTipoPuntoFinEmb,			nClaTipoEmbarque		= @nClaTipoEmbarque,			
+					tFechaVenceCarta		= @tFechaVenceCarta,			nEsFabOriginal			= @nEsFabOriginal,				nParidadConvenida		= @nParidadConvenida,	
+					nPagamosDescargaSn		= @nPagamosDescargaSn,			nEsProforma				= @nEsProforma,					nClaClienteFacturar		= @nClaClienteFacturar,			
+					nEsUbicacionLegacy		= @nEsUbicacionLegacy,			tFechaNecesitaCliente	= @tFechaNecesitaCliente,		nClaIdioma				= @nClaIdioma,	
+					nEsMidContinent			= @nEsMidContinent
+
+
         --Creación de Fabricación Encabezado
         EXEC    [DEAOFINET05].Ventas.VtaSch.VtaInsVtaTraFab 
                 @FechaBase		        = @tFechaBase,	
@@ -749,8 +806,20 @@ BEGIN
             WHERE	T1.IdSolicitudTraspaso = @pnClaSolicitud
             AND		T1.IdRenglon = @nNumRenglon
 
-            --Creación de Fabricación Detalle
 
+			IF @pnDebug = 1
+				SELECT '[DEAOFINET05].Ventas.VtaSch.VtaInsVtaTraFabDet',
+				nFabricacion				= @nFabricacion,			nClaArticulo				= @nClaArticulo,				nCantPedida					= @nCantPedida,
+				nNumRenglonPedido_OUTPUT	= @nNumRenglonPedido ,		nIdListaPrecio				= @nIdListaPrecio,				nTipoDesctoConf				= @nTipoDesctoConf,
+				nArgumento					= @nArgumento,				nCriterio					= @nCriterio,					nPctPreco					= @nPctPreco,		
+				nEsProformaDet				= @nEsProformaDet,			nEstatusFabDet				= @nEstatusFabDet,				nClaTipoDescuento			= @nClaTipoDescuento,			
+				sDesctoAdicTexto			= @sDesctoAdicTexto,		nCantXRenglon				= @nCantXRenglon,				nClaClasifCliente			= @nClaClasifCliente,
+				sNomAlto					= @sNomAlto,				sNomLargo					= @sNomLargo,					nError_OUTPUT				= @nError ,
+				sMensajeError_OUTPUT		= @sMensajeError ,			nPrecioLista				= @nPrecioLista	
+
+
+
+            --Creación de Fabricación Detalle
             EXEC    [DEAOFINET05].Ventas.VtaSch.VtaInsVtaTraFabDet
                     @IdFabricacion	    = @nFabricacion,		
                     @ClaArticulo	    = @nClaArticulo,	
@@ -798,9 +867,16 @@ BEGIN
 		INSERT INTO OpeSch.OpeVtaBitAsignaUbicacion (IdAsignaUbicacion, IdFabricacion, ClaUbicacionSurte, FechaDesea, ClaConsignado, NombrePcMod, ClaUsuarioMod, EsActualiza, FechaUltimaMod)
 		SELECT	@nIdAsignaUbicacion, @nFabricacion, @nUbicacion, @tFechaPromesa, @nClaConsignado, @psNombrePcMod, @pnClaUsuarioMod, 0, GETDATE()
 
+		IF @pnDebug = 1
+			SELECT '' AS 'OpeSch.OpeVtaBitAsignaUbicacion' , * FROM OpeSch.OpeVtaBitAsignaUbicacion WITH(NOLOCK)
+
+
 		IF @@SERVERNAME <> 'SRVDBDES01\ITKQA'
 		BEGIN
 			BEGIN TRY
+				IF @pnDebug = 1
+					SELECT 'TRY VtaSch.VtaAsignaUbicacion '
+
 				---Ejecución de Proceso de Autorización AG
 				EXEC    DEAOFINET05.Ventas.VtaSch.VtaAsignaUbicacion 
 						@pnIdFabricacion			= @nFabricacion,
@@ -813,8 +889,14 @@ BEGIN
 						@pnTipoCambio				= null, -- Se le envia al asignador, 1 - Cambio de planta por cambio de consignado, 2 - Respeta la fecha
 						@pnIdFabricacionOriginal	= null, --(para casos de cambio de planta)
 						@pnEsReenviar				= 0		-- En caso que no haya respuesta hasta que la operación se lleve a cabo. 
+			
+				IF @pnDebug = 1
+					SELECT 'END VtaSch.VtaAsignaUbicacion '
 			END TRY
 			BEGIN CATCH
+				IF @pnDebug = 1
+					SELECT 'CATCH'
+
 				UPDATE	a	-- actualiza si cacha un error no controlado
 				SET		MensajeError = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
 				FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
@@ -828,11 +910,16 @@ BEGIN
 		FROM	OpeSch.OpeVtaBitAsignaUbicacion a WITH(NOLOCK)
 		WHERE	IdAsignaUbicacion = @nIdAsignaUbicacion
 
+
 		SELECT	  @nClaUbicacionSurteP	= ClaUbicacion
 				, @dFechaPromesaP		= ISNULL(FechaPromesaActual,FechaPromesaOriginal)
 				, @nClaConsignadoP		= ISNULL(ClaConsignado,0)
 		FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw WITH(NOLOCK)
 		WHERE	IdFabricacion = @nFabricacion
+
+		IF @pnDebug = 1
+			SELECT @nClaUbicacionSurteP AS '@nClaUbicacionSurteP', @dFechaPromesaP AS '@dFechaPromesaP', @nClaConsignadoP AS '@nClaConsignadoP'
+
 
 		IF	@nAutorizadaSN = 1
 		AND EXISTS (
@@ -858,6 +945,11 @@ BEGIN
 			WHERE	IdSolicitudTraspaso		= @pnClaSolicitud
 			AND		ClaPedido				= @nFabricacion
 		END
+
+		IF @pnDebug = 1
+			SELECT '' AS 'OpeSch.OpeVtaBitAsignaUbicacion 2' , * FROM OpeSch.OpeVtaBitAsignaUbicacion WITH(NOLOCK)
+
+
 		----------------------------------------------------------------------------------
         --Actualización de Solicitud de Traspaso
 
@@ -886,6 +978,19 @@ BEGIN
             FROM    OpeSch.OpeTraSolicitudTraspasoDetVw b
             WHERE   b.IdSolicitudTraspaso = @pnClaSolicitud
             AND     b.ClaEstatus = 0
+
+			IF @pnDebug = 1
+			BEGIN
+				SELECT '' AS 'OpeTraSolicitudTraspasoEncVw', * FROM OpeSch.OpeTraSolicitudTraspasoEncVw a
+				WHERE   a.IdSolicitudTraspaso = @pnClaSolicitud
+				AND     a.ClaEstatusSolicitud = 0 
+
+				SELECT '' AS 'OpeTraSolicitudTraspasoDetVw', * FROM OpeSch.OpeTraSolicitudTraspasoDetVw b
+				WHERE   b.IdSolicitudTraspaso = @pnClaSolicitud
+				AND     b.ClaEstatus = 0
+			END
+
+
         END
     END
     ELSE IF ( @pnClaTipoTraspaso = 4 AND @pnClaSolicitud > 0 )
