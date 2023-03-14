@@ -1,6 +1,6 @@
 USE Operacion
 GO
--- 'OpeSch.OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc'
+-- EXEC SP_HELPTEXT 'OpeSch.OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc'
 GO
 ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc
     @pnClaSolicitud             INT, --Clave de Solicitud de Traspaso Manual 
@@ -15,8 +15,8 @@ BEGIN
 	SET NOCOUNT ON
 
 	--IF @@SERVERNAME = 'SRVDBDES01\ITKQA' SELECT @pnDebug = 1
-	--IF @pnDebug = 1 
-	--	SELECT 'OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc'
+	IF @pnDebug = 1 
+		SELECT 'OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc'
 	
 	SELECT @psMensajeTraspaso = ''
 
@@ -63,10 +63,11 @@ BEGIN
 
 
     IF ( EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud AND ClaPedidoOrigen IS NOT NULL AND ClaEstatusSolicitud IN (0) ) 
-        AND @pnClaSolicitud > 0 AND @pnClaPedidoOrigen > 0 AND @pnClaTipoTraspaso IN (3,4) )
+        AND @pnClaSolicitud > 0 AND @pnClaPedidoOrigen > 0 /*AND @pnClaTipoTraspaso IN (3,4)*/ )
     BEGIN
 		---- No ingresar los registros que superan la cantidad disponible (Suministro directo) 
-		IF @pnClaPedidoOrigen IS NOT NULL AND @pnClaTipoTraspaso IN (3,4)
+	--	IF @pnClaPedidoOrigen IS NOT NULL AND @pnClaTipoTraspaso IN (3,4)
+		IF @pnClaPedidoOrigen IS NOT NULL 
 		BEGIN
 			---- CANTIDAD
 			INSERT INTO @tbOtrasSolicitudes (ClaPedido, ClaProducto, ClaEstatus, CantidadFabricacion, CantidadSolicitada, CantidadDisponible)
@@ -176,7 +177,7 @@ BEGIN
 					 ON  b.ClaArticulo = i.ClaArticulo
 				 WHERE  a.IdFabricacion = @pnClaPedidoOrigen
 			 END
-		END
+		END	-- @pnClaTipoTraspaso <> 4
 		ELSE
 		BEGIN
 			INSERT INTO @tbCargaPartidasOrigen (
@@ -251,6 +252,13 @@ BEGIN
 
 		IF @pnDebug = 1
 			SELECT '' AS '@tbCargaPartidasOrigen', * FROM @tbCargaPartidasOrigen
+
+		IF @@SERVERNAME = 'SRVDBDES01\ITKQA'
+		BEGIN
+			UPDATE a
+			SET ClaEstatusDet = 1
+			FROM @tbCargaPartidasOrigen  a
+		END
 
 		---- /* Mensaje Traspaso
 		--------------------------------------------------------------------------

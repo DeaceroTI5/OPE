@@ -1,6 +1,6 @@
 USE Operacion
 GO
--- 'OpeSch.OPE_CU550_Pag32_IU'
+-- EXEC SP_HELPTEXT 'OpeSch.OPE_CU550_Pag32_IU'
 GO
 ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_IU
 	@pnClaUbicacion             INT,
@@ -28,7 +28,8 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_IU
     @psObservaciones            VARCHAR(800),
     @pnClaEstatusSolicitud      INT = 0,
 	@pnEsMensajeTraspaso		TINYINT =0 OUTPUT,
-	@psMensajeTraspaso			VARCHAR(MAX) = '' OUTPUT
+	@psMensajeTraspaso			VARCHAR(MAX) = '' OUTPUT,
+	@pnDebug					TINYINT = 0
 AS  
 BEGIN
     
@@ -135,9 +136,13 @@ BEGIN
 						@pnChkDoorToDoor
 
 
-                SELECT  @pnClaSolicitud = @@IDENTITY      
+                SELECT  @pnClaSolicitud = @@IDENTITY   
+				
+				IF @pnDebug = 1
+					SELECT @pnClaSolicitud AS '@pnClaSolicitud'
 
-                IF ( ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4) AND @pnClaPedidoOrigen > 0 AND @pnClaSolicitud > 0 )
+                --IF ( ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4) AND @pnClaPedidoOrigen > 0 AND @pnClaSolicitud > 0 )
+				IF 	( @pnClaPedidoOrigen > 0 AND @pnClaSolicitud > 0 ) --Considerar todos los Tipos de Traspasos Hv_07/03/23
                 BEGIN
                     EXEC    OpeSch.OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc
                             @pnClaSolicitud             = @pnClaSolicitud,
@@ -145,7 +150,8 @@ BEGIN
                             @pnClaTipoTraspaso          = @pnClaTipoTraspaso,
                             @pnClaUsuarioMod            = @pnClaUsuarioMod,
                             @psNombrePcMod              = @psNombrePcMod,
-							@psMensajeTraspaso			= @psMensajeTraspaso OUTPUT
+							@psMensajeTraspaso			= @psMensajeTraspaso OUTPUT,
+							@pnDebug					= @pnDebug
                 END
             END
             ELSE IF ( EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud AND ClaEstatusSolicitud IN (0) ) ) -- Proceso de Edición
@@ -188,7 +194,8 @@ BEGIN
                 @pnClaUsuarioMod            = @pnClaUsuarioMod,     --Usuario Autorizador
                 @psNombrePcMod              = @psNombrePcMod,
                 @pnFabricacionGenerada      = @pnClaPedido OUTPUT   --Identificador de Fabricación Generada para Traspaso Manual
-    END
+				,@pnDebug					= @pnDebug    
+	END
     ELSE IF ( @pnClaTipoEvento = 2 )
     BEGIN
         EXEC    [OpeSch].[OPE_CU550_Pag32_Servicio_CancelacionSolicitud_Proc]
@@ -204,9 +211,6 @@ BEGIN
                 @pnClaUsuarioMod            = @pnClaUsuarioMod,		--Usuario Autorizador
                 @psNombrePcMod              = @psNombrePcMod
     END
-
-	--IF @@SERVERNAME = 'SRVDBDES01\ITKQA'
-	--	SELECT @psMensajeTraspaso = '<!DOCTYPE html>     <html>     <style type="text/css">      .tabla{font-family:Arial;font-size:12px;color:#000000;}      .header{color:#FFFFFF;background-color:#3dbab3;}      .texto1{color=#000000" style="font-family: Arial; font-size: 10pt;}      .centrar{text-align: center;}      .izquierda{text-align: left;}      .derecha{text-align: right;}     </style>     <body>      <FONT class="texto1">      <h5><strong>AVISO:</strong></h5>        <p>Las siguientes partidas del pedido Origen <b>23416945</b> se identificaron para otras solicitudes:</FONT></br></br>     <table class="tabla" cellspacing="0" border="1" width="100%">      <tr class="header">        <th WIDTH="5%">Pedido</th>        <th WIDTH="20%">Producto</th>        <th WIDTH="3%">Unidad</th>        <th WIDTH="4%">Cant. Pedida Cliente</th>        <th WIDTH="4%">Cant. Solicitada</th>        <th WIDTH="4%">Cant. Disponible</th>        <th WIDTH="6%">Etatus MP</th>      </tr><tr><td class="centrar" bgcolor="#bdbdbd">23281999</td><td class="izquierda" bgcolor="#bdbdbd">23619 - FLAT BAR 1" x 3/16" A36/529-50 24 2.5T ASTM A6/A36/A529-50</td><td class="centrar" bgcolor="#bdbdbd">BDL</td><td class="derecha" bgcolor="#bdbdbd">50</td><td class="derecha" bgcolor="#bdbdbd">12</td><td class="derecha" bgcolor="#bdbdbd">28</td><td class="centrar" bgcolor="#bdbdbd">Pendiente Total</td></tr><tr><td class="centrar" bgcolor="white">23514668</td><td class="izquierda" bgcolor="white">23619 - FLAT BAR 1" x 3/16" A36/529-50 24 2.5T ASTM A6/A36/A529-50</td><td class="centrar" bgcolor="white">BDL</td><td class="derecha" bgcolor="white">50</td><td class="derecha" bgcolor="white">10</td><td class="derecha" bgcolor="white">28</td><td class="centrar" bgcolor="white">Surtida Parcial</td></tr><tr><td class="centrar" bgcolor="#bdbdbd">23281999</td><td class="izquierda" bgcolor="#bdbdbd">23620 - FLAT BAR 1 1/4" x 3/16" A36/529-50 24 2.5T ASTM A6/A36/A529-50</td><td class="centrar" bgcolor="#bdbdbd">BDL</td><td class="derecha" bgcolor="#bdbdbd">42</td><td class="derecha" bgcolor="#bdbdbd">42</td><td class="derecha" bgcolor="#bdbdbd">0</td><td class="centrar" bgcolor="#bdbdbd">Surtida Total</td></tr><tr><td class="centrar" bgcolor="white">23281999</td><td class="izquierda" bgcolor="white">60582 - FLAT BAR 1" x 3/16" A-36 20 2.0T ASTM A6/A36</td><td class="centrar" bgcolor="white">BDL</td><td class="derecha" bgcolor="white">88</td><td class="derecha" bgcolor="white">88</td><td class="derecha" bgcolor="white">0</td><td class="centrar" bgcolor="white">Surtida Total</td></tr><tr><td class="centrar" bgcolor="#bdbdbd">23281999</td><td class="izquierda" bgcolor="#bdbdbd">ITK0000001 - VARILLA G42</td><td class="centrar" bgcolor="#bdbdbd">TON</td><td class="derecha" bgcolor="#bdbdbd">50</td><td class="derecha" bgcolor="#bdbdbd">10</td><td class="derecha" bgcolor="#bdbdbd">30</td><td class="centrar" bgcolor="#bdbdbd">Pendiente Total</td></tr><tr><td class="centrar" bgcolor="white">23514668</td><td class="izquierda" bgcolor="white">ITK0000001 - VARILLA G42</td><td class="centrar" bgcolor="white">TON</td><td class="derecha" bgcolor="white">50</td><td class="derecha" bgcolor="white">10</td><td class="derecha" bgcolor="white">30</td><td class="centrar" bgcolor="white">Surtida Parcial</td></tr></table></body></html>'
 
 
 

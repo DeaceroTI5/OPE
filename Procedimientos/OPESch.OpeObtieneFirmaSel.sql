@@ -1,6 +1,6 @@
 USE Operacion
 GO
---'OPESch.OpeObtieneFirmaSel'
+-- 'OPESch.OpeObtieneFirmaSel'
 GO
 ALTER PROCEDURE OPESch.OpeObtieneFirmaSel
  @pnNumVersion		INT
@@ -15,15 +15,27 @@ BEGIN
 			@nMuestraLogCIM		  INT,
 			@nDepartamentoDefault INT,
 			@sNormaISO			  VARCHAR(200),
+			@nMuestraNombreUbicacion TINYINT,
 			@nMuestraImgUSA		  TINYINT = 0,
-			@nMuestraImgDWR		  INT = 0,
-			@nMuestraImgWWR		  INT = 0
-
+			@nMuestraImgDWR		  TINYINT = 0,
+			@nMuestraImgWWR		  TINYINT = 0,
+			@sRutaLogo				VARCHAR(300),
+			@nMuestraNomEmpresaUSA TINYINT = 0,
+			@nOcultarOPM		TINYINT = 0,
+			@nOcultarCarrete	TINYINT = 0
+			
 	SELECT	@sNormaISO = UPPER(CASE WHEN @psClaIdioma = 'es-MX' THEN sValor1 ELSE sValor2 END)
 	FROM	OpeSch.OpeTiCatConfiguracionVw
 	WHERE	ClaUbicacion = @pnClaUbicacion
 	AND		ClaSistema = 246
 	AND		ClaConfiguracion = 246131
+
+	SELECT  @nMuestraNombreUbicacion = ISNULL(nValor1,1)
+    FROM	OpeSch.OPETiCatConfiguracionVw 
+    WHERE	ClaUbicacion      = @pnClaUbicacion 
+    AND     ClaSistema        = 127 
+    AND     ClaConfiguracion  = 1270206
+    AND		BajaLogica        = 0
 
 	SELECT	@nMuestraImgWWR = nValor1
 	FROM	OpeSch.OpeTiCatConfiguracionVw
@@ -43,10 +55,26 @@ BEGIN
 	AND		ClaSistema = 127
 	AND		ClaConfiguracion = 1271234
 
-	--IF @pnClaUbicacion IN (65, 267)
-	--	SELECT @nMuestraImgUSA = 1
-	--ELSE
-	--	SELECT @nMuestraImgUSA = 0
+	SELECT	@sRutaLogo = sValor1
+	FROM	OpeSch.OpeTiCatConfiguracionVw
+	WHERE	ClaUbicacion = @pnClaUbicacion
+	AND		ClaSistema = 127
+	AND		ClaConfiguracion = 1271235
+
+
+	SELECT	@nMuestraNomEmpresaUSA = nValor1
+	FROM	OpeSch.OpeTiCatConfiguracionVw
+	WHERE	ClaUbicacion = @pnClaUbicacion
+	AND		ClaSistema = 127
+	AND		ClaConfiguracion = 1271236
+
+	SELECT	@nOcultarOPM = nValor1,
+			@nOcultarCarrete = nValor2
+	FROM	OpeSch.OpeTiCatConfiguracionVw
+	WHERE	ClaUbicacion = @pnClaUbicacion
+	AND		ClaSistema = 127
+	AND		ClaConfiguracion = 1271237
+
 
 	DECLARE @tDatos TABLE
 	(	
@@ -62,6 +90,24 @@ BEGIN
 	SET		@nDepartamentoDefault	= OpeSch.OpeObtenerConfigNumericaFn(@pnClaUbicacion, 1270183, 1)
 	SET		@nMuestraLogDeaVerde	= OpeSch.OpeObtenerConfigNumericaFn(@pnClaUbicacion, 1271021, 1)
 	SELECT	@nMuestraLogDeaVerde	= ISNULL(@nMuestraLogDeaVerde,0)
+
+
+	/*
+	Logo_Deacero.png		-- Logo DeaAcero fondo Negro
+	Logo_Deacero2.png		-- Logo DeaAcero fondo Blanco
+	Logo_DeaceroSummit.png	-- Logo Summit
+	*/
+
+	IF @pnClaUbicacion = 300
+	BEGIN
+		SELECT @sRutaLogo = @sRutaLogo + 'Logo_DeaceroSummit.png'
+				, @nMuestraImgUSA = 0			-- Bandera USA no se utiliza en Summit
+	END
+	ELSE
+	BEGIN
+		SELECT @sRutaLogo = @sRutaLogo + 'Logo_Deacero.png'
+				,@nMuestraLogCIM = 0			-- Logo Calidad sólo se muestra en Summit
+	END
 	
 --	IF ISNULL(@pnIdCertificado,-1) > 0 
 --	BEGIN
@@ -115,6 +161,10 @@ BEGIN
 		AND		pccuf.BajaLogica = 0
 	END
 	
+	IF @@SERVERNAME = 'DEAINDNET02'	-- Prueba
+		SELECT @nMuestraNombreUbicacion = 0
+
+
 	IF EXISTS ( SELECT 1 FROM @tDatos )
 	BEGIN
 		SELECT	ClaDepartamento,
@@ -124,9 +174,14 @@ BEGIN
 				MuestraLogCIM,
 				NombreUsuario,
 				@sNormaISO AS NormaISO,
+				ISNULL(@nMuestraNombreUbicacion,1) AS MuestraNombreUbicacion,
 				@nMuestraImgUSA AS MuestraImgUSA,
 				@nMuestraImgDWR AS MuestraImgDWR,
-				@nMuestraImgWWR AS MuestraImgWWR	
+				@nMuestraImgWWR AS MuestraImgWWR,
+				@sRutaLogo		AS RutaLogo,
+				ISNULL(@nMuestraNomEmpresaUSA,0) AS MuestraNomEmpresaUSA,
+				ISNULL(@nOcultarOPM,0) AS OcultarOPM,
+				ISNULL(@nOcultarCarrete,0) AS OcultarCarrete
 		FROM	@tDatos AS td
 	END
 	ELSE
@@ -138,9 +193,14 @@ BEGIN
 				0 AS MuestraLogCIM,
 				'' AS NombreUsuario,
 			    @sNormaISO AS NormaISO,
+				ISNULL(@nMuestraNombreUbicacion,1) AS MuestraNombreUbicacion,
 				@nMuestraImgUSA AS MuestraImgUSA,
 				@nMuestraImgDWR AS MuestraImgDWR,
-				@nMuestraImgWWR AS MuestraImgWWR	
+				@nMuestraImgWWR AS MuestraImgWWR,
+				@sRutaLogo		AS RutaLogo,
+				ISNULL(@nMuestraNomEmpresaUSA,0) AS MuestraNomEmpresaUSA,
+				ISNULL(@nOcultarOPM,0) AS OcultarOPM,
+				ISNULL(@nOcultarCarrete,0) AS OcultarCarrete
 	END
 	
 	SET NOCOUNT ON

@@ -1,13 +1,17 @@
 USE Operacion
 GO
---'OpeSch.OpeBackDigitalizacionDocumentos'
+--'OpeSch.OpeReDigitalizacionDocumentosProc'
 GO
-ALTER PROCEDURE OpeSch.OpeBackDigitalizacionDocumentos_Hv
-	  @pnClaUbicacion	INT
-	, @pnFactura		INT = NULL
-	, @pnDebug			TINYINT = 0
+ALTER PROCEDURE OpeSch.OpeReDigitalizacionDocumentosProc
+	  @pnClaUbicacion		INT
+	, @psFacturaFiltro		VARCHAR(1000)= ''
+	, @pnIdReporteFactura	INT
+	, @pnDebug				TINYINT = 0
 AS
 BEGIN
+	
+	-- EXEC OpeSch.OpeReDigitalizacionDocumentosProc 267, '1058000036, 1058000037, 1058000038, 1058000039', 1
+
 	---- Pendiente corregir parametro psCultureName
 	IF object_id('tempdb..#TempNoFactDig') IS NOT NULL
 	BEGIN
@@ -62,85 +66,85 @@ BEGIN
 	IF object_id('tempdb..#PDFbinary') IS NOT NULL
 	BEGIN
 		DROP TABLE #PDFbinary
-	end
+	END
 
-	Declare	@pnNumVersion					int,
-			@psNomPdf						int,
-			@psClaIdioma					varchar(250),
+	DECLARE	@pnNumVersion					INT,
+			@psNomPdf						INT,
+			@psClaIdioma					VARCHAR(250),
 			@psRutaArchivo					VARCHAR(1000),
-			@pnError						varchar(250),
+			@pnError						VARCHAR(250),
 			@sRutaServidorRS				VARCHAR(1000),
 			@sRutaReporte					VARCHAR(1000),
 			@sNomReporte					VARCHAR(1000),
-			@FechaIn						datetime,
-			@fechaFin						datetime,
-			@pnIdOrderRemp					int,
-			@CountWh						int,
-			@nIdFactura						int,
-			@Formato						int,
-			@pnIdPlanCargaFact				int,
-			@pnIdboleta						int,
-			@IdTemp							int,
-			@psIdFacturaAlfanumerico		varchar(50),
-			@psIdViaje						varchar(50),
-			@psIdFacturaAlfa			    varchar(50),
-			@ServerName						varchar(50),
-			@sNomArchivo					varchar(1000),
+			@FechaIn						DATETIME,
+			@fechaFin						DATETIME,
+			@pnIdOrderRemp					INT,
+			@CountWh						INT,
+			@nIdFactura						INT,
+			@Formato						INT,
+			@pnIdPlanCargaFact				INT,
+			@pnIdboleta						INT,
+			@IdTemp							INT,
+			@psIdFacturaAlfanumerico		VARCHAR(50),
+			@psIdViaje						VARCHAR(50),
+			@psIdFacturaAlfa			    VARCHAR(50),
+			@ServerName						VARCHAR(50),
+			@sNomArchivo					VARCHAR(1000),
 			@sRutaTemp						VARCHAR(1000),
 			@sId							VARCHAR(100),
 			@sNomArchivoRSS					VARCHAR(1000),
 			@nExisteArchivo					INT,
 			@nIndice						INT,
 			@sComandoDinamico				VARCHAR(8000),
-			@Count							int,
-			@sRutaReportesName				varchar(1000),
-			@FormatoCertificado			    int,
+			@Count							INT,
+			@sRutaReportesName				VARCHAR(1000),
+			@FormatoCertificado			    INT,
 			@pnIdViaje						INT,
 			@pnIdFactura					INT,
-			@psIdioma						varchar(10),
-			@pnClaCliente					int,
-			@pnDiametro						int,
-			@psNombreCliente				varchar(500),
-			@pnIdCertificado				int,
-			@psNomUnidad                    varchar(250),
-			@psObservaciones				varchar(250),
-			@pscultureName					varchar(50),
-			@pnColada						int,
-			@pnDiamMM						int,
-			@NombreRep						varchar(250),
-			@psNumeroFactura				varchar(250),
-			@psCiudad						varchar(250),
-			@pnKgsTotal						int,
-			@psNombreUbicacion				varchar(250),
-			@psNomArticulo					varchar(250),
-			@pnIdPlanCarga					int,
-			@psNota							varchar(1000),
-			@psDireccion					varchar(500),
-			@pnClaTipoImpresion			    int,
-			@pnIdFabricacion				int,
-			@psClavesRollo					varchar(50),
-			@sqlUpdate						varchar(MAX),
+			@psIdioma						VARCHAR(10),
+			@pnClaCliente					INT,
+			@pnDiametro						INT,
+			@psNombreCliente				VARCHAR(500),
+			@pnIdCertificado				INT,
+			@psNomUnidad                    VARCHAR(250),
+			@psObservaciones				VARCHAR(250),
+			@pscultureName					VARCHAR(50),
+			@pnColada						INT,
+			@pnDiamMM						INT,
+			@NombreRep						VARCHAR(250),
+			@psNumeroFactura				VARCHAR(250),
+			@psCiudad						VARCHAR(250),
+			@pnKgsTotal						INT,
+			@psNombreUbicacion				VARCHAR(250),
+			@psNomArticulo					VARCHAR(250),
+			@pnIdPlanCarga					INT,
+			@psNota							VARCHAR(1000),
+			@psDireccion					VARCHAR(500),
+			@pnClaTipoImpresion			    INT,
+			@pnIdFabricacion				INT,
+			@psClavesRollo					VARCHAR(50),
+			@sqlUpdate						VARCHAR(MAX),
 			@pdf							VARBINARY(MAX),
-			@HostName						varchar(100),
-			@pnEsVistaPrevia				int,
-			@pnIdOpm						int,
-			@pnCantidad						int,
-			@psFactura						varchar(100),
-			@psDiametro						nvarchar(200),
-			@psLongitud						nvarchar(200),
-			@psEspecificacion				nvarchar(200),
-			@psTipo							nvarchar(200),
-			@psGrado						nvarchar(200),
-			@psConstruccion					nvarchar(200),
-			@psLubrication					nvarchar(200),
-			@psCoreType						nvarchar(200),
-			@psTorcido						nvarchar(200),
-			@psAcabado						nvarchar(200),
-			@psTipoConstruccion				nvarchar(200),
-			@psFirma						nvarchar(200),
-			@psNombreUsuario				nvarchar(200),
-			@psPuesto						nvarchar(200),
-			@psLongitudTotal				nvarchar(200)
+			@HostName						VARCHAR(100),
+			@pnEsVistaPrevia				INT,
+			@pnIdOpm						INT,
+			@pnCantidad						INT,
+			@psFactura						VARCHAR(100),
+			@psDiametro						NVARCHAR(200),
+			@psLongitud						NVARCHAR(200),
+			@psEspecificacion				NVARCHAR(200),
+			@psTipo							NVARCHAR(200),
+			@psGrado						NVARCHAR(200),
+			@psConstruccion					NVARCHAR(200),
+			@psLubrication					NVARCHAR(200),
+			@psCoreType						NVARCHAR(200),
+			@psTorcido						NVARCHAR(200),
+			@psAcabado						NVARCHAR(200),
+			@psTipoConstruccion				NVARCHAR(200),
+			@psFirma						NVARCHAR(200),
+			@psNombreUsuario				NVARCHAR(200),
+			@psPuesto						NVARCHAR(200),
+			@psLongitudTotal				NVARCHAR(200)
 		
 	CREATE TABLE #reportes
 				(orden			        INT,
@@ -162,18 +166,18 @@ BEGIN
 				 PorcReal				NUMERIC(19,2) NULL,
 				 PorcCub				NUMERIC(19,2) NULL,
 				 Montacarguista			VARCHAR(500),
-				 ClaCliente				INT null, 
-				 NombreCliente			VARCHAR (250) null, 
-				 Ciudad					VARCHAR (250) null, 
-				 IdCertificado			INT null, 
-				 KgsTotal				NUMERIC (28, 3) null, 
-				 NumeroFactura			VARCHAR (250) null, 
-				 NomArticulo			VARCHAR (500) null, 
-				 NombreUbicacion		VARCHAR (50) null, 
-				 Nota					VARCHAR (500) null, 
-				 Direccion				VARCHAR (500) null, 
-				 ClaTipoImpresion		INT null, 
-				 IdFabricacion			INT null, 
+				 ClaCliente				INT NULL, 
+				 NombreCliente			VARCHAR (250) NULL, 
+				 Ciudad					VARCHAR (250) NULL, 
+				 IdCertificado			INT NULL, 
+				 KgsTotal				NUMERIC (28, 3) NULL, 
+				 NumeroFactura			VARCHAR (250) NULL, 
+				 NomArticulo			VARCHAR (500) NULL, 
+				 NombreUbicacion		VARCHAR (50) NULL, 
+				 Nota					VARCHAR (500) NULL, 
+				 Direccion				VARCHAR (500) NULL, 
+				 ClaTipoImpresion		INT NULL, 
+				 IdFabricacion			INT NULL, 
 				 NomUnidad				VARCHAR (100) NULL,
 				 psClaIdioma			VARCHAR (5) NULL,
 				 ClavesRollo			VARCHAR(8000) NULL,
@@ -183,89 +187,12 @@ BEGIN
 				 ClaIdioma				VARCHAR (5) NULL,
 				 EsVistaPrevia			INT NULL,
 				 IdOpm					INT  NULL,
-				 Cantidad				NUMERIC (28, 3) null,
-				 Factura				VARCHAR (250) null  ,  
-				 Diametro				VARCHAR(250)null,
-				 Longitud				VARCHAR(250)null,
-				 Especificacion			VARCHAR(250)null,
-				 Tipo					VARCHAR(250)null,
-				 ClaFactura				INT,
-				 RemisionSN				INT,
-				 EnPlanta				INT,
-				 CopiaTranspSN			INT,
-				 ClaViaje				INT,
-				 ClaFabricacion			INT,
-				 EsStayTuff				INT,
-				 Idioma					VARCHAR(2),
-				 EsExportarPDF			INT,
-				 EsLandscape			INT,
-				 Grado					VARCHAR(250),
-				 Construccion			VARCHAR(250),
-				 Lubrication			VARCHAR(250),
-				 CoreType				VARCHAR(250),
-				 Torcido				VARCHAR(250),
-				 Acabado				VARCHAR(250),
-				 TipoConstruccion		VARCHAR(250),
-				 Firma					VARBINARY(MAX),
-				 NombreUsuario			VARCHAR(250),
-				 Puesto					VARCHAR(250),
-				 LongitudTotal			VARCHAR(250),
-				 psIdioma				VARCHAR(10),
-				 ClaUbicacionOrigen		INT,
-				 ClaArticulo			INT,
-				 Observaciones			VARCHAR(1000),
-				 Colada					INT,
-				 DiamMM					INT,
-				 IdCertificadoR			INT,
-				 ClaIdiomaR				INT)
-
-	CREATE TABLE #reportes2
-				(orden			        INT,
-				 ClaFormatoImpresion	INT,
-				 NombreReporte			VARCHAR(500),
-				 pnClaUbicacion			INT,
-				 ClaUbicacion			INT NULL,
-				 IdViaje				INT NULL,
-				 pnIdViaje				INT NULL,
-				 pnNumVersion			INT NULL,
-				 NumVersion				INT NULL,
-				 IdPlanCarga			INT NULL,
-				 IdBoleta				INT NULL,
-				 IdTipoConcepto			INT NULL,
-				 IdTabular				INT NULL,
-				 IdMovEntSal			INT,
-				 IdFactura				INT NULL,
-				 IdOrdenEnvioCU66P1		INT NULL,
-				 PorcReal				NUMERIC(19,2) NULL,
-				 PorcCub				NUMERIC(19,2) NULL,
-				 Montacarguista			VARCHAR(500),
-				 ClaCliente				INT null, 
-				 NombreCliente			VARCHAR (250) null, 
-				 Ciudad					VARCHAR (250) null, 
-				 IdCertificado			INT null, 
-				 KgsTotal				NUMERIC (28, 3) null, 
-				 NumeroFactura			VARCHAR (250) null, 
-				 NomArticulo			VARCHAR (500) null, 
-				 NombreUbicacion		VARCHAR (50) null, 
-				 Nota					VARCHAR (500) null, 
-				 Direccion				VARCHAR (500) null, 
-				 ClaTipoImpresion		INT null, 
-				 IdFabricacion			INT null, 
-				 NomUnidad				VARCHAR (100) NULL,
-				 psClaIdioma			VARCHAR (5) NULL,
-				 ClavesRollo			VARCHAR(8000) NULL,
-				 NomIsoIdioma			VARCHAR(3) NULL,
-				 ClaPais				INT NULL,
-				 cultureName		    VARCHAR (5) NULL,
-				 ClaIdioma				VARCHAR (5) NULL,
-				 EsVistaPrevia			INT NULL,
-				 IdOpm					INT  NULL,
-				 Cantidad				NUMERIC (28, 3) null,
-				 Factura				VARCHAR (250) null  ,  
-				 Diametro				VARCHAR(250)null,
-				 Longitud				VARCHAR(250)null,
-				 Especificacion			VARCHAR(250)null,
-				 Tipo					VARCHAR(250)null,
+				 Cantidad				NUMERIC (28, 3) NULL,
+				 Factura				VARCHAR (250) NULL  ,  
+				 Diametro				VARCHAR(250)NULL,
+				 Longitud				VARCHAR(250)NULL,
+				 Especificacion			VARCHAR(250)NULL,
+				 Tipo					VARCHAR(250)NULL,
 				 ClaFactura				INT,
 				 RemisionSN				INT,
 				 EnPlanta				INT,
@@ -300,28 +227,22 @@ BEGIN
 	CREATE TABLE #SalidaComando (SalidaComando VARCHAR(8000))
 	CREATE TABLE #PDFbinary (pdf VARBINARY(max))
 			 
-	CREATE Table #TempNoFactDigs ( Seleccionar bit,	
-								   id int,
-								   IdFactura int , 
-								   IdFacturaAlfanumerico varchar(30), 
-								   IdViaje int ,
-								   ContFactDigitalizadas int)
+	CREATE Table #TempNoFactDigs ( 
+		Seleccionar				BIT,	
+		id						INT,
+		IdFactura				INT , 
+		IdFacturaAlfanumerico	VARCHAR(30), 
+		IdViaje					INT ,
+		ContFactDigitalizadas	INT
+	)
+
+	CREATE TABLE #TmpFormatos (
+		  Id		INT IDENTITY(1,1)
+		, IdFormato	INT
+	)
 
 	select @HostName = HOST_NAME()
 
-	/*						 
-		--Obtengo todas las facturas del dia anterior hasta el dia de hoy
-		IF(@pnFechaIni IS NOT NULL OR @pnFechaFin IS NOT NULL)
-		BEGIN
-			SELECT @fechaFin = @pnFechaFin,
-				@FechaIn = @pnFechaIni
-		END
-		ELSE
-		BEGIN
-			SELECT @fechaFin = GETDATE(),
-			@FechaIn  = DATEADD(ms, -2, DATEADD(dd, -1, @fechaFin))	
-		END
-	*/
 		   
 	IF NOT EXISTS (select top 1  IdRegitro from Operacion.OpeSch.OpeBitReimpresionDigital (NOLOCK)
 				   order by IdRegitro desc)
@@ -336,20 +257,18 @@ BEGIN
 
 	END
 
-	
-	/*	---- Obtengo las facturas no digitalizadas	
-		Insert into #TempNoFactDigs (Seleccionar,  
-									 id, 
-									 IdFactura,  
-									 IdFacturaAlfanumerico, 
-									 IdViaje, 
-									 ContFactDigitalizadas)	
-		EXEC [OpeSch].[OPE_CU71_Pag4_Grid_GridDetalleFact_Sel]
-			@pnClaUbicacion = @pnClaUbicacion,
-			@pnFechaIni = @FechaIn,
-			@pnFechaFin = @FechaFin,
-			@pnIdOrderRemp = @IdTemp  
-	*/
+
+	DECLARE @tbFacturas TABLE(
+		  Id		INT IDENTITY(1,1)
+		, IdFactura	VARCHAR(30)
+	)
+
+	IF ISNULL(@psFacturaFiltro,'') <> ''
+	BEGIN
+		INSERT INTO @tbFacturas
+		SELECT DISTINCT LTRIM(RTRIM(Value))
+		FROM OPESch.OpeSplitFn(@psFacturaFiltro, ',')
+	END
 
 	---- Obtengo las facturas no digitalizadas	-- Hv
 	INSERT INTO #TempNoFactDigs (Seleccionar,  
@@ -370,13 +289,13 @@ BEGIN
 	ON		a.ClaUbicacion	= b.ClaUbicacion
 	AND		a.IdFactura		= b.IdFactura
 	AND		b.ClaFormatoImpresion = 27
-	WHERE	a.ClaUbicacion = 267
-	AND		(@pnFactura IS NULL OR (a.IdFactura = @pnFactura))
+	LEFT JOIN @tbFacturas c
+	ON		a.IdFactura = c.IdFactura
+	WHERE	a.ClaUbicacion = @pnClaUbicacion
+	AND		(@psFacturaFiltro = '' OR (a.IdFactura = c.IdFactura))
 	
 	IF @pnDebug = 1
 		SELECT '' AS '#TempNoFactDigs', * FROM #TempNoFactDigs
-
-	
 
 	 --Inserto los formatos en la bitacora 
 	SELECT 
@@ -384,68 +303,70 @@ BEGIN
 		   IdFacturaAlfanumerico AS IdFacturaAlfanumerico,
 		   IdViaje               AS IdViaje,
 		   ContFactDigitalizadas AS ContFactDigitalizadas
-	Into #TempBitacoraFactura 
+	INTO #TempBitacoraFactura 
 	FROM #TempNoFactDigs
 	ORDER BY IdFactura ASC
+
 
 
 	IF @pnDebug = 1
 		SELECT '' AS '#TempBitacoraFactura', * FROM #TempBitacoraFactura
 
 
-	select @CountWh = COUNT(*) from #TempBitacoraFactura
+	SELECT @CountWh = COUNT(*) FROM #TempBitacoraFactura
 
 	--- Inserto las facturas que se van a digitalizar en  [OpeBitReimpresionDigital]
 	WHILE @CountWh > 0
 	BEGIN
-		select TOP 1 @nIdFactura		= IdFactura, 
+		SELECT TOP 1 @nIdFactura		= IdFactura, 
 					 @psIdViaje			= IdViaje,
 					 @psIdFacturaAlfa	= IdFacturaAlfanumerico
 		FROM	#TempBitacoraFactura
 
-		exec [OpeSch].[OPE_CU71_Pag4_Grid_GridDetalleFact_IU_Hv] @pnClaUbicacion,0,@IdTemp,2,1,@nIdFactura , @psIdFacturaAlfa , @psIdViaje
-			
-		DELETE TOP (1) FROM #TempBitacoraFactura 
+		--exec [OpeSch].[OPE_CU71_Pag4_Grid_GridDetalleFact_IU_Hv] @pnClaUbicacion,0,@IdTemp,2,1,@nIdFactura , @psIdFacturaAlfa , @psIdViaje
+		--------------------------------------------------------
+		IF 1=1--(@pnAccionSp = 2 AND @pnSeleccionar = 1)
+		BEGIN
+			--- Obtengo los formatos faltantes 
+			DELETE FROM #TmpFormatos
+			INSERT INTO #TmpFormatos  (IdFormato) VALUES (27)
 
+			INSERT INTO [Operacion].[OpeSch].[OpeBitReimpresionDigital]
+			SELECT @IdTemp,
+				   @nIdFactura,
+				   @psIdFacturaAlfa,
+				   tf.IdFormato,
+				   CONVERT(INT,@psIdViaje),
+				   @pnClaUbicacion,	
+				   0, --@PnClaUsuarioMod,
+				   HOST_NAME(),
+				   GETDATE(),
+				   NULL   
+			FROM #TmpFormatos tf
+		END		
+		--------------------------------------------------------
+		
+		DELETE TOP (1) FROM #TempBitacoraFactura 
 		SELECT @CountWh = COUNT(*) FROM #TempBitacoraFactura
 	END 
 
 	IF @pnDebug = 1
 		SELECT '' AS 'OpeBitReimpresionDigital', * FROM Operacion.OpeSch.OpeBitReimpresionDigital WITH(NOLOCK) WHERE IdRegitro = @IdTemp
 
-
 	-- Obtengo los parametros de las facturas
-	Insert INTO #reportes2 (orden,ClaFormatoImpresion ,NombreReporte,pnClaUbicacion,ClaUbicacion ,IdViaje,pnIdViaje,pnNumVersion,NumVersion,IdPlanCarga,
+	Insert INTO #reportes (orden,ClaFormatoImpresion ,NombreReporte,pnClaUbicacion,ClaUbicacion ,IdViaje,pnIdViaje,pnNumVersion,NumVersion,IdPlanCarga,
 						   IdBoleta,IdTipoConcepto,IdTabular,IdMovEntSal,IdFactura,IdOrdenEnvioCU66P1,PorcReal,PorcCub,Montacarguista,ClaCliente,NombreCliente,
 						   Ciudad,IdCertificado,KgsTotal,NumeroFactura,NomArticulo,NombreUbicacion,Nota,Direccion,ClaTipoImpresion,IdFabricacion,NomUnidad,
 						   psClaIdioma,ClavesRollo,NomIsoIdioma,ClaPais,cultureName,ClaIdioma,EsVistaPrevia,IdOpm,Cantidad,Factura,Diametro,Longitud,Especificacion,
 						   Tipo,ClaFactura,RemisionSN,EnPlanta,CopiaTranspSN,ClaViaje,ClaFabricacion,EsStayTuff,Idioma,EsExportarPDF,EsLandscape,Grado,Construccion,
 						   Lubrication,CoreType,Torcido,Acabado,TipoConstruccion,Firma,NombreUsuario,Puesto,LongitudTotal,psIdioma,ClaUbicacionOrigen,ClaArticulo,
 						   Observaciones,Colada,DiamMM,IdCertificadoR,ClaIdiomaR)
-	EXEC [OpeSch].[OPE_CU71_Pag4_ImprimirSrvBack_Proc] @pnClaUbicacion, @IdTemp
-
-
-	INSERT INTO #reportes
-	SELECT	DISTINCT b.* 
-	FROM (	SELECT	Orden = MIN(b.Orden), b.IdCertificado, b.IdFactura 
-			FROM	#reportes2 b 
-			INNER JOIN #TempNoFactDigs c 
-			ON		b.IdFactura = c.IdFactura 
-			GROUP BY b.IdCertificado, b.IdFactura
-		) a
-	INNER JOIN #reportes2 b
-	ON		a.Orden = b.Orden
+	EXEC [OpeSch].[OPE_CU71_Pag4_ImprimirSrvBack_Proc_Hv] @pnClaUbicacion, @IdTemp
 
 
 	IF @pnDebug = 1
 		SELECT '' AS '#reportes', * FROM #reportes ORDER BY NumeroFactura ASC
 
-
-
-	IF @pnDebug = 1
-		SELECT '' AS '#reportes2', * FROM #reportes2 ORDER BY NumeroFactura ASC
-
-	--RETURN
 
 	SELECT @sRutaServidorRS = sValor1,
 		   @sRutaReportesName = '/OPE/Reportes/' 
@@ -521,7 +442,7 @@ BEGIN
 					 @psClaIdioma					 = r.ClaIdioma			 
 		FROM #TmpInfoReporteFROM R
 
-		SET @psNomArticulo = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(@psNomArticulo, '"', '""') ,'%','%%'),'^','^^'),'&','^&'),'<','^<'),'>','^>'),'|','^|'),'`','^`'),',','^,'),';','^
+		SET @psNomArticulo = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(@psNomArticulo,'%','%%'),'^','^^'),'&','^&'),'<','^<'),'>','^>'),'|','^|'),'`','^`'),',','^,'),';','^
 
 		;'),'=','^='),'(','^('),')','^)'),'!','^^!'),char(10),'') 
 
@@ -1306,8 +1227,8 @@ BEGIN
 			IF @pnDebug = 1
 				SELECT @pdf AS '@pdf'
 
-			INSERT INTO OpeSch.OpeTmpReporteFactura (IdFactura, IdCertificado, Reporte)
-			SELECT @pnIdFactura, @pnIdCertificado, @pdf
+			INSERT INTO OpeSch.OpeTmpReporteFactura (IdFactura, IdReporteFactura,IdCertificado, Reporte, FechaUltimaMod)
+			SELECT @pnIdFactura, @pnIdReporteFactura, @pnIdCertificado, @pdf, GETDATE()
 			
 			--SELECT * FROM #PDFbinary
 			--EXEC [OpeSch].OPE_CU71_Pag4_ReporteAPDF_Proc @pnClaUbicacion,default,@pdf,@FormatoCertificado,@pnIdFactura,@pnIdCertificado,@HostName,0				

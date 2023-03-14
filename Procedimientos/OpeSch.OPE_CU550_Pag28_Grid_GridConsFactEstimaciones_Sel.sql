@@ -1,19 +1,22 @@
 USE Operacion
 GO
-ALTER PROCEDURE OpeSch.OPE_CU550_Pag28_Grid_GridConsFactEstimaciones_Sel 
+-- EXEC SP_HELPTEXT 'OpeSch.OPE_CU550_Pag28_Grid_GridConsFactEstimaciones_Sel'
+GO
+ALTER PROCEDURE [OpeSch].[OPE_CU550_Pag28_Grid_GridConsFactEstimaciones_Sel] 
     @pnClaUbicacion         INT, 
     @pnCmbCliente           INT, 
     @pnCmbProyecto          INT, 
     @pnCmbTipoProyecto      INT,
-    @pnChkRemNoEntregadas   INT
-	,@psClaUbicacionOrig	VARCHAR(600)= ''
-	,@pdFechaInicio			DATETIME = NULL
-	,@pdFechaFin			DATETIME = NULL
-	,@pnDebug				TINYINT = 0
+    @pnChkRemNoEntregadas   TINYINT = 0,
+	@psClaUbicacionOrig	    VARCHAR(600)= '',
+	@pdFechaInicio			DATETIME = NULL,
+	@pdFechaFin			    DATETIME = NULL,
+    @pnCmbTransportista     INT,
+    @pnChkRemCanceladas		TINYINT = 0,
+	@pnDebug				TINYINT = 0, @pnClaUsuarioMod INT = NULL
 AS
 BEGIN
-	--exec OPESch.OPE_CU550_Pag28_Grid_GridConsFactEstimaciones_Sel @pnClaUbicacion=365,@pnCmbCliente=NULL,@pnCmbProyecto=NULL,@pnCmbTipoProyecto=NULL,@pnChkRemNoEntregadas=1,@pnDebug=1
-
+	IF @pnClaUsuarioMod = 100010318 SELECT @pnChkRemCanceladas = 1
 	IF (@pdFechaInicio IS NOT NULL AND @pdFechaFin IS NOT NULL AND (@pdFechaFin < @pdFechaInicio)) 
 	BEGIN
 		RAISERROR('La Fecha Inicial NO debe ser Mayor a la Fecha Final. Favor de Verificar.',16,1)
@@ -23,433 +26,299 @@ BEGIN
 	IF @pdFechaFin IS NOT NULL
 		SELECT @pdFechaFin = DATEADD(DAY,1,@pdFechaFin)
 
-    ------Inicio: Proceso PreEjecucion de Consulta------
     DECLARE	@CmbCliente         INT, 
 			@CmbProyecto        INT,
             @CmbTipoProyecto    INT
-	
+
+	DECLARE @tUbicacionEstimacionCmb TABLE(
+		  Id						INT IDENTITY(1,1)
+		, ClaUbicacionEstimacion	INT
+		, NomUbicacionEstimacion	VARCHAR(150)
+	)
+
+	DECLARE @tbControlFacturadoRemisiones TABLE(
+		Proyecto		INT,
+		Viaje			INT,
+		Remision		VARCHAR(20),
+		NoFabricaciones	INT,
+		Articulo		INT,
+		CantSurtidaRec	NUMERIC(22,4),
+		CantSurtidaFact	NUMERIC(22,4)
+	)
+    
+	------------------------------------------------------------------------------	
 	SELECT	@CmbCliente         = (CASE WHEN (@pnCmbCliente = -1 OR @pnCmbCliente IS NULL) THEN 1 ELSE 0 END),
 			@CmbProyecto        = (CASE WHEN (@pnCmbProyecto = -1 OR @pnCmbProyecto IS NULL) THEN 1 ELSE 0 END),
             @CmbTipoProyecto    = (CASE WHEN (@pnCmbTipoProyecto = -1 OR @pnCmbTipoProyecto IS NULL) THEN 1 ELSE 0 END)
-
-
-	DECLARE @tPedidosEstimaciones TABLE(
-		  IdFabriacionUnificado		INT
-		, ClaUbicacionVenta			INT
-		, idFabricacionVenta		INT
-		, ClaUbicacionEstimacion	INT
-		, idFabricacionEstimacion	INT
-	)
-
-	DECLARE @tPedidoAgrupadoEncabezado TABLE(
-		  ClaCliente					INT
-		, Cliente						VARCHAR(100)
-		, ClaProyecto					INT
-		, Proyecto						VARCHAR(100)
-		, Planta_VO						INT
-		, Pedido_Unificado				INT
-		, Pedido_Venta_Original			INT
-		, Cantidad_Pedida_Venta_Enc		NUMERIC(22,4)
-		, Cantidad_Surtida_Venta_Enc	NUMERIC(22,4)
-		, Planta_E						INT
-		, Pedido_Espejo					INT
-		, Cantidad_Pedida_Espejo_Enc	NUMERIC(22,4)
-		, Cantidad_Surtida_Espejo_Enc	NUMERIC(22,4)
-	)
-    
-	------------------------------------------------------------------------------
-	DECLARE @tUbicacionOrigenCmb TABLE(
-		  Id				INT IDENTITY(1,1)
-		, ClaUbicacionOrig	INT
-	)
 	
 	SET @psClaUbicacionOrig = ISNULL(@psClaUbicacionOrig,'')
+
 	IF @psClaUbicacionOrig <> ''
 	BEGIN
-		INSERT INTO @tUbicacionOrigenCmb
-		SELECT DISTINCT LTRIM(RTRIM(string))
-		FROM	OpeSch.OPEUtiSplitStringFn(@psClaUbicacionOrig, ',')
+		INSERT	INTO @tUbicacionEstimacionCmb
+		SELECT	DISTINCT LTRIM(RTRIM(T0.string)), T1.NombreUbicacion
+		FROM	OpeSch.OPEUtiSplitStringFn(@psClaUbicacionOrig, ',') T0
+		INNER JOIN	OpeSch.OpeTiCatUbicacionVw T1 WITH(NOLOCK)  
+			ON	LTRIM(RTRIM(T0.string)) = T1.ClaUbicacion
 	END
+	
 	------------------------------------------------------------------------------
-	
-	INSERT INTO @tPedidosEstimaciones(IdFabriacionUnificado	, ClaUbicacionVenta, idFabricacionVenta, ClaUbicacionEstimacion, idFabricacionEstimacion)
-	SELECT	  a.IdFabriacionUnificado
-			, 365						AS ClaUbicacionVenta
-			, a.IdFabricacionOriginal	AS idFabricacionVenta
-			, a.ClaUbicacion			AS ClaUbicacionEstimacion
-			, a.IdFabricacionEstimacion AS idFabricacionEstimacion
-	FROM	OpeSch.OpeRelFabricacionbUnificadasVw a WITH(NOLOCK)
-	WHERE	a.IdControlUnificacion IN (	SELECT	MAX(IdControlUnificacion)
-										FROM	OpeSch.OpeRelFabricacionbUnificadasVw 
-										GROUP BY ClaUbicacion, IdFabricacionOriginal, IdFabricacionEstimacion
-										)
-	UNION
-	SELECT DISTINCT
-	          NULL AS IdFabriacionUnificado
-			, b.ClaUbicacionVenta
-			, b.idFabricacionVenta
-			, b.ClaUbicacionEstimacion
-			, b.idFabricacionEstimacion
-	FROM	OpeSch.OpeTraFabricacionEspejoEstimacion b WITH(NOLOCK)
-	WHERE	b.idFabricacionVenta NOT IN (	SELECT DISTINCT IdFabriacionUnificado
-		                                        FROM	OpeSch.OpeRelFabricacionbUnificadasVw)
-
-
-
-	INSERT INTO @tPedidoAgrupadoEncabezado(
-		  ClaCliente					
-		, Cliente						
-		, ClaProyecto					
-		, Proyecto						
-		, Planta_VO						
-		, Pedido_Unificado				
-		, Pedido_Venta_Original			
-		, Cantidad_Pedida_Venta_Enc		
-		, Cantidad_Surtida_Venta_Enc	
-		, Planta_E						
-		, Pedido_Espejo					
-		, Cantidad_Pedida_Espejo_Enc	
-		, Cantidad_Surtida_Espejo_Enc
+	INSERT INTO @tbControlFacturadoRemisiones(
+		  Proyecto		
+		, Viaje			
+		, Remision		
+		, NoFabricaciones	
+		, Articulo		
+		, CantSurtidaRec	
+		, CantSurtidaFact		
 	)
-
-	SELECT	  er.ClaCliente				AS ClaCliente
-			, ltrim(rtrim(convert(varchar(150), er.ClaCliente))) + ' - ' + er.NombreCliente AS Cliente
-			, dr.ClaProyecto			AS ClaProyecto
-			, ltrim(rtrim(convert(varchar(150), dr.ClaProyecto))) + ' - ' + dr.NomProyecto AS Proyecto
-			, a.ClaUbicacionVenta		AS Planta_VO
-			, ur.IdFabricacion			AS Pedido_Unificado	
-			, br.IdFabricacion			AS Pedido_Venta_Original
-			, SUM(bdr.CantPedida)		AS Cantidad_Pedida_Venta_Enc
-			, SUM(bdr.CantSurtida)		AS Cantidad_Surtida_Venta_Enc
-			, a.ClaUbicacionEstimacion	AS Planta_E
-			, be.IdFabricacion			AS Pedido_Espejo
-			, SUM(bde.CantPedida)		AS Cantidad_Pedida_Espejo_Enc
-			, SUM(bde.CantSurtida)		AS Cantidad_Surtida_Espejo_Enc
-	FROM	@tPedidosEstimaciones a 
-    --Flujo de Remision / Venta
-    INNER JOIN	OpeSch.OpeTraFabricacionVw br WITH(NOLOCK)
-    ON			br.IdFabricacion = a.idFabricacionVenta
-    INNER JOIN	OpeSch.OpeVtaRelFabricacionProyectoVw cr WITH(NOLOCK)
-    ON			cr.IdFabricacion = br.IdFabricacion
-    INNER JOIN	OpeSch.OpeVtaCatProyectoVw dr WITH(NOLOCK)
-    ON			dr.ClaProyecto = cr.ClaProyecto
-    INNER JOIN	OpeSch.OpeVtaCatClienteVw er WITH(NOLOCK)
-    ON			er.ClaCliente = dr.ClaClienteCuenta
-    INNER JOIN	OpeSch.OpeTraFabricacionDetVw bdr WITH(NOLOCK)
-    ON			bdr.IdFabricacion = br.IdFabricacion 
-    INNER JOIN  Opesch.OpeArtCatArticuloVw art WITH(NOLOCK)
-    ON			art.ClaArticulo = bdr.ClaArticulo
-    --Flujo de Estimaciones / Traspaso
-    INNER JOIN	OpeSch.OpeTraFabricacionVw be WITH(NOLOCK)
-    ON			be.IdFabricacion = a.idFabricacionEstimacion
-    INNER JOIN	OpeSch.OpeTraFabricacionDetVw bde WITH(NOLOCK)
-    ON			bde.IdFabricacion = be.IdFabricacion 
-	AND			bde.ClaArticulo = bdr.ClaArticulo
-    --Tabla Tipo de Proyecto
-    INNER JOIN	OpeSch.OpeRelProyectoEstimacionVw vw1 WITH(NOLOCK)
-	ON			vw1.ClaCliente = er.ClaCliente 
-	AND			vw1.ClaProyecto = dr.ClaProyecto
-    --Flujo de Unificacion
-	LEFT JOIN	OpeSch.OpeTraFabricacionVw ur WITH(NOLOCK)
-    ON			ur.IdFabricacion = a.IdFabriacionUnificado
-    LEFT JOIN	OpeSch.OpeTraFabricacionDetVw udr WITH(NOLOCK)
-	ON			udr.IdFabricacion = ur.IdFabricacion 
-	AND			udr.ClaArticulo = bdr.ClaArticulo
-	LEFT JOIN	@tUbicacionOrigenCmb ub
-	ON			a.ClaUbicacionEstimacion = ub.ClaUbicacionOrig
-	WHERE		( dr.ClaClienteCuenta = @pnCmbCliente OR @CmbCliente = 1 )  
-	AND			( dr.ClaProyecto = @pnCmbProyecto OR @CmbProyecto = 1 ) 
-	AND			( vw1.EsInstalacion = @pnCmbTipoProyecto OR @CmbTipoProyecto = 1 )
-	AND			(@psClaUbicacionOrig = '' OR (a.ClaUbicacionEstimacion = ub.ClaUbicacionOrig))
+	SELECT	T0.ClaProyecto AS Proyecto,
+			T0.IdViaje AS Viaje,
+			T0.RemisionAlfanumerico AS Remision,
+			COUNT(T0.IdFabricacion) AS NoFabricaciones,
+			T1.ClaArticulo AS Articulo,
+			SUM(ISNULL(T1.CantSurtidaRec,0)) AS CantSurtidaRec,
+			SUM(ISNULL(T1.CantSurtidaFact,0)) AS CantSurtidaFact
+	FROM    OpeSch.OpeControlFacturaRemisionEstimacionVw T0 WITH(NOLOCK)
+	INNER JOIN  OpeSch.OpeControlFacturaRemisionEstimacionDetVw T1 WITH(NOLOCK)
+		ON	T0.IdContFacturaRemision = T1.IdContFacturaRemision AND T0.IdFabricacion = T1.IdFabricacion
 	GROUP BY
-	        er.ClaCliente,
-	        ltrim(rtrim(convert(varchar(150), er.ClaCliente))) + ' - ' + er.NombreCliente,
-	        dr.ClaProyecto,		
-	        ltrim(rtrim(convert(varchar(150), dr.ClaProyecto))) + ' - ' + dr.NomProyecto,
-	        a.ClaUbicacionVenta,
-	        a.ClaUbicacionEstimacion,
-	        ur.IdFabricacion,
-	        br.IdFabricacion,
-	        be.IdFabricacion
-	
+			T0.ClaProyecto,
+			T0.IdViaje,
+			T0.RemisionAlfanumerico,
+			T1.ClaArticulo
 
-	;WITH PedidoAgrupadoDetalle AS ( 
-		SELECT	  a.ClaCliente
-				, a.Cliente
-				, a.ClaProyecto
-				, a.Proyecto
-				, a.Planta_VO
-				, a.Pedido_Unificado
-				, udr.IdFabricacionDet		AS No_Renglon_PU
-				, a.Pedido_Venta_Original
-				, a.Cantidad_Pedida_Venta_Enc
-				, a.Cantidad_Surtida_Venta_Enc
-				, bdr.IdFabricacionDet		AS No_Renglon_PVO
-				, SUM(bdr.CantPedida)		AS Cantidad_Pedida_Venta_Det
-				, SUM(bdr.CantSurtida)		AS Cantidad_Surtida_Venta_Det
-				, a.Planta_E
-				, a.Pedido_Espejo
-				, a.Cantidad_Pedida_Espejo_Enc
-				, a.Cantidad_Surtida_Espejo_Enc
-				, bdr.IdFabricacionDet		AS No_Renglon_PE
-				, SUM(bde.CantPedida)		AS Cantidad_Pedida_Espejo_Det
-				, SUM(bde.CantSurtida)		AS Cantidad_Surtida_Espejo_Det
-				, art.ClaArticulo			AS Articulo
-				, bdr.PrecioLista			AS Precio_Lista
-				, art.PesoTeoricoKgs		AS Peso_Teorico_Kgs
-		FROM	@tPedidoAgrupadoEncabezado a 
-        --Flujo de Remision / Venta
-        INNER JOIN	OpeSch.OpeTraFabricacionDetVw bdr WITH(NOLOCK)
-        ON		bdr.IdFabricacion = a.Pedido_Venta_Original
-        INNER JOIN  Opesch.OpeArtCatArticuloVw art WITH(NOLOCK)
-        ON		art.ClaArticulo = bdr.ClaArticulo
-        --Flujo de Estimaciones / Traspaso
-        INNER JOIN	OpeSch.OpeTraFabricacionDetVw bde WITH(NOLOCK)
-        ON		bde.IdFabricacion = a.Pedido_Espejo 
-		AND		bde.ClaArticulo = bdr.ClaArticulo
-        --Flujo de Unificacion
-        LEFT JOIN	OpeSch.OpeTraFabricacionDetVw udr WITH(NOLOCK)
-        ON		udr.IdFabricacion = a.Pedido_Unificado 
-		AND		udr.ClaArticulo = bdr.ClaArticulo
-		GROUP BY
-		        a.ClaCliente,
-		        a.Cliente,
-		        a.ClaProyecto,
-		        a.Proyecto,
-		        a.Planta_VO,
-		        a.Pedido_Unificado,
-		        udr.IdFabricacionDet,	
-		        a.Pedido_Venta_Original,
-		        a.Cantidad_Pedida_Venta_Enc,
-		        a.Cantidad_Surtida_Venta_Enc,
-		        bdr.IdFabricacionDet,
-		        a.Planta_E,
-		        a.Pedido_Espejo,
-		        a.Cantidad_Pedida_Espejo_Enc,
-		        a.Cantidad_Surtida_Espejo_Enc,
-		        bdr.IdFabricacionDet,
-		        art.ClaArticulo,
-		        bdr.PrecioLista,
-		        art.PesoTeoricoKgs
-	) 
-		SELECT	a.ClaCliente,
-				a.Cliente,
-				a.ClaProyecto,
-				a.Proyecto,
-				a.Planta_E,
-				a.Pedido_Unificado,
-				a.No_Renglon_PU,
-				a.Pedido_Venta_Original,
-				a.No_Renglon_PVO,            
-				a.Cantidad_Pedida_Venta_Enc,
-				a.Cantidad_Surtida_Venta_Enc,
-				a.Cantidad_Pedida_Venta_Det,
-				a.Cantidad_Surtida_Venta_Det,
-				a.Pedido_Espejo,
-				a.No_Renglon_PE,            
-				a.Articulo,
-				a.Precio_Lista,
-				a.Peso_Teorico_Kgs,
-				a.Cantidad_Pedida_Espejo_Enc,
-				a.Cantidad_Surtida_Espejo_Enc,
-				a.Cantidad_Pedida_Espejo_Det,
-				a.Cantidad_Surtida_Espejo_Det,            
-				gr.IdBoleta AS Boleta_VO,
-				hr.IdPlanCarga AS Plan_Carga_VO,
-				ir.IdViaje AS Viaje_VO,
-				fr.IdFacturaAlfanumerico AS Remision,
-				fr.FechaEntSal AS FechaRemision,
-				ge.IdBoleta AS Boleta_PE,
-				he.IdPlanCarga AS Plan_Carga_PE,
-				ie.IdViaje AS Viaje_PE,
-				ie.FechaViaje AS Fecha_Viaje_PE,
-				DATEDIFF(DAY, ie.FechaViaje, GETDATE()) AS Dias_Viaje_PE,
-				fe.IdEntSal AS Mov_Embarque,
-				--Detalle Embarque
-				fd.CantEmbarcada AS Cantidad_Embarcada_VO,		
-				fd.PesoEmbarcado AS Kilos_Embarcada_VO,
-				--Detalle Recepcion Mercancia
-				z.CantRecibida AS Cantidad_Recibida_PE,
-				z.PesoRecibido AS Kilos_Recibidos_PE,
-				--Detalle POD Estimaciones
-				CASE u.EsEntregado WHEN 0 THEN 'No Entregado' WHEN 1 THEN 'Entregado' ELSE 'No Entregado' END AS Estatus_Evidencia,
-				CASE WHEN ev.IdViajeOrigen IS NOT NULL THEN 'Ver Evidencia' ELSE '' END AS Evidencia_POD,
-				ISNULL(u.EsRecibido, 0) AS Estatus_Autorizacion,
-				CASE u.EsRecibido WHEN 0 THEN NULL WHEN 1 THEN cu.NombreUsuario + ' ' + cu.ApellidoPaterno ELSE NULL END AS Autorizado_Por,
-				CASE u.EsRecibido WHEN 0 THEN NULL WHEN 1 THEN u.ComentarioRecepcion  ELSE NULL END AS Comentarios_Autorizacion,
-				--Detalle Disponibilidad Factura
-				CASE WHEN ISNULL(u.EsRecibido,0) = 1 THEN fd.CantEmbarcada ELSE 0.00 END AS Cant_Disponible_Facturar,
-				CASE WHEN ISNULL(u.EsRecibido,0) = 1 THEN fd.PesoEmbarcado ELSE 0.00 END AS Kilos_Disponible_Facturar,
-				CASE WHEN ISNULL(u.EsRecibido,0) = 0 THEN fd.CantEmbarcada ELSE 0.00 END AS Cant_Pendiente_Aurotizacion,	
-				CASE WHEN ISNULL(u.EsRecibido,0) = 0 THEN fd.PesoEmbarcado ELSE 0.00 END AS Kilos_Pendiente_Aurotizacion
-		INTO	#TempVistaEstimacionesDetalleRemision
-		FROM	PedidoAgrupadoDetalle a 
-		--Flujo de Remision / Venta
-		INNER JOIN	OpeSch.OpeTraMovEntSal fr WITH(NOLOCK)
-		ON		fr.ClaUbicacion = a.Planta_VO 
-		AND		fr.IdFabricacion = a.Pedido_Venta_Original
-		INNER JOIN	OpeSch.OpeTraBoleta gr WITH(NOLOCK)
-		ON		gr.ClaUbicacion = fr.ClaUbicacion 
-		AND		gr.IdBoleta = fr.IdBoleta
-		INNER JOIN	OpeSch.OpeTraPlanCarga hr WITH(NOLOCK)
-		ON		hr.ClaUbicacion = gr.ClaUbicacion 
-		AND		hr.IdBoleta = gr.IdBoleta
-		INNER JOIN	OpeSch.OpeTraViaje ir WITH(NOLOCK)
-		ON		ir.ClaUbicacion = hr.ClaUbicacion 
-		AND		ir.IdBoleta = hr.IdBoleta
-		--Flujo de Estimaciones / Traspaso
-		INNER JOIN	OpeSch.OpeTraMovEntSal fe WITH(NOLOCK)
-		ON		fe.ClaUbicacion = a.Planta_E 
-		AND		fe.IdFabricacion = a.Pedido_Espejo
-		INNER JOIN	OpeSch.OpeTraBoletaHis ge WITH(NOLOCK)
-		ON		ge.ClaUbicacion = fe.ClaUbicacion 
-		AND		ge.IdBoleta = fe.IdBoleta
-		INNER JOIN	OpeSch.OpeTraPlanCarga he WITH(NOLOCK)
-		ON		he.ClaUbicacion = ge.ClaUbicacion 
-		AND		he.IdBoleta = ge.IdBoleta
-		INNER JOIN	OpeSch.OpeTraViaje ie WITH(NOLOCK)
-		ON		ie.ClaUbicacion = he.ClaUbicacion 
-		AND		ie.IdBoleta = he.IdBoleta
-		--Tabla Relación de Estimacion - Remision
-		INNER JOIN	OpeSch.OpeTraPlanCargaRemisionEstimacion o WITH(NOLOCK)  
-		ON		o.ClaUbicacionEstimacion = fe.ClaUbicacion 
-		AND		o.ClaUbicacionVenta = fr.ClaUbicacion 
-		AND		o.IdBoletaEstimacion = ge.IdBoleta 
-		AND		o.IdBoletaVenta = gr.IdBoleta
-		--Base Remisionado 
-		INNER JOIN	OpeSch.OpeTraMovEntSalDet fd WITH(NOLOCK)
-		ON		fd.ClaUbicacion = fr.ClaUbicacion 
-		AND		fd.IdMovEntSal = fr.IdMovEntSal 
-		AND		fd.IdFabricacion = a.Pedido_Venta_Original 
-		AND		fd.IdFabricacionDet = a.No_Renglon_PVO
+	IF ISNULL(@pnChkRemCanceladas,0) = 0
+	BEGIN
+		SELECT	--ColNomUbicacionOrigen
+				LTRIM(RTRIM(CONVERT(VARCHAR(20), TA3.ClaUbicacion))) + ' - ' + TA3.NombreUbicacion AS ColNomUbicacionOrigen,
+				--ColNomCliente
+				LTRIM(RTRIM(CONVERT(VARCHAR(150), TA2.ClaClienteCuenta))) + ' - ' + TA2.NomClienteCuenta AS ColNomCliente,
+				--ColNomProyecto
+				LTRIM(RTRIM(CONVERT(VARCHAR(150), TA1.ClaProyecto))) + ' - ' + TA1.NomProyecto AS ColNomProyecto,
+				--ColFabVenta
+				T1.FabricacionVenta AS ColFabVenta,
+				--ColFabEstimacion
+				T1.FabricacionEstimacion AS ColFabEstimacion,
+				--ColViajeEst
+				T1.IdViajeEstimacion AS ColViajeEst,
+				--ColRemision
+				T1.FacturaAlfanumericoVenta AS ColRemision,
+				--ColKilosRemisionados
+				ISNULL( SUM(T1.CantEmbarcadoVenta * T1.PesoTeoricoKgs),0.00 ) AS ColKilosRemisionados,
+				--ColKilosRecibidos
+				ISNULL( SUM(T10.CantRecibida * T1.PesoTeoricoKgs),0.00 ) AS ColKilosRecibidos,
+				--ColKilosFacturados
+				ISNULL( SUM(T11.CantSurtidaFact * T1.PesoTeoricoKgs),0.00 ) AS ColKilosFacturados,
+				--ColFecha
+				T1.FechaViajeEstimacion AS ColFecha,
+				--ColDias
+				DATEDIFF(DAY, T1.FechaViajeEstimacion, GETDATE()) AS ColDias,
+				--ColVerRemision
+				'Ver' AS ColVerRemision,
+				--ColTransportista
+				T13.NomTransportista AS ColTransportista,
+				--ColEstatus
+				CASE T3.EsEntregado WHEN 0 THEN 'No Entregado' WHEN 1 THEN 'Entregado' ELSE 'No Entregado' END AS ColEstatus,
+				--ColEvidencia
+				CASE WHEN T5.Remision IS NOT NULL THEN 'Ver Evidencia' ELSE '' END AS ColEvidencia,
+				--ColAutorizado
+				ISNULL(T3.EsRecibido, 0) AS ColAutorizado,
+				--ColAutorizadoPor
+				CASE T3.EsRecibido WHEN 0 THEN NULL WHEN 1 THEN T6.NombreUsuario + ' ' + T6.ApellidoPaterno ELSE NULL END AS ColAutorizadoPor,
+				--ColComentarios
+				CASE T3.EsRecibido WHEN 0 THEN NULL WHEN 1 THEN T3.ComentarioRecepcion  ELSE NULL END AS ColComentarios,
+				--ColUbicacionOrigen
+				T1.PlantaEstimacion AS ColUbicacionOrigen,
+				--ColClaCliente
+				T1.ClienteProyectoAgp AS ColClaCliente,
+				--ColClaProyecto
+				T1.ProyectoAgrupador AS ColClaProyecto,
+				--ColViaje
+				T1.IdViajeVenta AS ColViaje
+		FROM	OpeSch.OpeRelEmbarqueEstimacionVw T1 WITH(NOLOCK)
+		--Información de Ubicación, Cliente y Proyecto
+		INNER JOIN	OpeSch.OpeVtaCatProyectoVw TA1 WITH(NOLOCK)
+			ON T1.ProyectoAgrupador = TA1.ClaProyecto
+		INNER JOIN	OpeSch.OpeVtaCatClienteCuentaVw TA2 WITH(NOLOCK)
+			ON T1.ClienteProyectoAgp = TA2.ClaClienteCuenta
+		INNER JOIN	OpeSch.OpeTiCatUbicacionVw TA3 WITH(NOLOCK)  
+			ON T1.PlantaEstimacion = TA3.ClaUbicacion
+		--Tabla Tipo de Proyecto
+		INNER JOIN	OpeSch.OpeRelProyectoEstimacionVw T2 WITH(NOLOCK)
+			ON T1.ClienteProyectoAgp = T2.ClaCliente AND T1.ProyectoAgrupador = T2.ClaProyecto
 		--Base POD
-		LEFT JOIN	OpeSch.OpeTraInfoViajeEstimacion u WITH(NOLOCK)
-		ON		u.ClaUbicacionOrigen = ie.ClaUbicacion 
-		AND		u.IdViajeOrigen = ie.IdViaje 
-		AND		u.Remision = fr.IdFacturaAlfanumerico
-		LEFT JOIN	OpeSch.OpeTraInfoViajeEstimacionDet v WITH(NOLOCK)
-		ON		v.ClaUbicacionOrigen = u.ClaUbicacionOrigen 
-		AND		v.IdViajeOrigen = u.IdViajeOrigen 
-		AND		v.IdFabricacion = a.Pedido_Espejo 
-		AND		v.IdFabricacionDet = a.No_Renglon_PE
-		LEFT JOIN   OpeSch.OpeTraEvidenciaViajeEstimacion ev WITH(NOLOCK)
-		ON		ev.ClaUbicacion = u.ClaUbicacion 
-		AND		ev.ClaUbicacionOrigen = u.ClaUbicacionOrigen 
-		AND		ev.IdViajeOrigen = u.IdViajeOrigen 
-		AND		ev.Remision = u.Remision
-		LEFT JOIN	OpeSch.TiCatUsuarioVw cu WITH(NOLOCK)
-		ON		cu.ClaUsuario = u.ClaUsuarioMod            
+		LEFT JOIN	OpeSch.OpeTraInfoViajeEstimacion T3 WITH(NOLOCK)
+			ON T1.PlantaEstimacion = T3.ClaUbicacionOrigen AND T1.IdViajeEstimacion = T3.IdViajeOrigen AND T1.FacturaAlfanumericoVenta = T3.Remision
+		LEFT JOIN	OpeSch.OpeTraInfoViajeEstimacionDet T4 WITH(NOLOCK)
+			ON T3.ClaUbicacionOrigen = T4.ClaUbicacionOrigen AND T3.IdViajeOrigen = T4.IdViajeOrigen AND T1.FabricacionEstimacion = T4.IdFabricacion AND T1.RenglonEstimacion = T4.IdFabricacionDet
+		LEFT JOIN	OpeSch.OpeTraEvidenciaViajeEstimacion T5 WITH(NOLOCK)
+			ON T3.ClaUbicacion = T5.ClaUbicacion AND T3.ClaUbicacionOrigen = T5.ClaUbicacionOrigen AND T3.IdViajeOrigen = T5.IdViajeOrigen AND T3.Remision = T5.Remision
+		LEFT JOIN	OpeSch.TiCatUsuarioVw T6 WITH(NOLOCK)
+			ON T3.ClaUsuarioMod = T6.ClaUsuario       
 		--Base Recepcion Traspaso
-		LEFT JOIN	OpeSch.OpeTraRecepTraspaso w WITH(NOLOCK)
-		ON		w.ClaUbicacionOrigen = ie.ClaUbicacion 
-		AND		w.IdViajeOrigen = ie.IdViaje --AND w.IdBoleta = ie.IdBoleta
-		LEFT JOIN	Opesch.OpeTraRecepTraspasoFab x WITH(NOLOCK)
-		ON		x.ClaUbicacionOrigen = w.ClaUbicacionOrigen 
-		AND		x.IdViajeOrigen = w.IdViajeOrigen 
-		AND		x.IdFabricacion = a.Pedido_Espejo 
-		AND		x.IdEntSalOrigen = fe.IdEntSal
-		LEFT JOIN	Opesch.OpeTraRecepTraspasoProd y WITH(NOLOCK)
-		ON		y.ClaUbicacionOrigen = x.ClaUbicacionOrigen 
-		AND		y.IdViajeOrigen = x.IdViajeOrigen 
-		AND		y.IdFabricacion = x.IdFabricacion 
-		AND		y.IdFabricacionDet = v.IdFabricacionDet
-		LEFT JOIN	Opesch.OpeTraRecepTraspasoProdRecibido z WITH(NOLOCK)   
-		ON		z.ClaUbicacionOrigen = y.ClaUbicacionOrigen 
-		AND		z.IdViajeOrigen = y.IdViajeOrigen 
-		AND		z.IdFabricacion = y.IdFabricacion 
-		AND		z.IdFabricacionDet = y.IdFabricacionDet 
-		WHERE   ( ISNULL(u.EsEntregado, 0) = 1 OR ISNULL(@pnChkRemNoEntregadas,0) = 1 )
-		AND		(@pdFechaInicio IS NULL OR (@pdFechaInicio <= ie.FechaViaje))
-		AND		(@pdFechaFin IS NULL OR (@pdFechaFin > ie.FechaViaje))
-		------Fin: Proceso PreEjecucion de Consulta------
-
-	IF @pnDebug = 1
-		SELECT '' AS '#TempVistaEstimacionesDetalleRemision', * FROM #TempVistaEstimacionesDetalleRemision
-
-
-
-	------Inicio: Proceso de Consulta Encabezado------
-    ;WITH	ControlRemisionFactura AS
-    (SELECT	a.ClaCliente,
-            a.ClaProyecto,
-            a.Pedido_Unificado,
-            a.Pedido_Venta_Original,
-            a.Pedido_Espejo,
-            a.No_Renglon_PE,
-            a.Articulo,
-            a.Viaje_PE,
-            a.Remision,
-            a.Mov_Embarque,
-            ISNULL(SUM(cfd.CantSurtidaFact),0) AS Cant_Facturada
-    FROM	#TempVistaEstimacionesDetalleRemision a
-        LEFT JOIN OpeSch.OpeControlFacturaRemisionEstimacionVw cf WITH(NOLOCK)
-            ON cf.ClaCliente = a.ClaCliente AND cf.ClaProyecto = a.ClaProyecto AND cf.IdViaje = a.Viaje_VO AND cf.RemisionAlfanumerico = a.Remision
-        LEFT JOIN OpeSch.OpeControlFacturaRemisionEstimacionDetVw cfd WITH(NOLOCK)
-            ON cfd.IdContFacturaRemision = cf.IdContFacturaRemision AND cfd.ClaArticulo = a.Articulo
-    GROUP BY 
-            a.ClaCliente,
-            a.ClaProyecto,
-            a.Pedido_Unificado,
-            a.Pedido_Venta_Original,
-            a.Pedido_Espejo,
-            a.No_Renglon_PE,
-            a.Articulo,
-            a.Viaje_PE,
-            a.Remision,
-            a.Mov_Embarque)
-
-    SELECT	a.Cliente AS ColNomCliente,
-            a.Proyecto AS ColNomProyecto,
-            a.Pedido_Venta_Original AS ColFabVenta,
-            a.Pedido_Espejo AS ColFabEstimacion,
-            a.Viaje_PE AS ColViajeEst,
-            a.Remision AS ColRemision,
-            a.Kilos_Embarcada_VO AS ColKilosRemisionados,
-            a.Kilos_Recibidos_PE AS ColKilosRecibidos,
-            ISNULL(SUM(b.Cant_Facturada),0) * a.Peso_Teorico_Kgs AS ColKilosFacturados,
-            a.Fecha_Viaje_PE AS ColFecha,
-			a.Dias_Viaje_PE AS ColDias,
-            a.Estatus_Evidencia AS ColEstatus,
-            a.Evidencia_POD AS ColEvidencia,
-            a.Estatus_Autorizacion AS ColAutorizado,
-            a.Autorizado_Por AS ColAutorizadoPor,
-            a.Comentarios_Autorizacion AS ColComentarios,
-            a.Planta_E AS ColUbicacionOrigen,
-            a.ClaCliente AS ColClaCliente,
-            a.ClaProyecto AS ColClaProyecto,
-            a.Viaje_VO AS ColViaje
-			,CONVERT(VARCHAR(10),a.Planta_E) + ' - ' + c.NomUbicacion AS ColNomUbicacionOrigen
-			, ColVerRemision = 'Ver'
-    FROM	#TempVistaEstimacionesDetalleRemision a
-        LEFT JOIN ControlRemisionFactura b WITH(NOLOCK)
-            ON b.ClaCliente = a.ClaCliente AND b.ClaProyecto = a.ClaProyecto AND b.Viaje_PE = a.Viaje_PE AND b.Remision = a.Remision AND b.Articulo = a.Articulo
-		LEFT JOIN OpeSch.OpeTiCatUbicacionVw c
-		ON		 a.Planta_E	= c.ClaUbicacion
-    GROUP BY 
-            a.Cliente,
-            a.Proyecto,
-            a.Pedido_Venta_Original,
-            a.Pedido_Espejo,
-            a.Viaje_PE,
-            a.Remision,
-            a.Kilos_Embarcada_VO,
-            a.Kilos_Recibidos_PE,
-            a.Peso_Teorico_Kgs,
-            a.Fecha_Viaje_PE,
-            a.Dias_Viaje_PE,
-            a.Estatus_Evidencia,
-            a.Evidencia_POD,
-            a.Estatus_Autorizacion,
-            a.Autorizado_Por,
-            a.Comentarios_Autorizacion,
-            a.Planta_E,
-            a.ClaCliente,
-            a.ClaProyecto,
-            a.Viaje_VO
-			, CONVERT(VARCHAR(10),a.Planta_E) + ' - ' + c.NomUbicacion
-    ORDER BY
-            a.Viaje_PE, a.Remision
-    ------Fin: Proceso de Consulta Encabezado------
-
-    DROP TABLE #TempVistaEstimacionesDetalleRemision
+		LEFT JOIN	OpeSch.OpeTraRecepTraspaso T7 WITH(NOLOCK)
+			ON T1.PlantaEstimacion = T7.ClaUbicacionOrigen AND T1.IdViajeEstimacion = T7.IdViajeOrigen
+		LEFT JOIN	Opesch.OpeTraRecepTraspasoFab T8 WITH(NOLOCK)
+			ON T7.ClaUbicacionOrigen = T8.ClaUbicacionOrigen AND T7.IdViajeOrigen = T8.IdViajeOrigen AND  T1.FabricacionEstimacion = T8.IdFabricacion AND T1.IdEntSalEstimacion = T8.IdEntSalOrigen
+		LEFT JOIN	Opesch.OpeTraRecepTraspasoProd T9 WITH(NOLOCK)
+			ON T8.ClaUbicacionOrigen = T9.ClaUbicacionOrigen AND T8.IdViajeOrigen = T9.IdViajeOrigen AND T8.IdFabricacion = T9.IdFabricacion AND T4.IdFabricacionDet = T9.IdFabricacionDet
+		LEFT JOIN	Opesch.OpeTraRecepTraspasoProdRecibido T10 WITH(NOLOCK)   
+			ON T9.ClaUbicacionOrigen = T10.ClaUbicacionOrigen AND T9.IdViajeOrigen = T10.IdViajeOrigen AND T9.IdFabricacion = T10.IdFabricacion AND T9.IdFabricacionDet = T10.IdFabricacionDet
+		--Base Control de Facturación por Remisión
+		LEFT JOIN	@tbControlFacturadoRemisiones T11 
+			ON T1.ProyectoAgrupador = T11.Proyecto AND T1.IdViajeVenta = T11.Viaje AND T1.FacturaAlfanumericoVenta = T11.Remision AND T1.ClaArticulo = T11.Articulo
+		--Listado de Catalogos Filtro
+		LEFT JOIN	@tUbicacionEstimacionCmb T12 
+			ON T1.PlantaEstimacion = T12.ClaUbicacionEstimacion
+		LEFT JOIN	OpeSch.OpeFleCatTransportistaVw T13 WITH(NOLOCK)
+			ON T1.PlantaEstimacion = T13.ClaUbicacion AND T1.ClaTransportistaEstimacion = T13.ClaTransportista AND (T13.ClaTransportista = ISNULL( @pnCmbTransportista,0 ) OR ISNULL( @pnCmbTransportista,0 ) = 0)
+		WHERE	T1.PlantaVirtualAgrupador IN (365)		
+		AND     T2.EsEstimacion = 1
+		AND		( T1.ClienteProyectoAgp = @pnCmbCliente OR @CmbCliente = 1 )  
+		AND		( T1.ProyectoAgrupador = @pnCmbProyecto OR @CmbProyecto = 1 ) 
+		AND		( T2.EsInstalacion = @pnCmbTipoProyecto OR @CmbTipoProyecto = 1 )
+		AND		(@psClaUbicacionOrig = '' OR (T1.PlantaEstimacion = T12.ClaUbicacionEstimacion))
+		AND		( ISNULL(T3.EsEntregado, 0) = 1 OR ISNULL(@pnChkRemNoEntregadas,0) = 1 )
+		AND		(@pdFechaInicio IS NULL OR (@pdFechaInicio <= T1.FechaViajeEstimacion))
+		AND		(@pdFechaFin IS NULL OR (@pdFechaFin > T1.FechaViajeEstimacion))
+		GROUP BY
+				T1.ProyectoAgrupador,
+				LTRIM(RTRIM(CONVERT(VARCHAR(150), TA1.ClaProyecto))) + ' - ' + TA1.NomProyecto,
+				T1.ClienteProyectoAgp,
+				LTRIM(RTRIM(CONVERT(VARCHAR(150), TA2.ClaClienteCuenta))) + ' - ' + TA2.NomClienteCuenta,
+				T1.PlantaEstimacion,
+				LTRIM(RTRIM(CONVERT(VARCHAR(20), TA3.ClaUbicacion))) + ' - ' + TA3.NombreUbicacion,
+				T1.IdViajeEstimacion,
+				T1.IdViajeVenta,
+				T1.FechaViajeEstimacion,
+				T1.FacturaAlfanumericoVenta,
+				T1.FabricacionEstimacion,
+				T1.FabricacionVenta,
+				T13.NomTransportista,
+				T3.EsEntregado,
+				T3.EsRecibido,
+				T5.Remision,
+				T6.NombreUsuario + ' ' + T6.ApellidoPaterno,
+				T3.ComentarioRecepcion
+		ORDER BY 
+				T1.IdViajeVenta, T1.FacturaAlfanumericoVenta
+	END
+	ELSE
+	BEGIN
+		SELECT	--ColNomUbicacionOrigen
+				LTRIM(RTRIM(CONVERT(VARCHAR(20), TA3.ClaUbicacion))) + ' - ' + TA3.NombreUbicacion AS ColNomUbicacionOrigen,
+				--ColNomCliente
+				LTRIM(RTRIM(CONVERT(VARCHAR(150), TA2.ClaClienteCuenta))) + ' - ' + TA2.NomClienteCuenta AS ColNomCliente,
+				--ColNomProyecto
+				LTRIM(RTRIM(CONVERT(VARCHAR(150), TA1.ClaProyecto))) + ' - ' + TA1.NomProyecto AS ColNomProyecto,
+				--ColFabVenta
+				T1.FabricacionVenta AS ColFabVenta,
+				--ColFabEstimacion
+				T1.FabricacionEstimacion AS ColFabEstimacion,
+				--ColViajeEst
+				T1.IdViajeEstimacion AS ColViajeEst,
+				--ColRemision
+				T1.FacturaAlfanumericoVenta AS ColRemision,
+				--ColKilosRemisionados
+				ISNULL( SUM(T1.CantEmbarcadoVenta * T1.PesoTeoricoKgs),0.00 ) AS ColKilosRemisionados,
+				--ColKilosRecibidos
+				ISNULL( SUM(T10.CantRecibida * T1.PesoTeoricoKgs),0.00 ) AS ColKilosRecibidos,
+				--ColKilosFacturados
+				ISNULL( SUM(T11.CantSurtidaFact * T1.PesoTeoricoKgs),0.00 ) AS ColKilosFacturados,
+				--ColFecha
+				T1.FechaViajeEstimacion AS ColFecha,
+				--ColDias
+				DATEDIFF(DAY, T1.FechaViajeEstimacion, GETDATE()) AS ColDias,
+				--ColVerRemision
+				'Ver' AS ColVerRemision,
+				--ColTransportista
+				T13.NomTransportista AS ColTransportista,
+				--ColEstatus
+				CASE T3.EsEntregado WHEN 0 THEN 'No Entregado' WHEN 1 THEN 'Entregado' ELSE 'No Entregado' END AS ColEstatus,
+				--ColEvidencia
+				CASE WHEN T5.Remision IS NOT NULL THEN 'Ver Evidencia' ELSE '' END AS ColEvidencia,
+				--ColAutorizado
+				ISNULL(T3.EsRecibido, 0) AS ColAutorizado,
+				--ColAutorizadoPor
+				CASE T3.EsRecibido WHEN 0 THEN NULL WHEN 1 THEN T6.NombreUsuario + ' ' + T6.ApellidoPaterno ELSE NULL END AS ColAutorizadoPor,
+				--ColComentarios
+				CASE T3.EsRecibido WHEN 0 THEN NULL WHEN 1 THEN T3.ComentarioRecepcion  ELSE NULL END AS ColComentarios,
+				--ColUbicacionOrigen
+				T1.PlantaEstimacion AS ColUbicacionOrigen,
+				--ColClaCliente
+				T1.ClienteProyectoAgp AS ColClaCliente,
+				--ColClaProyecto
+				T1.ProyectoAgrupador AS ColClaProyecto,
+				--ColViaje
+				T1.IdViajeVenta AS ColViaje
+		FROM	OpeSch.OpeRelEmbarqueEstimacionBitVw T1 WITH(NOLOCK)
+		--Información de Ubicación, Cliente y Proyecto
+		INNER JOIN	OpeSch.OpeVtaCatProyectoVw TA1 WITH(NOLOCK)
+			ON T1.ProyectoAgrupador = TA1.ClaProyecto
+		INNER JOIN	OpeSch.OpeVtaCatClienteCuentaVw TA2 WITH(NOLOCK)
+			ON T1.ClienteProyectoAgp = TA2.ClaClienteCuenta
+		INNER JOIN	OpeSch.OpeTiCatUbicacionVw TA3 WITH(NOLOCK)  
+			ON T1.PlantaEstimacion = TA3.ClaUbicacion
+		--Tabla Tipo de Proyecto
+		INNER JOIN	OpeSch.OpeRelProyectoEstimacionVw T2 WITH(NOLOCK)
+			ON T1.ClienteProyectoAgp = T2.ClaCliente AND T1.ProyectoAgrupador = T2.ClaProyecto
+		--Base POD
+		LEFT JOIN	OpeSch.OpeTraInfoViajeEstimacion T3 WITH(NOLOCK)
+			ON T1.PlantaEstimacion = T3.ClaUbicacionOrigen AND T1.IdViajeEstimacion = T3.IdViajeOrigen AND T1.FacturaAlfanumericoVenta = T3.Remision
+		LEFT JOIN	OpeSch.OpeTraInfoViajeEstimacionDet T4 WITH(NOLOCK)
+			ON T3.ClaUbicacionOrigen = T4.ClaUbicacionOrigen AND T3.IdViajeOrigen = T4.IdViajeOrigen AND T1.FabricacionEstimacion = T4.IdFabricacion AND T1.RenglonEstimacion = T4.IdFabricacionDet
+		LEFT JOIN	OpeSch.OpeTraEvidenciaViajeEstimacion T5 WITH(NOLOCK)
+			ON T3.ClaUbicacion = T5.ClaUbicacion AND T3.ClaUbicacionOrigen = T5.ClaUbicacionOrigen AND T3.IdViajeOrigen = T5.IdViajeOrigen AND T3.Remision = T5.Remision
+		LEFT JOIN	OpeSch.TiCatUsuarioVw T6 WITH(NOLOCK)
+			ON T3.ClaUsuarioMod = T6.ClaUsuario       
+		--Base Recepcion Traspaso
+		LEFT JOIN	OpeSch.OpeTraRecepTraspaso T7 WITH(NOLOCK)
+			ON T1.PlantaEstimacion = T7.ClaUbicacionOrigen AND T1.IdViajeEstimacion = T7.IdViajeOrigen
+		LEFT JOIN	Opesch.OpeTraRecepTraspasoFab T8 WITH(NOLOCK)
+			ON T7.ClaUbicacionOrigen = T8.ClaUbicacionOrigen AND T7.IdViajeOrigen = T8.IdViajeOrigen AND  T1.FabricacionEstimacion = T8.IdFabricacion AND T1.IdEntSalEstimacion = T8.IdEntSalOrigen
+		LEFT JOIN	Opesch.OpeTraRecepTraspasoProd T9 WITH(NOLOCK)
+			ON T8.ClaUbicacionOrigen = T9.ClaUbicacionOrigen AND T8.IdViajeOrigen = T9.IdViajeOrigen AND T8.IdFabricacion = T9.IdFabricacion AND T4.IdFabricacionDet = T9.IdFabricacionDet
+		LEFT JOIN	Opesch.OpeTraRecepTraspasoProdRecibido T10 WITH(NOLOCK)   
+			ON T9.ClaUbicacionOrigen = T10.ClaUbicacionOrigen AND T9.IdViajeOrigen = T10.IdViajeOrigen AND T9.IdFabricacion = T10.IdFabricacion AND T9.IdFabricacionDet = T10.IdFabricacionDet
+		--Base Control de Facturación por Remisión
+		LEFT JOIN	@tbControlFacturadoRemisiones T11 
+			ON T1.ProyectoAgrupador = T11.Proyecto AND T1.IdViajeVenta = T11.Viaje AND T1.FacturaAlfanumericoVenta = T11.Remision AND T1.ClaArticulo = T11.Articulo
+		--Listado de Catalogos Filtro
+		LEFT JOIN	@tUbicacionEstimacionCmb T12 
+			ON T1.PlantaEstimacion = T12.ClaUbicacionEstimacion
+		LEFT JOIN	OpeSch.OpeFleCatTransportistaVw T13 WITH(NOLOCK)
+			ON T1.PlantaEstimacion = T13.ClaUbicacion AND T1.ClaTransportistaEstimacion = T13.ClaTransportista AND (T13.ClaTransportista = ISNULL( @pnCmbTransportista,0 ) OR ISNULL( @pnCmbTransportista,0 ) = 0)
+		WHERE	T1.PlantaVirtualAgrupador IN (365)		
+		AND     T2.EsEstimacion = 1
+		AND		( T1.ClienteProyectoAgp = @pnCmbCliente OR @CmbCliente = 1 )  
+		AND		( T1.ProyectoAgrupador = @pnCmbProyecto OR @CmbProyecto = 1 ) 
+		AND		( T2.EsInstalacion = @pnCmbTipoProyecto OR @CmbTipoProyecto = 1 )
+		AND		(@psClaUbicacionOrig = '' OR (T1.PlantaEstimacion = T12.ClaUbicacionEstimacion))
+		AND		( ISNULL(T3.EsEntregado, 0) = 1 OR ISNULL(@pnChkRemNoEntregadas,0) = 1 )
+		AND		(@pdFechaInicio IS NULL OR (@pdFechaInicio <= T1.FechaViajeEstimacion))
+		AND		(@pdFechaFin IS NULL OR (@pdFechaFin > T1.FechaViajeEstimacion))
+		GROUP BY
+				T1.ProyectoAgrupador,
+				LTRIM(RTRIM(CONVERT(VARCHAR(150), TA1.ClaProyecto))) + ' - ' + TA1.NomProyecto,
+				T1.ClienteProyectoAgp,
+				LTRIM(RTRIM(CONVERT(VARCHAR(150), TA2.ClaClienteCuenta))) + ' - ' + TA2.NomClienteCuenta,
+				T1.PlantaEstimacion,
+				LTRIM(RTRIM(CONVERT(VARCHAR(20), TA3.ClaUbicacion))) + ' - ' + TA3.NombreUbicacion,
+				T1.IdViajeEstimacion,
+				T1.IdViajeVenta,
+				T1.FechaViajeEstimacion,
+				T1.FacturaAlfanumericoVenta,
+				T1.FabricacionEstimacion,
+				T1.FabricacionVenta,
+				T13.NomTransportista,
+				T3.EsEntregado,
+				T3.EsRecibido,
+				T5.Remision,
+				T6.NombreUsuario + ' ' + T6.ApellidoPaterno,
+				T3.ComentarioRecepcion
+		ORDER BY 
+				T1.IdViajeVenta, T1.FacturaAlfanumericoVenta
+	END
+	
 END

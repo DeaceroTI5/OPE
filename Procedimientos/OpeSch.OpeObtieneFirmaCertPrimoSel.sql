@@ -21,7 +21,12 @@ BEGIN
 
 	DECLARE @nMuestraImgUSA		  TINYINT = 0,
 			@nMuestraImgDWR		  TINYINT = 0,
-			@nMuestraImgWWR		  TINYINT = 0
+			@nMuestraImgWWR		  TINYINT = 0,
+			@sRutaLogo			  VARCHAR(300),
+			@nMuestraNomEmpresaUSA TINYINT = 0,
+			@nMuestraNombreUbicacion TINYINT= 1,
+			@nOcultarOPM			TINYINT = 0,
+			@nOcultarCarrete		TINYINT = 0
 
 
 	--IF @pnClaUbicacion IN (65, 267)
@@ -46,6 +51,33 @@ BEGIN
 	WHERE	ClaUbicacion = @pnClaUbicacion
 	AND		ClaSistema = 127
 	AND		ClaConfiguracion = 1271234
+
+	SELECT	@sRutaLogo = sValor1
+	FROM	OpeSch.OpeTiCatConfiguracionVw
+	WHERE	ClaUbicacion = @pnClaUbicacion
+	AND		ClaSistema = 127
+	AND		ClaConfiguracion = 1271235
+
+
+	SELECT	@nMuestraNomEmpresaUSA = nValor1
+	FROM	OpeSch.OpeTiCatConfiguracionVw
+	WHERE	ClaUbicacion = @pnClaUbicacion
+	AND		ClaSistema = 127
+	AND		ClaConfiguracion = 1271236
+
+	SELECT  @nMuestraNombreUbicacion = ISNULL(nValor1,1)
+    FROM	OpeSch.OPETiCatConfiguracionVw 
+    WHERE	ClaUbicacion      = @pnClaUbicacion 
+    AND     ClaSistema        = 127 
+    AND     ClaConfiguracion  = 1270206
+    AND		BajaLogica        = 0
+
+	SELECT	@nOcultarOPM = nValor1,
+			@nOcultarCarrete = nValor2
+	FROM	OpeSch.OpeTiCatConfiguracionVw
+	WHERE	ClaUbicacion = @pnClaUbicacion
+	AND		ClaSistema = 127
+	AND		ClaConfiguracion = 1271237
 
 
 	DECLARE @tbResult TABLE(
@@ -86,6 +118,27 @@ BEGIN
 	EXEC OpeSch.OpeObtenDatosXmlProc
 		@xml				= @xmlResult,
 		@psTabla			= 'Firma'
+
+
+
+	/*
+	Logo_Deacero.png		-- Logo DeaAcero fondo Negro
+	Logo_Deacero2.png		-- Logo DeaAcero fondo Blanco
+	Logo_DeaceroSummit.png	-- Logo Summit
+	*/
+
+	IF @pnClaUbicacion = 300
+	BEGIN
+		SELECT @sRutaLogo = @sRutaLogo + 'Logo_DeaceroSummit.png'
+				, @nMuestraImgUSA = 0			-- Bandera USA no se utiliza en Summit
+	END
+	ELSE
+	BEGIN
+		SELECT @sRutaLogo = @sRutaLogo + 'Logo_Deacero.png'
+
+		UPDATE	@tbResult
+		SET		MuestraLogCIM = 0				-- Logo Calidad sólo se muestra en Summit
+	END
 		
 
 	----------------------------------------------------------------------------
@@ -113,7 +166,12 @@ BEGIN
 			@sNormaISO AS NormaISO,
 			@nMuestraImgUSA AS MuestraImgUSA,
 			@nMuestraImgDWR AS MuestraImgDWR,
-			@nMuestraImgWWR AS MuestraImgWWR	
+			@nMuestraImgWWR AS MuestraImgWWR,
+			@sRutaLogo		AS RutaLogo,
+			ISNULL(@nMuestraNomEmpresaUSA,0) AS MuestraNomEmpresaUSA,
+			ISNULL(@nMuestraNombreUbicacion,1) AS MuestraNombreUbicacion,
+			ISNULL(@nOcultarOPM,0) AS OcultarOPM,
+			ISNULL(@nOcultarCarrete,0) AS OcultarCarrete
 		FROM @tbResult
 	END
 	ELSE
@@ -128,8 +186,12 @@ BEGIN
 			@sNormaISO AS NormaISO,
 			@nMuestraImgUSA AS MuestraImgUSA,
 			@nMuestraImgDWR AS MuestraImgDWR,
-			@nMuestraImgWWR AS MuestraImgWWR		  
-
+			@nMuestraImgWWR AS MuestraImgWWR,
+			@sRutaLogo		AS RutaLogo,
+			ISNULL(@nMuestraNomEmpresaUSA,0) AS MuestraNomEmpresaUSA,
+			ISNULL(@nMuestraNombreUbicacion,1) AS MuestraNombreUbicacion,
+			ISNULL(@nOcultarOPM,0) AS OcultarOPM,
+			ISNULL(@nOcultarCarrete,0) AS OcultarCarrete
 	END		
 			
 	SET NOCOUNT ON

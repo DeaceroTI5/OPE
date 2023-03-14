@@ -1,6 +1,8 @@
-Text
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-CREATE PROCEDURE OpcSch.OPCCrearPdfCertTipo1Proc
+USE Operacion
+GO
+-- EXEC SP_HELPTEXT 'OpcSch.OPCCrearPdfCertTipo1Proc'
+GO
+ALTER PROCEDURE OpcSch.OPCCrearPdfCertTipo1Proc
 	@pnNumVersion		INT,
 	@pnClaUbicacion		INT,
 	@pnIdCertificado	INT,
@@ -25,7 +27,7 @@ BEGIN
 
 	IF @pnClaUbicacion NOT IN ( 267 )	-- Planta WWR
 		EXECUTE AS LOGIN = 'sa'
-	
+
 	SELECT	 @pnClaUsuarioMod   = ISNULL(@pnClaUsuarioMod,1)
 			,@psNombrePcMod     = ISNULL(NULLIF(@psNombrePcMod,''),HOST_NAME())
 	
@@ -297,7 +299,10 @@ BEGIN
 
 	SELECT @sNota = replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(@sNota,'""','"""') ,
 					'%','%%'),'^','^^'),'&','^&'),'<','^<'),'>','^>'),'|','^|'),'`','^`'),',','^,'),';','^;'),'=','^='),'(','^('),')','^)'),'!','^^!'),char(10),''),'“','““'),'”','””')
-    SELECT @sNomArticulo = replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(@sNomArticulo, '"', '""') ,
+    --SELECT @sNomArticulo = replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(@sNomArticulo, '"', '""') ,
+				--	'%','%%'),'^','^^'),'&','^&'),'<','^<'),'>','^>'),'|','^|'),'`','^`'),',','^,'),';','^;'),'=','^='),'(','^('),')','^)'),'!','^^!'),char(10),''),'“','““'),'”','””')
+
+   SELECT @sNomArticulo = replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(@sNomArticulo, 
 					'%','%%'),'^','^^'),'&','^&'),'<','^<'),'>','^>'),'|','^|'),'`','^`'),',','^,'),';','^;'),'=','^='),'(','^('),')','^)'),'!','^^!'),char(10),''),'“','““'),'”','””')
 
 
@@ -512,6 +517,7 @@ BEGIN
 	
 	--Crear el archivo rss meterlo al .bat
 	SET @sComandoDinamico = 'rs -i "'+@sNomArchivoRSS+'" -s "'+ @sRutaServidorRS + '" -e Exec2005' -- > "' + @sNomArchivoBatExec + '"' 
+	
 	INSERT INTO @tArchivoTxt
 	SELECT	@sComandoDinamico
 	--PRINT 'agregar rs -i a bat: ' + @sComandoDinamico
@@ -533,7 +539,8 @@ BEGIN
 	--SELECT	@sComandoDinamico
 	--PRINT 'agregar instruccion borrado del pdf a bat: ' + @sComandoDinamico
 	
-	IF @pnDebug <> 1	-- Si es igual a 1, que no elimine el archivo RSS para revisar el porque no lo crea.
+	IF ISNULL(@sRutaTempServidor, '') = '' 
+	AND @pnDebug <> 1	-- Si es igual a 1, que no elimine el archivo RSS para revisar el porque no lo crea.
 	BEGIN
 		SET @sComandoDinamico = 'del "' + @sNomArchivoRSS + '"'
 		
@@ -567,20 +574,66 @@ BEGIN
 	--EXEC master.dbo.xp_cmdshell @sComandoDinamico, no_output
 	--Eliminar los registros de la tabla temporal
 	DELETE FROM OpcSch.OPCtraArchivoTexto WHERE IdArchivo = @sIdSesion
-	--Revisar si existe el archivo pdf	
-	SET @sUsuarioLecturaArchivo = OPCSch.OPCObtenerConfigStringFn(0,1271028,1)
-	SELECT @sUsuarioLecturaArchivo  = LTRIM(RTRIM(@sUsuarioLecturaArchivo))  
-	EXECUTE AS LOGIN = @sUsuarioLecturaArchivo
 	
-	EXEC master.dbo.xp_fileexist @sNomArchivo, @nExiste OUTPUT
+	IF ISNULL(@sRutaTempServidor, '') = ''
+	BEGIN
+		--Revisar si existe el archivo pdf	
+		SET @sUsuarioLecturaArchivo = OPCSch.OPCObtenerConfigStringFn(0,1271028,1)
+		SELECT @sUsuarioLecturaArchivo  = LTRIM(RTRIM(@sUsuarioLecturaArchivo))  
+		EXECUTE AS LOGIN = @sUsuarioLecturaArchivo
 	
-	IF @pnDebug = 1	
-		SELECT 'UsuarioLecturaArchivo', @sNomArchivo AS '@sNomArchivo', @sUsuarioLecturaArchivo AS '@sUsuarioLecturaArchivo'
+		EXEC master.dbo.xp_fileexist @sNomArchivo, @nExiste OUTPUT
 	
-	IF @nExiste = 1
-		SELECT @psRutaArchivo = @sNomArchivo
+		IF @pnDebug = 1	SELECT 'UsuarioLecturaArchivo', @sNomArchivo AS '@sNomArchivo', @sUsuarioLecturaArchivo AS '@sUsuarioLecturaArchivo'
+	
+		IF @nExiste = 1
+			SELECT @psRutaArchivo = @sNomArchivo
+		ELSE
+			SELECT	@pnError = 1
+	END
 	ELSE
-		SELECT	@pnError = 1
+	BEGIN
+		CREATE TABLE #SalidaComando (SalidaComando VARCHAR(8000))
+		DECLARE @nIndice INT
+		SELECT  @nIndice = 1, @nExiste = 0
+
+		--Hace una espera de 15 segundos para ver si ya se creo el archivo pdf
+		WHILE @nIndice <= 15 and @nExiste <> 1
+		BEGIN
+			WAITFOR DELAY '00:00:01'
+ 			DELETE #SalidaComando
+
+			SET @sComandoDinamico = 'dir "' + @sRutaTempServidor + '"'
+			INSERT INTO #SalidaComando
+			EXEC master.dbo.xp_cmdshell @sComandoDinamico
+ 
+			IF EXISTS ( SELECT 1 FROM #SalidaComando WHERE SalidaComando LIKE '%' + @sId + '.pdf%' )
+				SET @nExiste = 1
+ 
+			SET @nIndice = @nIndice + 1
+		END
+
+		IF @pnDebug = 1 SELECT @nExiste as '@nExiste'
+
+		--Elimina la tabla con la info del archivo de salida
+		DROP TABLE #SalidaComando
+
+		IF @nExiste = 1
+		BEGIN
+			SET @pnError = 0
+			SET @psRutaArchivo = @sNomArchivo
+ 
+			IF @pnDebug <> 1
+			BEGIN
+				SET @sComandoDinamico = 'del "'+@sNomArchivoRSS+'"'
+				EXEC master.dbo.xp_cmdshell @sComandoDinamico, no_output		
+			END
+		END
+		ELSE
+		BEGIN
+			SET @pnError = 1
+		END
+	END
 
 	FIN:
 	SET NOCOUNT OFF
