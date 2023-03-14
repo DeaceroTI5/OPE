@@ -1,12 +1,13 @@
-Text
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-CREATE PROC [OpeSch].[OPE_CU71_Pag4_ImprimirSrvBack_Proc]
+USE Operacion
+GO
+ALTER PROC OpeSch.OPE_CU71_Pag4_ImprimirSrvBack_Proc
 		   @pnClaUbicacion	int,
 		   @pnIdOrderRemp  INT	
 AS
 BEGIN		   
-		  
+
+-- EXEC OpeSch.OPE_CU71_Pag4_ImprimirSrvBack_Proc 267 , 1
+
 DECLARE @nIdViaje			  INT,
 	    @nIdBoleta			  INT, 
 	    @sPlaca				  VARCHAR(12), 
@@ -157,7 +158,8 @@ CREATE TABLE #certdet
 			 ClaTipoImpresion	INT null, 
 			 IdFabricacion		INT null, 
 			 IdOpm				INT null, 
-			 NomUnidad			VARCHAR (100) NULL)
+			 NomUnidad			VARCHAR (100) NULL,
+			 IdFactura			INT)
 
 --Facturas
 CREATE TABLE #tmpFabricacionFactura
@@ -225,6 +227,9 @@ SELECT @CountWh = COUNT(*) FROM #TempReimpresionDigital
 -- Recorro las facturas por digitalizar
 WHILE @CountWh > 0
 BEGIN
+
+DELETE FROM #certenc
+DELETE FROM #certdet
 
 SELECT top 1 @nIdFactura = t1.IdFactura
 	  ,@Formato = T1.Formato,
@@ -515,6 +520,7 @@ SELECT  Certif.ClaUbicacion,
 	ON          ciudadpedido.ClaCiudad = OpeSch.OpeTraFabricacionVw.ClaCiudad
 	WHERE   Viaje.ClaUbicacion = @pnClaUbicacion
 	AND   Viaje.IdPlanCarga = @pnIdPlanCargaFact
+	AND		Certif.IdFactura = IdFactura
 
 SELECT @cert = min(IdCertificado) FROM #certenc
 	WHILE @cert IS NOT NULL
@@ -531,19 +537,17 @@ SELECT @cert = min(IdCertificado) FROM #certenc
 --Unidad de Libras
 		SELECT	@sUnidadIng = NomUnidad
 		FROM	OPeSch.opeArtCatUnidadVw UnidEsp (nolock)
-		WHERE	ClaTipoInv
-entario = 1
+		WHERE	ClaTipoInventario = 1
 		AND		ClaUnidad = 15 
 	     
 		INSERT INTO #certdet(ClaCliente, NombreCliente, NombreCiudad, FechaActual, ClaArticulo, IdCertificado, KgsTotal, 
 							   IdViaje, IdPlanCarga, NumeroFactura, NomArticulo, NombreUbicacion, Notas, 
-							   Direccion, ClaTipoImpresion, IdFabricacion, IdOpm, NomUnidad)
+							   Direccion, ClaTipoImpresion, IdFabricacion, IdOpm, NomUnidad, IdFactura)
 		SELECT ptc.ClaCliente,
 		   CASE WHEN @pnEsVistaPrevia = 0 THEN  NombreCliente
 				WHEN @pnEsVistaPrevia = 1 THEN  '' END AS NombreCliente,
 		   CASE WHEN @pnEsVistaPrevia = 0 THEN(vccvw.NombreCiudad + ' ' + vccvw.NombreEstado) 
-				WHEN @pnEsVistaPrevi
-a = 1 THEN '' END AS NombreCiudad,
+				WHEN @pnEsVistaPrevia = 1 THEN '' END AS NombreCiudad,
 		   GETDATE() AS FechaActual,
 		   ptc.ClaArticulo,
 		   IdCertificado,
@@ -551,16 +555,14 @@ a = 1 THEN '' END AS NombreCiudad,
 				CASE WHEN ciudadpedido.ClaPais = 1 THEN 
 						KgsTotal
 					ELSE
-						KgsTotal * 2.2046 -- Converti
-r a Libras
+						KgsTotal * 2.2046 -- Convertir a Libras
 				END
 
 				WHEN @pnEsVistaPrevia = 1 THEN 0 END AS KgsTotal,
 		   IdViaje,
 		   IdPlanCarga,
 		    CASE WHEN @pnEsVistaPrevia = 0 THEN CASE WHEN NumeroFactura IS NOT NULL THEN NumeroFactura ELSE CAST(ISNULL(IdEntSal, '') AS VARCHAR) END
-				 WHEN @pnEsVistaPrev
-ia = 1 THEN '' END AS NumeroFactura,
+				 WHEN @pnEsVistaPrevia = 1 THEN '' END AS NumeroFactura,
 		   (ClaveArticulo + ' - ' + NomArticulo) AS NomArticulo,
 		   CASE @psClaIdioma
 				WHEN 'es-MX' THEN UPPER(NombreUbicacion)
@@ -572,8 +574,7 @@ ia = 1 THEN '' END AS NumeroFactura,
 							WHEN 59 THEN 'QUERETARO INDUSTRIAL PLANT I'
 							WHEN 61 THEN 'QUERETARO INDUSTRIAL PLANT II'
 							WHEN 65 THEN 'HOUSTON INDUSTRIAL PLANT'
-							ELSE UPPER(Nombr
-eUbicacion)
+							ELSE UPPER(NombreUbicacion)
 					  END
 		   END AS NombreUbicacion,
 		   ISNULL(notas1.Nota, isnull(notas2.Nota, isnull(notas3.Nota, '') ) ) AS Notas,
@@ -589,37 +590,33 @@ eUbicacion)
 		   ClaTipoImpresion = 1,
 		   ptc.IdFabricacion,
 		   IdOPM AS IdOpm,
-		   CASE WHEN ciudadpedido.Cla
-Pais = 1 THEN @sUnidadEsp ELSE @sUnidadIng END AS NomUnidad
+		   CASE WHEN ciudadpedido.ClaPais = 1 THEN @sUnidadEsp ELSE @sUnidadIng END AS NomUnidad,
+			IdFactura
 	FROM  OPMSch.PloTraCertificado AS ptc WITH(nolock)
 	JOIN  OPMSch.ArtCatArticuloVw AS acav WITH(nolock)ON ptc.ClaArticulo = acav.ClaArticulo
 	AND   ClaTipoInventario = 1
-	LEFT JOIN 	OPeSch.opeTra
-FabricacionVw a WITH(NOLOCK)
+	LEFT JOIN 	OPeSch.opeTraFabricacionVw a WITH(NOLOCK)
 	ON		a.IdFabricacion = ptc.IdFabricacion
 	LEFT JOIN OPeSch.opeVtaCatCiudadVw ciudadpedido(nolock)
 	ON		ciudadpedido.ClaCiudad = a.ClaCiudad	
-	LEFT JOIN  OPMSch.VtaCatClienteVw AS vccv WITH(nolock)ON ptc.ClaCliente = vccv.ClaCl
-iente
+	LEFT JOIN  OPMSch.VtaCatClienteVw AS vccv WITH(nolock)ON ptc.ClaCliente = vccv.ClaCliente
 	LEFT JOIN  OPeSch.opeVtaCatCiudadVw vccvw WITH(nolock)ON vccvw.ClaCiudad = ptc.ClaCiudad
 	JOIN  OPMSch.TiCatUbicacionVw AS tcuv WITH(nolock)ON ptc.ClaUbicacion = tcuv.ClaUbicacion
-	LEFT   JOIN OPMSch.PloCfgNotaCliente AS notas1 WITH(nolock)ON notas
-1.ClaUbicacion = ptc.ClaUbicacion 
+	LEFT   JOIN OPMSch.PloCfgNotaCliente AS notas1 WITH(nolock)ON notas1.ClaUbicacion = ptc.ClaUbicacion 
 	AND		notas1.ClaCliente = ptc.ClaCliente
 	AND		notas1.ClaArticulo = ptc.ClaArticulo
 	AND		isnull(notas1.BajaLogica,0) = 0
-	LEFT   JOIN OPMSch.PloCfgNotaCliente AS notas2 WITH(nolock)ON notas2.ClaUbicacion = ptc.ClaUbicac
-ion
+	LEFT   JOIN OPMSch.PloCfgNotaCliente AS notas2 WITH(nolock)ON notas2.ClaUbicacion = ptc.ClaUbicacion
 	AND		notas2.ClaCliente = -1
 	AND		notas2.ClaArticulo = ptc.ClaArticulo
 	AND		isnull(notas2.BajaLogica,0) = 0
 	LEFT   JOIN OPMSch.PloCfgNotaCliente AS notas3 WITH(nolock)ON notas3.ClaUbicacion = ptc.ClaUbicacion
 	AND		notas3.ClaCliente = -1
-	AND		nota
-s3.ClaArticulo = -1	
+	AND		notas3.ClaArticulo = -1	
 	AND		isnull(notas3.BajaLogica,0) = 0
 	WHERE ptc.ClaUbicacion  = @pnClaUbicacion
 	AND	  ptc.IdCertificado = @cert
+	AND		ptc.IdFactura = @nIdFactura
 
 		SELECT @cert = min(IdCertificado) FROM #certenc WHERE idCertificado > @cert
 		
@@ -651,7 +648,7 @@ BEGIN
 			1
 		FROM #certenc a
 		INNER JOIN #certdet b 
-		ON a.idcertificado = b.idcertificado 
+		ON a.idcertificado = b.idcertificado AND a.IdFactura =b.IdFactura
 		WHERE a.ClaTipoCertificado = 1
 		ORDER BY a.idCertificado
 		
@@ -667,7 +664,7 @@ BEGIN
 			27, a.IdFactura, @nEsExportarPDF, 0
 		FROM #certenc a
 		INNER JOIN #certdet b 
-		ON a.idcertificado = b.idcertificado 
+		ON a.idcertificado = b.idcertificado AND a.IdFactura =b.IdFactura
 		WHERE a.ClaTipoCertificado = 2
 		ORDER BY a.idCertificado
 
@@ -683,7 +680,7 @@ BEGIN
 			27, a.IdFactura, @nEsExportarPDF, 0
 		FROM #certenc a
 		INNER JOIN #certdet b 
-		ON a.idcertificado = b.idcertificado 
+		ON a.idcertificado = b.idcertificado AND a.IdFactura =b.IdFactura 
 		WHERE a.ClaTipoCertificado = 3
 		ORDER BY a.idCertificado
 
@@ -703,7 +700,7 @@ BEGIN
 			@nEsExportarPDF, 1
 		FROM #certenc a
 		INNER JOIN #certdet b 
-		ON a.idcertificado = b.idcertificado 
+		ON a.idcertificado = b.idcertificado AND a.IdFactura =b.IdFactura
 		WHERE a.ClaTipoCertificado = 4
 		ORDER BY a.idCertificado
 
@@ -725,7 +722,7 @@ BEGIN
 			1
 		FROM #certenc a
 		INNER JOIN #certdet b 
-		ON a.idcertificado = b.idcertificado 
+		ON a.idcertificado = b.idcertificado AND a.IdFactura =b.IdFactura
 		WHERE a.ClaTipoCertificado = 5
 		ORDER BY a.idCertificado
 
@@ -747,7 +744,7 @@ BEGIN
 			1
 		FROM #certenc a
 		INNER JOIN #certdet b 
-		ON a.idcertificado = b.idcertificado 
+		ON a.idcertificado = b.idcertificado AND a.IdFactura =b.IdFactura
 		WHERE a.ClaTipoCertificado = 6
 		ORDER BY a.idCertificado
 END	
