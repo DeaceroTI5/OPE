@@ -1,7 +1,6 @@
 USE Operacion
 GO
-	-- 'OpeSch.OpeEmbarqueEstimacionProc'
-GO
+-- EXEC SP_HELPTEXT 'OpeSch.OpeEmbarqueEstimacionCanceladoProc'
 ALTER PROCEDURE OpeSch.OpeEmbarqueEstimacionCanceladoProc
 	  @pnClaUbicacionOrigen			INT = NULL
 	, @pnIdFabricacionEstimacion	INT	= NULL
@@ -10,6 +9,7 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	-- EXEC OpeSch.OpeEmbarqueEstimacionCanceladoProc NULL, NULL, 1
 
 	BEGIN TRAN
 	BEGIN TRY
@@ -26,6 +26,8 @@ BEGIN
 			, FabricacionVenta				INT
 			, Proyecto						VARCHAR(80)
 			, EsTardio						TINYINT
+			, ClaUbicacionVenta				INT
+			, ComentariosEstimacion			VARCHAR(255)	
 		)
 
 		DECLARE @tbGpoEmbarquesEstimacion TABLE(
@@ -34,6 +36,7 @@ BEGIN
 			, IdBoletaVenta			INT
 			, IdPlanCargaVenta		INT
 			, IdViajeVenta			INT
+			, ClaUbicacionVenta		INT
 		)
 
 		DECLARE @DetalleCorreo TABLE(
@@ -60,13 +63,14 @@ BEGIN
 				, @sCuentaCopia			VARCHAR(1000)
 				, @sCuentaCopiaOculta	VARCHAR(1000)
 				, @sNomUbicacion		VARCHAR(50)
+				, @nClaUbicacionSurte	INT
 
 		--- /* Universo */
 		INSERT INTO @tbEmbarqueEstimacion (
 			  IdFabricacionEstimacion		, ClaUbicacionOrigen		, NumViaje  				
 			, FacturaAlfanumericoVenta		, IdBoletaVenta				, IdPlanCargaVenta			
 			, IdViajeVenta					, FabricacionVenta			, Proyecto
-			, EsTardio
+			, EsTardio						, ClaUbicacionVenta
 		)
 		SELECT  DISTINCT
 				  f.IdFabricacionEstimacion
@@ -79,6 +83,7 @@ BEGIN
 				, g.FabricacionVenta
 				, Proyecto						= CONVERT(VARCHAR(10),h.ClaProyecto) +' - ' + h.NomProyecto
 				, EsTardio						= 0
+				, b.ClaUbicacionDestino
 		FROM	OpeSch.OpeTraMovMciasTranEnc a WITH(NOLOCK)
 		INNER JOIN OpeSch.OpeTraMovMciasTranDet  b WITH(NOLOCK)
 		ON      a.ClaUbicacion              = b.ClaUbicacion              
@@ -112,6 +117,28 @@ BEGIN
 		AND		a.FacturaAlfanumericoVenta	= b.RemisionAlfanumerico
 
 
+		--- /*Comentarios*/
+		UPDATE	a
+		SET		ComentariosEstimacion = b.Comentarios
+		FROM	@tbEmbarqueEstimacion a
+		INNER JOIN OpeSch.OpeTraMovEntSalVw b WITH(NOLOCK)
+		ON		a.ClaUbicacionOrigen		= b.ClaUbicacion	
+		AND		a.NumViaje					= b.IdViaje		
+		AND		a.IdFabricacionEstimacion	= b.IdFabricacion	
+		AND		b.ClaMotivoEntrada			= 1	-- Entrada por Camión
+
+
+		UPDATE	a
+		SET		Comentarios = c.ComentariosEstimacion
+		FROM	OpeSch.OpeTraMovEntSalVw a WITH(NOLOCK)
+		INNER JOIN @tbEmbarqueEstimacion c
+		ON		a.ClaUbicacion		= c.ClaUbicacionVenta
+		AND		a.IdViaje			= c.IdViajeVenta
+		AND		a.IdFabricacion		= c.FabricacionVenta
+		WHERE	a.ClaMotivoEntrada	= 1	-- Entrada por Camión
+	--	AND		ISNULL(a.Comentarios,'') = '' 
+
+
 		IF @pnDebug = 1
 			SELECT '' AS '@tbEmbarqueEstimacion',* FROM @tbEmbarqueEstimacion ORDER BY EsTardio ASC
 
@@ -121,13 +148,15 @@ BEGIN
 			  ClaUbicacionOrigen
 			, IdBoletaVenta		
 			, IdPlanCargaVenta	
-			, IdViajeVenta				
+			, IdViajeVenta	
+			, ClaUbicacionVenta
 		)
 		SELECT DISTINCT
 				  ClaUbicacionOrigen
 				, IdBoletaVenta		
 				, IdPlanCargaVenta	
 				, IdViajeVenta
+				, ClaUbicacionVenta
 		FROM	@tbEmbarqueEstimacion
 		WHERE	EsTardio = 0
 
@@ -139,7 +168,6 @@ BEGIN
 		FROM	@tbGpoEmbarquesEstimacion
 
 
-
 		WHILE  @nId IS NOT NULL
 		BEGIN
 			SELECT   @nClaUbicacionVenta	= NULL	
@@ -147,7 +175,7 @@ BEGIN
 				   , @nIdPlanCargaVenta		= NULL
 				   , @nIdViajeVenta			= NULL
 
-			SELECT    @nClaUbicacionVenta	= ClaUbicacionOrigen	
+			SELECT    @nClaUbicacionVenta	= ClaUbicacionVenta	
 					, @nIdBoletaVenta		= IdBoletaVenta
 					, @nIdPlanCargaVenta	= IdPlanCargaVenta
 					, @nIdViajeVenta		= IdViajeVenta
@@ -303,10 +331,10 @@ BEGIN
 
 
 
-		SELECT  @nClaUbicacionVenta	= MIN(ClaUbicacion)
+		SELECT  @nClaUbicacionSurte	= MIN(ClaUbicacion)
 		FROM	@tUbicacionesEstimacion
 	
-		WHILE @nClaUbicacionVenta IS NOT NULL
+		WHILE @nClaUbicacionSurte IS NOT NULL
 		BEGIN
 			DELETE FROM @DetalleCorreo
 		
@@ -318,11 +346,11 @@ BEGIN
 			SELECT	  @sCuentasCorreo	= Destinatarios
 					, @sCuentaCopia		= CopiaDestinatarios
 			FROM	@tUbicacionesEstimacion
-			WHERE	ClaUbicacion = @nClaUbicacionVenta
+			WHERE	ClaUbicacion = @nClaUbicacionSurte
 
 			SELECT	@sNomUbicacion = NomUbicacion 
 			FROM	OpcSch.OpcTiCatUbicacionVw 
-			WHERE	ClaUbicacion = @nClaUbicacionVenta
+			WHERE	ClaUbicacion = @nClaUbicacionSurte
 
 			-----------------------------------------------------------------------------
 
@@ -363,7 +391,7 @@ BEGIN
 				'</tr> ' AS Datos
 			FROM	@tbEmbarqueEstimacion
 			WHERE	EsTardio = 1
-			AND		ClaUbicacionOrigen = @nClaUbicacionVenta
+			AND		ClaUbicacionOrigen = @nClaUbicacionSurte
 
 
 			--Para poner rows en blanco 
@@ -410,15 +438,15 @@ BEGIN
 					, @file_attachments		= NULL
 			END
 
-			SELECT  @nClaUbicacionVenta	= MIN(ClaUbicacion)
+			SELECT  @nClaUbicacionSurte	= MIN(ClaUbicacion)
 			FROM	@tUbicacionesEstimacion
-			WHERE	ClaUbicacion > @nClaUbicacionVenta
+			WHERE	ClaUbicacion > @nClaUbicacionSurte
 		END
-	
+
 		COMMIT TRAN
 	END TRY
 	BEGIN CATCH
-		SELECT 'ERROR'
+		SELECT ERROR_MESSAGE() + ' (' + ERROR_PROCEDURE()+')'
 		ROLLBACK TRAN
 	END CATCH
 

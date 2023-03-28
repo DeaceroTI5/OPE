@@ -132,7 +132,7 @@ BEGIN
             SELECT 1
             FROM AceSch.VtaCTraFacturaVw WITH(NOLOCK)
             WHERE IdFactura = @pnIdFacturaOrigen
-            AND ClaUbicacion = @nClaUbicacionOrigenVentas
+      --    AND ClaUbicacion = @nClaUbicacionOrigenVentas
     )
     BEGIN
             SET @sError = 'La factura de Origen no existe: ' + ISNULL(@sNumFacturaOrigen,'')
@@ -273,7 +273,7 @@ BEGIN
 				AND		a.IdFabricacion	= b.IdFabricacion
 				AND		a.ClaUbicacionOrigen = b.ClaUbicacionOrigen
 				AND		ISNULL(a.ClaArticuloExt,0)	= ISNULL(b.ClaArticuloExt,0)
-				--WHERE	a.IdFactura	<> @pnIdFactura
+				WHERE	a.IdFactura	<> @pnIdFactura
 			)
 			BEGIN
 --				SELECT 'Si paso'
@@ -287,6 +287,7 @@ BEGIN
 				AND		a.IdFabricacion	= b.IdFabricacion
 				AND		a.ClaUbicacionOrigen = b.ClaUbicacionOrigen
 				AND		ISNULL(a.ClaArticuloExt,0)	= ISNULL(b.ClaArticuloExt,0)
+				WHERE	a.IdFactura	<> @pnIdFactura
 
 				SELECT @sFacturaExiste = ISNULL(@sFacturaExiste,'')
 

@@ -205,7 +205,7 @@ CREATE TABLE #tmpCfgMotivoFormatoImp
 SELECT @nEsExportarPDF = 1 , @pnEsFacturacion = 1, @pnEsVistaPrevia = 0
 
 
-IF(@pnClaUbicacion != 65)
+IF(@pnClaUbicacion NOT IN (65, 267))
 	BEGIN
 		SET @psIdioma = 'Spanish'
 	END
@@ -507,7 +507,7 @@ SELECT  Certif.ClaUbicacion,
 		Certif.IdCertificado,
 		Certif.IdFactura,
 		Certif.ClaTipoCertificado,
-	   CASE WHEN ( @pnClaUbicacion = 65 OR ( @pnClaUbicacion = 20 AND OpeSch.OpeTraFabricacionVw.ClaCliente = 47720 ) ) THEN 'en-Us' ELSE 
+	   CASE WHEN ( @pnClaUbicacion IN (65, 267) OR ( @pnClaUbicacion = 20 AND OpeSch.OpeTraFabricacionVw.ClaCliente = 47720 ) ) THEN 'en-Us' ELSE 
 				 (  CASE WHEN ciudadpedido.ClaPais = 1 THEN 'es-Mx' ELSE 'en-Us' END) 
 	   END
 	FROM OpeSch.OpeTraViaje Viaje WITH(NOLOCK)
@@ -583,7 +583,7 @@ SELECT @cert = min(IdCertificado) FROM #certenc
 	
 	   CASE @psClaIdioma WHEN 'es-MX' THEN 'CP. ' ELSE 'ZP. ' END + RTRIM(ISNULL(CodigoPostal,'')) + ', ' + 
 		   RTRIM(Poblacion) + ' ' +
-		   CASE @psClaIdioma WHEN 'es-MX' THEN 'Tel: ' ELSE CASE @pnClaUbicacion WHEN 65 THEN 'Ph: ' ELSE 'Ph: +52 ' END END 
+		   CASE @psClaIdioma WHEN 'es-MX' THEN 'Tel: ' ELSE CASE WHEN @pnClaUbicacion IN (65, 267) THEN 'Ph: ' ELSE 'Ph: +52 ' END END 
 + RTRIM(ISNULL(Telefonos, '')) +
 		   CASE LEN(RTRIM(LTRIM(ISNULL(Fax, '')))) WHEN 0 THEN '' ELSE ' Fax: ' + RTRIM(LTRIM(Fax)) END
 		   ) AS Direccion,
@@ -754,7 +754,7 @@ END
 IF(@Formato = 11)
 BEGIN
 --11-Bill of Lading -- Orden de envio Siempre es 0 ??
-IF (@pnClaUbicacion != 65 )
+IF (@pnClaUbicacion NOT IN (65, 267) )
 BEGIN
 
 IF((SELECT ClaTipoViaje

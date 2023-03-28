@@ -1211,38 +1211,38 @@ BEGIN
 
 
 
-			-- Obtengo el pdf 
-			set @sqlUpdate = 'Declare @pdf VARBINARY(MAX)	
-							  SELECT @pdf = BulkColumn
-							  FROM OPENROWSET(BULK N'''+@sNomArchivo+''', SINGLE_BLOB) AS Document
-							  SELECT @pdf
-								'
-					
-			insert into #PDFbinary
-			EXEC (@sqlupdate)
+		-- Obtengo el pdf 
+		set @sqlUpdate = 'Declare @pdf VARBINARY(MAX)	
+						  SELECT @pdf = BulkColumn
+						  FROM OPENROWSET(BULK N'''+@sNomArchivo+''', SINGLE_BLOB) AS Document
+						  SELECT @pdf
+							'
+				
+		insert into #PDFbinary
+		EXEC (@sqlupdate)
 
-			SELECT @pdf = t1.pdf FROM #PDFbinary t1
+		SELECT @pdf = t1.pdf FROM #PDFbinary t1
 
 
-			IF @pnDebug = 1
-				SELECT @pdf AS '@pdf'
+		IF @pnDebug = 1
+			SELECT @pdf AS '@pdf'
 
-			INSERT INTO OpeSch.OpeTmpReporteFactura (IdFactura, IdReporteFactura,IdCertificado, Reporte, FechaUltimaMod)
-			SELECT @pnIdFactura, @pnIdReporteFactura, @pnIdCertificado, @pdf, GETDATE()
-			
-			--SELECT * FROM #PDFbinary
-			--EXEC [OpeSch].OPE_CU71_Pag4_ReporteAPDF_Proc @pnClaUbicacion,default,@pdf,@FormatoCertificado,@pnIdFactura,@pnIdCertificado,@HostName,0				
-			
-			FIN:
-			-- Reseteo todo 
-			set @sComandoDinamico = ''
-			set @sqlUpdate = ''
-			SET @psNomPdf = ''
+		INSERT INTO OpeSch.OpeTmpReporteFactura (IdFactura, IdReporteFactura,IdCertificado, Reporte, FechaUltimaMod)
+		SELECT @pnIdFactura, @pnIdReporteFactura, @pnIdCertificado, @pdf, GETDATE()
+		
+		--SELECT * FROM #PDFbinary
+		--EXEC [OpeSch].OPE_CU71_Pag4_ReporteAPDF_Proc @pnClaUbicacion,default,@pdf,@FormatoCertificado,@pnIdFactura,@pnIdCertificado,@HostName,0				
+		
+		FIN:
+		-- Reseteo todo 
+		set @sComandoDinamico = ''
+		set @sqlUpdate = ''
+		SET @psNomPdf = ''
 
-			DELETE TOP(1) FROM #TmpInfoReporteFROM
+		DELETE TOP(1) FROM #TmpInfoReporteFROM
 
-			SET @Count = (SELECT COUNT(*) FROM #TmpInfoReporteFROM)
-			delete #PDFbinary 
+		SET @Count = (SELECT COUNT(*) FROM #TmpInfoReporteFROM)
+		delete #PDFbinary 
 
 	END ---- fin WHILE
 
