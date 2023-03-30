@@ -1,4 +1,4 @@
-ALTER PROCEDURE [FleSch].[FLE_CU5_Pag2_Grid_Tabular_Sel]            
+CREATE PROCEDURE FleSch.FLE_CU5_Pag2_Grid_Tabular_Sel            
  @pnClaUbicacion INT,            
  @pnIdTabular INT,            
  @pnNumViaje INT,            
@@ -43,14 +43,14 @@ BEGIN
               
     DECLARE @cup int          
               
-  SET  @nClaSistema = [FleSch].[FleObtenerClaSistemaFletesFn]()              
+  SET  @nClaSistema = FleSch.FleObtenerClaSistemaFletesFn()              
               
       /*GCC 15MAr16        
   SELECT @nClaSistemaPol = nValor1 FROM FleSch.FleTiCatConfiguracionVw            
   WHERE ClaUbicacion = @pnClaUbicacion AND ClaConfiguracion = 211            
   */        
               
---  SELECT  @sconexion = [FleSch].[FleObtieneConexionRemotaFn](@pnClaUbicacion, @nClaSistemaPol, 'PolCTraTramiteVw' )            
+--  SELECT  @sconexion = FleSch.FleObtieneConexionRemotaFn(@pnClaUbicacion, @nClaSistemaPol, 'PolCTraTramiteVw' )            
               
     /*          
   si se especifica transportista, sacar el cup para obtener los dos trasportistas           
@@ -103,7 +103,7 @@ BEGIN
     ,ClaUsuarioAutoriza            
     ,ClaUsuarioElabora            
     ,ClaEstatusAutorizacion            
-    ,ClaEstatusImpresionCheque            
+    ,ClaEstatusImpresionCheque           
     ,EsCalcularAmortizacion            
     ,IdentificadorFlujoAutorizacion            
     ,ClaPolizaGpo            
@@ -188,7 +188,7 @@ BEGIN
             
    DECLARE @nValor1 INT,           
    @nImporteAutopistas NUMERIC(22,8),          
- @EsCentral INT          
+ @EsCentral INT  
  SELECT @EsCentral = 0          
  SELECT @nImporteAutopistas = 0.0          
  SELECT @EsCentral = ISNULL(nValor1,0)           
@@ -222,7 +222,7 @@ BEGIN
    ,t0.ClaCiudadDestino AS ClaCiudadDestino            
    ,t0.ClaZipCodeOrigen AS ClaZipCodeOrigen            
    ,t0.ClaZipCodeDestino AS ClaZipCodeDestino       
-   ,PODDigital =case [FleSch].[FlePODDigitalPendienteFn](t0.ClaUbicacion,t0.IdTabular)          
+   ,PODDigital =case FleSch.FlePODDigitalPendienteFn(t0.ClaUbicacion,t0.IdTabular)          
          when 2 then 'POD Faltante'          
          when 1 then 'POD Completo'          
          else ''          
@@ -320,7 +320,7 @@ BEGIN
    ,PrefijoTabular = LTRIM(rtrim(STR( t0.IdTabular ))) --ISNULL(LTRIM(RTRIM(t0.Prefijo)),'') + LTRIM(rtrim(STR( t0.IdTabular )))            
    ,t0.NumGuia            
    ,concentrado.IdFolio            
-   ,PagarSinDevolucion = CASE WHEN t0.ClaEstatusTabular = 5 THEN 'Liberar' ELSE '' END          
+   ,PagarSinDevolucion = CASE WHEN t0.ClaEstatusTabular = 5 THEN 'Liberar' ELSE '' END         
    ,guia.FechaGuia as FechaInicioTramite          
    ,CxPTabular.FechaPagoReal as FechaPago          
    , datediff(dd,guia.FechaGuia,CxPTabular.FechaPagoReal)as CicloPago            
@@ -413,6 +413,7 @@ BEGIN
  OR      (@pnEsNinguno = 0 AND (@pnEsPorViaje = 1  AND t0.ClaTipoTabular = 1 AND (@pnNumViaje IS NULL OR t0.Referencia1 = CONVERT(VARCHAR(200), @pnNumViaje) )) )             
  OR      (@pnEsNinguno = 0 AND (@pnEsPorBoleta = 1 AND t0.ClaTipoTabular = 2 AND (t0.Referencia1 LIKE '%'+LTRIM(RTRIM(ISNULL(@psNumBoleta,'')))+'%')) )            
  OR      (@pnEsNinguno = 0 AND (@pnEsPorPedido = 1 AND (@pnNumPedido IS NULL OR t0.IdTabular IN (SELECT IdTabular FROM FLESch.FLETraTabularDet WITH(NOLOCK) WHERE ClaUbicacion = @pnClaUbicacion AND ClaPedido = @pnNumPedido GROUP BY IdTabular)))  )        
+
 
   
     

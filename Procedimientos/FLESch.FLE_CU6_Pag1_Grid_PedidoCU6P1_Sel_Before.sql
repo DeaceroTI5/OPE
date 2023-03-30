@@ -1,17 +1,12 @@
-Text
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-/* 
-*/ 
-CREATE PROCEDURE FLESch.FLE_CU6_Pag1_Grid_PedidoCU6P1_Sel_Before
+ALTER PROCEDURE FLESch.FLE_CU6_Pag1_Grid_PedidoCU6P1_Sel_Before
 	@pnClaUbicacion				INT OUTPUT,
 	@pnNumEntSal				INT OUTPUT, 
 	@pnNumViajeCU6P1			INT OUTPUT,
 	@pnNumFactura				INT OUTPUT, 
 	@psIdioma					VARCHAR(10) = 'Spanish' OUTPUT,
 	@pnClaIdioma				INT			= 5	 OUTPUT,
-	@pnContinuar					INT OUTPUT 
-	
+	@pnContinuar				INT OUTPUT 
+	,@pnNumTabularCU6P1			INT = NULL
 AS 
     BEGIN	
         SET NOCOUNT ON  
@@ -36,7 +31,7 @@ AS
 					,dt.ImporteFleteDirecto + dt.importeFleteFalso AS ImporteSinIva
 			FROM	FleSch.FleTraViajeFacturaDet facdet	WITH (NOLOCK)
 			LEFT	JOIN FleSch.FleArtCatArticuloVw art		WITH (NOLOCK) ON art.ClaArticulo = facdet.ClaArticulo AND art.ClaTipoInventario = 1
-			LEFT	JOIN FleSch.FleTraTabular	  t			WITH (NOLOCK) ON t.ClaUbicacion = facdet.ClaUbicacion AND t.Referencia1 = CONVERT(VARCHAR,facdet.NumViaje)
+			LEFT	JOIN FleSch.FleTraTabular	  t			WITH (NOLOCK) ON t.ClaUbicacion = facdet.ClaUbicacion AND t.IdTabular = @pnNumTabularCU6P1 AND t.Referencia1 = CONVERT(VARCHAR,facdet.NumViaje)
 			LEFT	JOIN FleSch.FleTraTabularDet dt		WITH (NOLOCK) ON dt.ClaUbicacion = facdet.ClaUbicacion AND dt.IdTabular = t.IdTabular 
 																AND facdet.ClaArticulo = dt.ClaArticulo	AND  facdet.Renglon = dt.ClaRenglonPedido
 																AND dt.ClaPedido  = facdet.ClaPedido--Correcion de bug persistente
@@ -67,7 +62,7 @@ AS
 					,dt.ImporteFleteDirecto + dt.importeFleteFalso AS ImporteSinIva 
 			FROM	FleSch.FleTraViajeEntsalDet	entdet	WITH (NOLOCK)
 			LEFT	JOIN FleSch.FleArtCatArticuloVw	art		WITH (NOLOCK) ON art.ClaArticulo = entdet.ClaArticulo AND art.ClaTipoInventario = 1
-			LEFT	JOIN FleSch.FleTraTabular		t		WITH (NOLOCK) ON t.ClaUbicacion = entdet.ClaUbicacion AND t.Referencia1 = CONVERT(VARCHAR,entdet.NumViaje)
+			LEFT	JOIN FleSch.FleTraTabular		t		WITH (NOLOCK) ON t.ClaUbicacion = entdet.ClaUbicacion AND t.IdTabular = @pnNumTabularCU6P1 AND t.Referencia1 = CONVERT(VARCHAR,entdet.NumViaje)
 			LEFT	JOIN FleSch.FleTraTabularDet	dt		WITH (NOLOCK) ON dt.ClaUbicacion = entdet.ClaUbicacion AND dt.IdTabular = t.IdTabular 
 																AND entdet.ClaArticulo = dt.ClaArticulo	AND  entdet.Renglon = dt.ClaRenglonPedido
 										and entdet.ClaPedido = dt.ClaPedido

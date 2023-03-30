@@ -1,21 +1,18 @@
-Text
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
- 
-CREATE PROCEDURE FLESch.FLE_CU6_Pag1_Grid_PedidoCU6P1_Sel
+ALTER PROCEDURE FLESch.FLE_CU6_Pag1_Grid_PedidoCU6P1_Sel
 	@pnClaUbicacion INT,
 	@pnNumEntsal INT,
 	@pnNumViajeCU6P1 INT,
 	@pnNumFactura int,	
 	@psIdioma VARCHAR(10) = 'Spanish',
-	@pnClaIdioma INT = 5	
+	@pnClaIdioma INT = 5	,
+	@pnNumTabularCU6P1 INT = NULL
 AS
 BEGIN
 	SET NOCOUNT ON
 	
 	DECLARE @nContinuar	TINYINT
  
-	EXEC FLESch.FLE_CU6_Pag1_Grid_PedidoCU6P1_Sel_Before @pnClaUbicacion OUTPUT, @pnNumEntsal OUTPUT, @pnNumViajeCU6P1 OUTPUT, @pnNumFactura OUTPUT, @psIdioma OUTPUT, @pnClaIdioma OUTPUT, @nContinuar OUTPUT
+	EXEC FLESch.FLE_CU6_Pag1_Grid_PedidoCU6P1_Sel_Before @pnClaUbicacion OUTPUT, @pnNumEntsal OUTPUT, @pnNumViajeCU6P1 OUTPUT, @pnNumFactura OUTPUT, @psIdioma OUTPUT, @pnClaIdioma OUTPUT, @nContinuar OUTPUT, @pnNumTabularCU6P1 =@pnNumTabularCU6P1
  
 	IF ISNULL(@nContinuar,1) = 0
 		GOTO FIN
