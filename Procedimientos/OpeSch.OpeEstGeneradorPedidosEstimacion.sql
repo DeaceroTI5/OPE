@@ -1,16 +1,24 @@
 USE Operacion
 GO
-ALTER PROCEDURE OpeSch.OpeEstGeneradorPedidosEstimacion
-	  @pnConsecutivo		INT = NULL
-	, @pnUbicacion			INT = NULL
-	, @pnFabricacion		INT = NULL
-	, @pnClaUsuarioMod		INT = 1000
-	, @psNombrePcMod		VARCHAR(64) = 'EstimacionIngetek'
-	, @pnFabricacionEspejo	INT = NULL
+-- EXEC SP_HELPTEXT 'OpeSch.OpeEstGeneradorPedidosEstimacion'
+GO
+CREATE PROCEDURE [OpeSch].[OpeEstGeneradorPedidosEstimacion]
+	  @pnClaUsuarioMod		INT = 1000
+	, @psNombrePcMod		VARCHAR(64) = 'JOB - EstimacionIngetek'
 	, @pnDebug				TINYINT = 0
 AS
 BEGIN
 	SET NOCOUNT ON
+
+	DECLARE	@nPlantaVirtual INT,
+			@nConsecutivo	INT,
+            @nUbicacion     INT,
+            @nFabricacion   INT
+	SELECT	@nPlantaVirtual = 365,
+            @nConsecutivo   = NULL,
+            @nUbicacion     = NULL,
+            @nFabricacion   = NULL
+
     --  Obtener Fabricaciones Que Cumplen Criterio de AutoGeneración de Pedido Espejo
 	DECLARE @tFabricaciones		TABLE (
 			Consecutivo         INT IDENTITY(1,1),
@@ -25,45 +33,41 @@ BEGIN
             FabPlanCarga        INT
 	)
 
-	DECLARE @nPlantaVirtual INT
-	SET @nPlantaVirtual = 365
-
-
-	-- consulta los pedidos activos de los proyectos con Estimación 
+	-- Carga de Tabla Variable de los pedidos activos pendientes de los proyectos de Estimaciones
 	;WITH FabriacionesAplicantes AS
 	(
 		SELECT	  e.ClaPlanta				AS Planta
 				, c.ClaClienteCuenta		AS Cliente
-				, c.ClaProyecto				AS Proyecto
-				, Descripcion		= LTRIM(RTRIM(CONVERT(VARCHAR(150), c.ClaProyecto))) + ' - ' + c.NomProyecto
+				, b.ClaProyecto				AS Proyecto
+				, Descripcion		= LTRIM(RTRIM(CONVERT(VARCHAR(50), b.ClaProyecto))) + ' - ' + b.NomProyecto
 				, f.IdFabricacion			AS FabricacionOri
 				, h.idFabricacionEstimacion	AS FabricacionEsp
 				, COUNT(g.NumeroRenglon)	AS Partidas
 				, PartidasNoActivas	= SUM( CASE WHEN g.ClaEstatusFabricacion NOT IN (4,5) THEN 1 ELSE 0 END )
 		FROM	OpeSch.OpeRelProyectoEstimacionVw a WITH(NOLOCK)
-		INNER JOIN OpeSch.OpeVtaCatProyectoVw c WITH(NOLOCK)
-		ON		a.ClaProyecto			= c.ClaProyecto
-		--INNER JOIN  OpeSch.OpeVtaCatClienteVw b WITH(NOLOCK)
-		--ON		c.ClaClienteCuenta		= b.ClaCliente
-		INNER JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw d WITH(NOLOCK)
-		ON		a.ClaProyecto			= d.ClaProyecto
+		INNER JOIN OpeSch.OpeVtaCatProyectoVw b WITH(NOLOCK)
+		ON		a.ClaProyecto				= b.ClaProyecto
+		INNER JOIN OpeSch.OpeVtaCatClienteCuentaVw c WITH(NOLOCK)
+		ON		b.ClaClienteCuenta			= c.ClaClienteCuenta
+		INNER JOIN OpeSch.OpeVtaRelFabricacionProyectoVw d WITH(NOLOCK)
+		ON		a.ClaProyecto				= d.ClaProyecto
 		INNER JOIN OpeSch.OpeTraFabricacionVw e WITH(NOLOCK)
-		ON		d.IdFabricacion			= e.IdFabricacion
-		INNER JOIN  Ventas.VtaSch.VtaCTraFabricacionEnc f WITH(NOLOCK)
-		ON		d.IdFabricacion			= f.IdFabricacion
+		ON		d.IdFabricacion				= e.IdFabricacion
+		INNER JOIN Ventas.VtaSch.VtaCTraFabricacionEnc f WITH(NOLOCK)
+		ON		d.IdFabricacion				= f.IdFabricacion
 		INNER JOIN Ventas.VtaSch.VtaCTraFabricacionDet g WITH(NOLOCK)
-		ON		d.IdFabricacion			= g.IdFabricacion
-		LEFT JOIN OpeSch.OpeTraFabricacionEspejoEstimacion h WITH(NOLOCK)
-		ON		d.IdFabricacion			= h.idFabricacionVenta
-		AND		g.NumeroRenglon			= h.idFabricacionDetVenta        
-		WHERE   a.EsEstimacion			= 1
-		AND		e.ClaEstatus			= 1
-		AND		e.ClaPlanta				NOT IN (@nPlantaVirtual)
-		AND		e.IdFabricacion			NOT IN (23880920,23903151)
-		AND		c.ClaProyecto			NOT IN (21728)
-		AND		h.idFabricacionEstimacion IS NULL
+		ON		d.IdFabricacion				= g.IdFabricacion
+		LEFT JOIN  OpeSch.OpeTraFabricacionEspejoEstimacion h WITH(NOLOCK)
+		ON		d.IdFabricacion				= h.idFabricacionVenta
+		AND		g.ClaArticulo				= h.ClaArticuloEstimacion        
+		WHERE   a.EsEstimacion				= 1
+		AND		e.ClaEstatus				= 1
+		AND		e.ClaPlanta					NOT IN (@nPlantaVirtual)
+		AND		h.idFabricacionEstimacion	IS NULL
+		AND		b.ClaProyecto				NOT IN (21728)
+		--AND		e.IdFabricacion			NOT IN ()
 		GROUP BY 
-				e.ClaPlanta, c.ClaClienteCuenta, c.ClaProyecto, c.NomProyecto, f.IdFabricacion, h.idFabricacionEstimacion
+				e.ClaPlanta, c.ClaClienteCuenta, b.ClaProyecto, b.NomProyecto, f.IdFabricacion, h.idFabricacionEstimacion
 	)
 	INSERT INTO @tFabricaciones
 	( 
@@ -96,74 +100,73 @@ BEGIN
 	GROUP BY
 			a.Planta, a.Cliente, a.Proyecto, a.Descripcion, a.FabricacionOri, a.FabricacionEsp, a.Partidas, a.PartidasNoActivas
 	
-	--
+	-- Impresion de Tabla Variable con Coincidencias
     IF @pnDebug = 1
 		SELECT '' AS 'Tabla @tFabricaciones', * FROM @tFabricaciones
     
     -- Bucle Que Procesa la Generación de Pedidos Espejo Para Fabricaciones Almacenadas
-    SELECT	@pnConsecutivo = MIN( Consecutivo )
+    SELECT	@nConsecutivo = MIN( Consecutivo )
     FROM	@tFabricaciones
 
-    WHILE	ISNULL( @pnConsecutivo,0 ) <> 0
+    WHILE	ISNULL( @nConsecutivo,0 ) <> 0
     BEGIN
-		-- SELECT ISNULL(FabriacionOriginal, 0), * FROM @tFabricaciones WHERE Consecutivo = @pnConsecutivo AND Partidas > 0 AND PartidasSurtidas = 0 AND FabPlanCarga = 0
-
         IF EXISTS (	SELECT  1    
                     FROM    @tFabricaciones
-                    WHERE   Consecutivo		= @pnConsecutivo	
-                    AND     Partidas		> 0
-                    AND     PartidasSurtidas = 0
-                    AND     FabPlanCarga	= 0
+                    WHERE   Consecutivo		    = @nConsecutivo	
+                    AND     Partidas		    > 0
+                    AND     PartidasSurtidas    = 0
+                    AND     FabPlanCarga	    = 0
 				   )
         BEGIN
-            SELECT	@pnUbicacion		= Ubicacion, 
-                    @pnFabricacion	= FabriacionOriginal
+            SELECT	@nUbicacion		= Ubicacion, 
+                    @nFabricacion	= FabriacionOriginal
             FROM	@tFabricaciones
-            WHERE	Consecutivo		= @pnConsecutivo	
+            WHERE	Consecutivo		= @nConsecutivo	
             
             EXEC	OpeSch.OPE_CU550_Pag21_Boton_GeneraPedidoEspejo_Proc 
-					  @PnClaUbicacion			= @pnUbicacion
-					, @PnIdFabricacion			= @pnFabricacion
+					  @PnClaUbicacion			= @nUbicacion
+					, @PnIdFabricacion			= @nFabricacion
 					, @PnClaUbicacionFabrica	= @nPlantaVirtual
 					, @PnClaUsuarioMod			= @pnClaUsuarioMod
 					, @PsNombrePcMod			= @psNombrePcMod
 
             UPDATE  a
-            SET     a.FabricacionEspejo = (	SELECT DISTINCT 
+            SET     a.FabricacionEspejo = (	SELECT  DISTINCT 
 													b.idFabricacionEstimacion			
 											FROM	OpeSch.OpeTraFabricacionEspejoEstimacion b 
-                                            WHERE	b.idFabricacionVenta	= @pnFabricacion
-                                            AND		b.ClaUbicacionEstimacion = @pnUbicacion
+                                            WHERE	b.idFabricacionVenta	    = @nFabricacion
+                                            AND		b.ClaUbicacionEstimacion    = @nUbicacion
 											)
             FROM    @tFabricaciones a
-            WHERE   a.Consecutivo = @pnConsecutivo	
-            AND     a.FabriacionOriginal = @pnFabricacion
+            WHERE   a.Consecutivo = @nConsecutivo	
+            AND     a.FabriacionOriginal = @nFabricacion
 
-
-			IF @pnDebug = 1
+            --  Impresion de Registro Procesado por Generación de Espejo
+			IF  @pnDebug = 1
 				SELECT '' AS 'Tabla @tFabricaciones', * 
 				FROM	@tFabricaciones a
-				WHERE   a.Consecutivo = @pnConsecutivo	
-				AND     a.FabriacionOriginal = @pnFabricacion
+				WHERE   a.Consecutivo = @nConsecutivo	
+				AND     a.FabriacionOriginal = @nFabricacion
         END
 
-        SELECT	@pnConsecutivo = MIN( Consecutivo )
+        SELECT	@nConsecutivo = MIN( Consecutivo )
         FROM	@tFabricaciones
-        WHERE	Consecutivo > @pnConsecutivo	
+        WHERE	Consecutivo > @nConsecutivo	
     END
 
     -- Proceso de Eliminacion de Fabricaciones sin poder generar Pedido Espejo
     DELETE FROM @tFabricaciones WHERE FabricacionEspejo IS NULL
 
+    -- Impresion de Listado de Fabricaciones despues de DELETE de casos sin Pedido Espejo
 	IF @pnDebug = 1
 		SELECT '' AS 'Tabla @tFabricaciones (despues de DELETE)', * 
 		FROM	@tFabricaciones a
 	
-	------------------------------------------------------------------------------------------------------------
-	--- /*Actualizacion Bitácora pedidos de Estimaciones*/
+    ------------------------------------------------------------------------------------------------------------
+	-- /*Actualizacion Bitácora Pedidos de Estimaciones*/
 	DECLARE @nIdBitacora	INT
 	
-	-- id consecutivo 
+	-- Consecutivo de Identificador de Bitacora
 	SELECT	@nIdBitacora = ISNULL(MAX(IdBitacora),0)
 	FROM	OpeSch.OpeBitFabricacionEstimacion
 
@@ -199,7 +202,7 @@ BEGIN
 	FROM	@tFabricaciones a
 	------------------------------------------------------------------------------------------------------------
   
-	-- Proceso de Notificación //NOTA: Actualmente los Remitentes Es el Equipo de Sistemas, Posterior se Habilitara la Notificación Directa a los Talleres
+	-- Proceso de Notificación //NOTA: El proceso de notificación se basa en los correos registrados en la configuración 1271221, el default son correos del equipo de sistemas
     IF EXISTS ( SELECT  1    
                 FROM    @tFabricaciones a
                 WHERE   a.FabricacionEspejo IS NOT NULL )
@@ -223,7 +226,7 @@ BEGIN
 				, @sLink2				VARCHAR(1000)
 				, @sDetailListEnc		VARCHAR(MAX)
         
-		SELECT	  @pnConsecutivo			= NULL
+		SELECT	  @nConsecutivo			= NULL
 
         SELECT	  @nTUbicacion			= NULL
 				, @sTProyecto			= NULL
@@ -264,70 +267,71 @@ BEGIN
         SELECT @sTableTagClose = '</table><br><br>'
 
 		-- Proceso De Notificación: Talleres
-		DECLARE @tUbicacionesEspejo TABLE
+		DECLARE @tUbicacionesEstimacion TABLE
 		(
-			  Id			INT IDENTITY(1,1)
-			, ClaUbicacion	INT
-			, Destinatarios	VARCHAR(400)
+			  Id			        INT IDENTITY(1,1)
+			, ClaUbicacion	        INT
+			, Destinatarios	        VARCHAR(400)
+            , CopiaDestinatarios    VARCHAR(400)
 		)
 
-		DECLARE   @pnUbicacionEspejo INT
+		DECLARE   @nUbicacionEspejo INT
 				, @sDestinatarios	VARCHAR(400)
 				, @sCopiaDestinatario VARCHAR(400)
 
-		SET @sCopiaDestinatario = 'josmor@deacero.com; lperaza@deacero.com'
-
-
-		-- Ubicaciones con configuracion activa (Notificacion de genereacion de pedido espejo)
-		INSERT INTO @tUbicacionesEspejo (ClaUbicacion, Destinatarios)
+		-- Ubicaciones con configuración activa (Notificacion de genereación de pedido espejo)
+		INSERT INTO @tUbicacionesEstimacion (ClaUbicacion, Destinatarios, CopiaDestinatarios)
 		SELECT DISTINCT 
 				  a.Ubicacion
-				, CASE WHEN ISNULL(sValor1,'') <> '' THEN  sValor1 ELSE @sCopiaDestinatario END
+				, CASE WHEN ISNULL(sValor1,'') <> '' THEN  sValor1 ELSE sValor2 END
+                , CASE WHEN ISNULL(sValor2,'') <> '' THEN  sValor2 ELSE 'josmor@deacero.com;hvalle@deacero.com;dcabrerah@deacero.com' END
 		FROM	@tFabricaciones a
 		INNER JOIN OPESch.OpeTiCatConfiguracionVw b
 		ON		a.Ubicacion			= b.ClaUbicacion
 		AND		b.ClaSistema		= 127
 		AND		b.ClaConfiguracion	= 1271221
 		WHERE   a.FabricacionEspejo IS NOT NULL
-		AND		b.nValor1			= 1						-- Configuracion activa
+		AND		b.nValor1			= 1				    -- Configuración activa
 
 		IF @pnDebug = 1
-			SELECT '' AS 'tabla @tUbicacionesEspejo', * FROM @tUbicacionesEspejo
+			SELECT '' AS 'tabla @tUbicacionesEstimacion', * FROM @tUbicacionesEstimacion
 
-		SELECT	@pnUbicacionEspejo = MIN(ClaUbicacion)
-		FROM	@tUbicacionesEspejo
+		SELECT	@nUbicacionEspejo = MIN(ClaUbicacion)
+		FROM	@tUbicacionesEstimacion
 
-		WHILE @pnUbicacionEspejo IS NOT NULL
+		WHILE @nUbicacionEspejo IS NOT NULL
 		BEGIN
-			SELECT	  @pnConsecutivo	= NULL
-					, @sMensaje			= ''
-					, @sDetailList		= ''
-					, @sDetailListEnc	= ''
-					, @nColor			= 1
-					, @sDestinatarios	= ''
+			SELECT	  @nConsecutivo	        = NULL
+					, @sMensaje			    = ''
+					, @sDetailList		    = ''
+					, @sDetailListEnc	    = ''
+					, @nColor			    = 1
+					, @sDestinatarios	    = ''
+                    , @sCopiaDestinatario   = ''
 		
-			SELECT	@sDestinatarios = Destinatarios
-			FROM	@tUbicacionesEspejo
-			WHERE	ClaUbicacion = @pnUbicacionEspejo
+			SELECT	@sDestinatarios     = Destinatarios,
+               @sCopiaDestinatario = CopiaDestinatarios
+			FROM	@tUbicacionesEstimacion
+			WHERE	ClaUbicacion = @nUbicacionEspejo
 		
-			SELECT	@pnConsecutivo = MIN( Consecutivo )
+			SELECT	@nConsecutivo = MIN( Consecutivo )
 			FROM	@tFabricaciones
-			WHERE   Ubicacion = @pnUbicacionEspejo
+			WHERE   Ubicacion = @nUbicacionEspejo
 
 
-			WHILE	ISNULL( @pnConsecutivo,0 ) != 0
+			WHILE	ISNULL( @nConsecutivo,0 ) != 0
 			BEGIN
-				SELECT	@nTUbicacion		= ISNULL(CONVERT(VARCHAR(10), Ubicacion), ''), 
-						@sTProyecto			= ISNULL(DescripcionProyecto, ''), 
-						@nTFabricacionVentas = ISNULL(CONVERT(VARCHAR(15), FabriacionOriginal), ''), 
-						@nTFabricacionEspejo = ISNULL(CONVERT(VARCHAR(15), FabricacionEspejo), ''), 
-						@nTPartidas			= ISNULL(CONVERT(VARCHAR(10), Partidas), '')
+				SELECT	@nTUbicacion		    = ISNULL(CONVERT(VARCHAR(10), Ubicacion), ''), 
+						@sTProyecto			    = ISNULL(DescripcionProyecto, ''), 
+						@nTFabricacionVentas    = ISNULL(CONVERT(VARCHAR(15), FabriacionOriginal), ''), 
+						@nTFabricacionEspejo    = ISNULL(CONVERT(VARCHAR(15), FabricacionEspejo), ''), 
+						@nTPartidas			    = ISNULL(CONVERT(VARCHAR(10), Partidas), '')
 				FROM	@tFabricaciones
-				WHERE	Ubicacion = @pnUbicacionEspejo
-				AND     Consecutivo = @pnConsecutivo	
+				WHERE	Ubicacion = @nUbicacionEspejo
+				AND     Consecutivo = @nConsecutivo	
 
 				IF @pnDebug = 1
-					SELECT	  @pnUbicacionEspejo AS '@tUbicacionesEspejo', @pnConsecutivo AS '@pnConsecutivo',@nTUbicacion AS '@nTUbicacion', @sTProyecto AS '@sTProyecto', @nTFabricacionVentas AS '@nTFabricacionVentas'
+					SELECT	  @nUbicacionEspejo AS '@tUbicacionesEstimacion', @nConsecutivo AS '@nConsecutivo',@nTUbicacion AS '@nTUbicacion', @sTProyecto AS '@sTProyecto', @nTFabricacionVentas AS '@nTFabricacionVentas'
 							, @nTFabricacionEspejo AS '@nTFabricacionEspejo', @nTPartidas AS '@nTPartidas'			
 
 				IF(@nColor % 2) = 0
@@ -347,20 +351,20 @@ BEGIN
 									'<td style="text-align:center">' + ISNULL(RTRIM(LTRIM(@nTPartidas)), '') + '</td>' + 
 									'</tr>'
 
-				SELECT	@pnConsecutivo = MIN( Consecutivo )
+				SELECT	@nConsecutivo = MIN( Consecutivo )
 				FROM	@tFabricaciones
-				WHERE	Ubicacion = @pnUbicacionEspejo
-				AND     Consecutivo > @pnConsecutivo	
+				WHERE	Ubicacion = @nUbicacionEspejo
+				AND     Consecutivo > @nConsecutivo	
 
 				SELECT @nColor = @nColor + 1;
-			END	-- FIN WHILE @pnConsecutivo
+			END	-- FIN WHILE @nConsecutivo
 
 			SELECT @sMensaje =  @sHeaderMsg + @sLink + @sHeaderList + @sDetailList + @sTableTagClose + @sLink2 + '</body></html>'
 
 			IF @pnDebug = 1
 			BEGIN
 				SELECT	@sDestinatarios AS '@sDestinatarios', @sMensaje AS '@sMensaje'
-				SET		@sDestinatarios = 'josmor@deacero.com;hvalle@deacero.com'  
+				SET		@sDestinatarios = 'josmor@deacero.com;hvalle@deacero.com;dcabrerah@deacero.com'  
 			END
 
 			EXEC msdb.dbo.sp_send_dbmail 
@@ -373,11 +377,10 @@ BEGIN
 					@importance				= 'HIGH',
 					@exclude_query_output	= 1;
 
-
-			SELECT	@pnUbicacionEspejo = MIN(ClaUbicacion)
-			FROM	@tUbicacionesEspejo
-			WHERE	ClaUbicacion > @pnUbicacionEspejo
-		END -- FIN WHILE @pnUbicacionEspejo
+			SELECT	@nUbicacionEspejo = MIN(ClaUbicacion)
+			FROM	@tUbicacionesEstimacion
+			WHERE	ClaUbicacion > @nUbicacionEspejo
+		END -- FIN WHILE @nUbicacionEspejo
 	END -- FIN EXISTS
 	
 	SET NOCOUNT OFF

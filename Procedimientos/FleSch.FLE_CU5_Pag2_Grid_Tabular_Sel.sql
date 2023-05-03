@@ -1,4 +1,8 @@
-CREATE PROCEDURE FleSch.FLE_CU5_Pag2_Grid_Tabular_Sel            
+USE Operacion
+GO
+--EXEC SP_HELPTEXT 'FleSch.FLE_CU5_Pag2_Grid_Tabular_Sel'
+GO
+ALTER PROCEDURE FleSch.FLE_CU5_Pag2_Grid_Tabular_Sel            
  @pnClaUbicacion INT,            
  @pnIdTabular INT,            
  @pnNumViaje INT,            
@@ -37,20 +41,41 @@ BEGIN
            
            
   DECLARE @sconexion VARCHAR (MAX),             
-    @sComando  NVARCHAR(MAX),            
-    @nClaSistema INT,            
-    @nClaSistemaPol INT            
+    @sComando  NVARCHAR(MAX)          
+    --@nClaSistema INT,            
+    --@nClaSistemaPol INT            
               
     DECLARE @cup int          
               
-  SET  @nClaSistema = FleSch.FleObtenerClaSistemaFletesFn()              
+	--SET  @nClaSistema = [FleSch].[FleObtenerClaSistemaFletesFn]()              
+
+	DECLARE @sClaveServicio VARCHAR(400)
+
+	SELECT	@sClaveServicio = sValor1
+	FROM	TiCatalogo.dbo.TiCatConfiguracionVw
+	WHERE	ClaUbicacion	= @pnClaUbicacion 
+	AND		ClaSistema		= 127 
+	AND		ClaConfiguracion = 1271229
+
+	CREATE TABLE #TmpClaveSerivio(
+		ID					INT IDENTITY(1,1),
+		ClaveServicio		INT
+	)
+	
+	IF ISNULL(@sClaveServicio,'') <> ''
+	BEGIN
+		INSERT INTO #TmpClaveSerivio 
+		SELECT DISTINCT LTRIM(RTRIM(string))
+		FROM FleSch.FleUtiSplitStringFn(@sClaveServicio, ',')
+	END	
+
               
       /*GCC 15MAr16        
   SELECT @nClaSistemaPol = nValor1 FROM FleSch.FleTiCatConfiguracionVw            
   WHERE ClaUbicacion = @pnClaUbicacion AND ClaConfiguracion = 211            
   */        
               
---  SELECT  @sconexion = FleSch.FleObtieneConexionRemotaFn(@pnClaUbicacion, @nClaSistemaPol, 'PolCTraTramiteVw' )            
+--  SELECT  @sconexion = [FleSch].[FleObtieneConexionRemotaFn](@pnClaUbicacion, @nClaSistemaPol, 'PolCTraTramiteVw' )            
               
     /*          
   si se especifica transportista, sacar el cup para obtener los dos trasportistas           
@@ -222,7 +247,7 @@ BEGIN
    ,t0.ClaCiudadDestino AS ClaCiudadDestino            
    ,t0.ClaZipCodeOrigen AS ClaZipCodeOrigen            
    ,t0.ClaZipCodeDestino AS ClaZipCodeDestino       
-   ,PODDigital =case FleSch.FlePODDigitalPendienteFn(t0.ClaUbicacion,t0.IdTabular)          
+   ,PODDigital =case [FleSch].[FlePODDigitalPendienteFn](t0.ClaUbicacion,t0.IdTabular)          
          when 2 then 'POD Faltante'          
          when 1 then 'POD Completo'          
          else ''          
@@ -333,6 +358,7 @@ BEGIN
      ,t5.ClaCup as ClaCupG      
      ,t0.FechaTabular as  FechaTabularG      
     ,isnull(t0.EnviadoCXP ,0) as EnviadoCXPG      
+	,PesoAceroFisico = (ISNULL(H.KgCubicados,H2.KgCubicados)) / 1000.00
  FROM FLESch.FLETraTabularVw t0 WITH(NOLOCK)            
  LEFT JOIN FlESch.FLECatTipoTabularVw t1 WITH(NOLOCK) ON t0.ClaUbicacion = t1.ClaUbicacion AND t0.ClaTipoTabular = t1.ClaTipoTabular            
  LEFT JOIN FlESch.FLECatTipoBoletaVw t2 WITH(NOLOCK) ON t0.ClaUbicacion = t2.ClaUbicacion AND t0.ClaTipoBoleta = t2.ClaTipoBoleta            
@@ -349,49 +375,66 @@ BEGIN
  LEFT JOIN FleSch.FleTraguia AS guia WITH(NOLOCK)            
      ON guia.ClaUbicacion = t0.ClaUbicacion            
      AND guia.NumGuia  = t0.NumGuia            
-     AND guia.Clatransportista = t0.Clatransportista            
-           
+     AND guia.Clatransportista = t0.Clatransportista   
+	 LEFT JOIN (
+		SELECT	NumViaje = CONVERT(VARCHAR(50),fac.NumViaje),
+				KgCubicados = SUM(b.KgCubicados)
+		FROM	FleSch.FleTraViajeFactura			fac		WITH (NOLOCK)
+		INNER JOIN FleSch.FleTraViajeFacturaDet b
+		ON		fac.ClaUbicacion	= b.ClaUbicacion
+		AND		fac.NumFactura		= b.NumFactura
+		INNER JOIN FleSch.FleArtCatArticuloVw c
+		ON		b.ClaArticulo		= c.ClaArticulo
+		AND		C.ClaTipoInventario = 1
+		INNER JOIN #TmpClaveSerivio serv
+		ON		c.ClaFamilia <> serv.ClaveServicio
+		WHERE	fac.ClaUbicacion = @pnClaUbicacion
+		GROUP BY fac.NumViaje
+	)	H ON	t0.ClaTipoTabular = 1 
+		AND		t0.Referencia1	= H.NumViaje 
+	LEFT JOIN (
+		SELECT	NumViaje = CONVERT(VARCHAR(50),ent.NumViaje),	
+				KgCubicados = SUM(b.KgCubicados)
+		FROM	FleSch.FleTraViajeEntsal			ent		WITH (NOLOCK)
+		LEFT JOIN FleSch.FleTraViajeEntsalDet b
+		ON		ent.ClaUbicacion	= b.ClaUbicacion
+		AND		ent.NumEntsal		= b.NumEntsal
+		LEFT JOIN FleSch.FleArtCatArticuloVw c
+		ON		b.ClaArticulo		= c.ClaArticulo
+		AND		C.ClaTipoInventario = 1	
+		INNER JOIN #TmpClaveSerivio serv
+		ON		c.ClaFamilia <> serv.ClaveServicio
+		WHERE	ent.ClaUbicacion = @pnClaUbicacion
+		GROUP BY CONVERT(VARCHAR(50),ent.NumViaje)
+	)	H2 ON	t0.ClaTipoTabular = 1 
+		AND		t0.Referencia1 = H2.NumViaje 
  LEFT JOIN FleSch.FleTraconcentrado AS concentrado WITH(NOLOCK)            
      ON concentrado.IdConcentrado  = guia.IdConcentrado            
      AND concentrado.ClaUbicacion  = guia.ClaUbicacion        
-           
-           
-            
   left Join FleCatEstatusConcentradoVw AS Estatus WITH(NOLOCK)      
   ON Estatus.ClaEstatusConcentrado = concentrado.ClaEstatusConcentrado       
-          
-           
  LEFT JOIN FleSch.FleTratramite AS Tramite WITH(NOLOCK)            
      ON Tramite.IdConcentrado  = guia.IdConcentrado            
      AND Tramite.ClaUbicacion  = guia.ClaUbicacion             
-           
-           
  LEFT JOIN FleSch.FleCXPTraTabularVw as CxPTabular        
  ON CxPTabular.ClaUbicacion = t0.ClaUbicacion        
  AND CxPTabular.IdTabular = t0.IdTabular        
-      
  LEFT JOIN FleSch.FleCXPTraViajeVw as CxPViaje        
  ON CxPViaje.ClaUbicacion = t0.ClaUbicacion        
  AND CONVERT(VARCHAR, CxPViaje.IdViaje) = t0.Referencia1      
  AND CxPViaje.ClaSistema = 52      
-      
  LEFT JOIN FleSch.FleCXPTraViajeVw as CxPBoleta        
  ON CxPBoleta.ClaUbicacion = t0.ClaUbicacion        
  AND CONVERT(VARCHAR, CxPBoleta.IdViaje) = t0.Referencia1      
  AND CxPBoleta.ClaSistema = 33      
-             
    /*gcc 15Mar16        
  LEFT JOIN #PolCTraTramiteVw as poltramite WITH(NOLOCK)            
     on poltramite.idfoliotramitelocal = tramite.folioTramite          
    AND poltramite.ClaUbicacion  = Tramite.ClaUbicacion             
    */        
-           
- LEFT JOIN FleSch.FleTraConvenioCen CC WITH (NOLOCK) ON  CC.IdConvenioCen = t0.IdConvenio AND CC.NumVersioncen = t0.NumVersionConvenio AND CC.FechaBaja IS NULL            
-         
+ LEFT JOIN FleSch.FleTraConvenioCen CC WITH (NOLOCK) ON  CC.IdConvenioCen = t0.IdConvenio AND CC.NumVersioncen = t0.NumVersionConvenio AND CC.FechaBaja IS NULL                     
  --LEFT JOIN flesch.flereltransportistacentransportistaVW T13 WITH(NOLOCK)         
  --ON t13.ClaUbicacion = t5.ClaUbicacion AND (T13.ClaTransportistaCen =  T5.ClaTransportista or T13.ClaTransportista =  T5.ClaTransportista )        
-         
-             
  WHERE  ( @pnEsNinguno = 1            
  AND  (@pnClaUbicacion IS NULL OR t0.ClaUbicacion = @pnClaUbicacion)            
  AND  (@pnClaTipoTabular IS NULL OR t0.ClaTipoTabular = @pnClaTipoTabular)            
@@ -406,24 +449,24 @@ BEGIN
  AND  (@pnClaEstatusTabular IS NULL OR t0.ClaEstatusTabular = @pnClaEstatusTabular)             
  AND  (@pnClaTipoConvenio IS NULL OR t11.ClaTipoConvenio = @pnClaTipoConvenio)             
  AND  t0.FechaTabular >= @ptFechaInicial            
- AND  t0.FechaTabular < DATEADD(dd,1,@ptFechaFinal) )             
+ AND  t0.FechaTabular < DATEADD(dd,1,@ptFechaFinal) 
+ )             
  OR     (             
    ( (@pnEsNinguno = 0 AND (@pnEsPorTabular = 1 AND (@pnIdTabular IS NULL OR t0.IdTabular = @pnIdTabular)) )            
  OR      (@pnEsNinguno = 0 AND (@pnEsPorFolio = 1 AND (@pnIdFolio IS NULL OR concentrado.IdFolio = @pnIdFolio)) )            
  OR      (@pnEsNinguno = 0 AND (@pnEsPorViaje = 1  AND t0.ClaTipoTabular = 1 AND (@pnNumViaje IS NULL OR t0.Referencia1 = CONVERT(VARCHAR(200), @pnNumViaje) )) )             
  OR      (@pnEsNinguno = 0 AND (@pnEsPorBoleta = 1 AND t0.ClaTipoTabular = 2 AND (t0.Referencia1 LIKE '%'+LTRIM(RTRIM(ISNULL(@psNumBoleta,'')))+'%')) )            
- OR      (@pnEsNinguno = 0 AND (@pnEsPorPedido = 1 AND (@pnNumPedido IS NULL OR t0.IdTabular IN (SELECT IdTabular FROM FLESch.FLETraTabularDet WITH(NOLOCK) WHERE ClaUbicacion = @pnClaUbicacion AND ClaPedido = @pnNumPedido GROUP BY IdTabular)))  )        
+ OR      (@pnEsNinguno = 0 AND (@pnEsPorPedido = 1 AND (@pnNumPedido IS NULL OR t0.IdTabular IN (SELECT IdTabular FROM FLESch.FLETraTabularDet WITH(NOLOCK) WHERE ClaUbicacion = @pnClaUbicacion AND ClaPedido = @pnNumPedido GROUP BY IdTabular)))  )        
 
 
-  
-    
  OR      (@pnEsNinguno = 0 AND (@pnEsPorFactura = 1 AND (@psNumFactura IS NULL OR t0.NumGuia = @psNumFactura   )) )             
    )            
  and (@pnClaUbicacion IS NULL OR t0.ClaUbicacion = @pnClaUbicacion)             
-             
  )             
  --OR  (@pnEsNinguno = 0 AND (@pnEsPorFactura = 1 AND (@psNumFactura IS NULL OR t0.Referencia1  IN (SELECT CONVERT(VARCHAR(200), a.NumViaje) FROM FLESch.FLETraViajeVw a            
  --                  LEFT JOIN FLESch.FleTraViajeFacturaVw b ON a.ClaUbicacion = b.ClaUbicacion AND a.NumViaje = b.NumViaje             
  --                  WHERE b.NumFactura = @psNumFactura))) )            
+
+
  SET NOCOUNT OFF            
 END

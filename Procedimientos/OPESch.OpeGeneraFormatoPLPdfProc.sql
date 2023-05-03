@@ -1,5 +1,7 @@
 USE Operacion
 GO
+-- EXEC SP_HELPTEXT 'OPESch.OpeGeneraFormatoPLPdfProc'
+GO
 ALTER PROCEDURE OPESch.OpeGeneraFormatoPLPdfProc
  	  @pnClaUbicacion	INT
 	, @pnIdViaje		INT

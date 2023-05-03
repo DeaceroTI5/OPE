@@ -1,17 +1,47 @@
+--USE Operacion
+--GO
+
+--SELECT	* FROM OpeSch.OpeTraContratoMaquila WITH(NOLOCK)
+--WHERE	ClaUbicacion = 12 
+--AND		IdContrato = 71
+
+--SELECT	* 
+--FROM	Opesch.OpeTraOrdenMaquilaDet WITH(NOLOCK)
+--WHERE	ClaUbicacion = 12 
+--AND		IdContratoMaquila IS NULL
+--ORDER BY FechaUltimaMod DESC
+
+---------------------------------
 USE Operacion
 GO
 
+SELECT * FROM OpeSch.OpetraboletaHisVw WHERE IdBoleta = 230540014
+
+-- REVISION POR CONTRATO
+SELECT	* FROM OpeSch.OpeTraOrdenMaquilaDet a WITH(NOLOCK)
+--LEFT JOIN OpeSch.OpeArtCatArticuloVw b ON 
+WHERE	ClaUbicacion = 326 
+AND		IdOrdenMaquila = 60
+
+-- REVISION POR CONTRATO
 SELECT	* FROM OpeSch.OpeTraContratoMaquila WITH(NOLOCK)
-WHERE	ClaUbicacion = 12 
-AND		IdContrato = 71
+WHERE	ClaUbicacion = 326 
+AND		IdContrato IN (91, 97, 99)
 
-SELECT	* 
-FROM	Opesch.OpeTraOrdenMaquilaDet WITH(NOLOCK)
-WHERE	ClaUbicacion = 12 
-AND		IdContratoMaquila IS NULL
-ORDER BY FechaUltimaMod DESC
+SELECT	b.BajaLogica, b.ClaveArticulo,b.NomArticulo, * 
+FROM	Opesch.OpeTraOrdenMaquilaDet a WITH(NOLOCK)
+LEFT JOIN OpeSch.OpeArtCatArticuloVw b
+ON		a.ClaTipoInventario = b.ClaTipoInventario
+AND		a.ClaArticulo = b.ClaArticulo
+WHERE	ClaUbicacion = 326
+AND		IdOrdenMaquila = 60
 
 
+	select * from OpeSch.OpeTraArticuloComposicion where claubicacion = 326 and claarticulo in (250590, 524319, 524316)
+	select * from OpeSch.OpeTraArticuloComposicionDet  where claubicacion = 326 and idarticulocomposicion IN (30, 34, 32)
+
+	SELECT * FROM OpeSch.OpeArtCatArticuloVw WHERE ClaveArticulo = '14901'
+	SELECT * FROM OpeSch.OpeArtCatArticuloVw WHERE ClaArticulo = 14901
 
 --SELECT * FROM OpeSch.OpeTraRecepTraspasoVw WHERE IdSol
 --SELECT * FROM OpeSch.OpeTraRecepTraspasoBoletaVw

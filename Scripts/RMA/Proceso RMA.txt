@@ -1,0 +1,20 @@
+[13/04 04:23 p. m.] HUGO ALBERTO VALLE SOSA
+
+
+
+Hola Víctor, te comento que existen diferentes sistemas para OPE (un sistema para alambres y otro sistema para CDIS) en el caso de WWR se implementó un sistema hibrido por lo que el proceso es algo diferente a lo que has trabajado. Por nuestra parte estamos revisando quien nos puede apoyar con la capacitación o en su caso con la documentación para saber el flujo correcto que se debe realizar.
+
+Básicamente el proceso a realizar para este caso de OPE  son varios pasos:
+
+1- Darle entrada desde la báscula
+
+2- Finalizar Recolección desde la opción "Descargar Recolección" (botón Acomodo)
+
+3- Darle Salida en báscula
+
+4- Reclasificación.
+
+
+Sobre la capacitación del proceso puedes contactar a Luis Peraza Martínez para solicitar apoyo, cualquier otra cosa puedes comentarme y con gusto te apoyamos
+
+

@@ -1,3 +1,6 @@
+USE Operacion
+GO
+-- 'OpeSch.OpeScriptRevisionPesajeBasculaProc'
 CREATE PROCEDURE OpeSch.OpeScriptRevisionPesajeBasculaProc
 	  @pnClaUbicacion		INT = NULL
 	, @pnClaUbicacionOrigen	INT = NULL
