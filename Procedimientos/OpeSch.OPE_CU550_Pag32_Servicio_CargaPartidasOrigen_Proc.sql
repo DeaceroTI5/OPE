@@ -2,7 +2,7 @@ USE Operacion
 GO
 -- EXEC SP_HELPTEXT 'OpeSch.OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc'
 GO
-ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc
+CREATE PROCEDURE OpeSch.OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc
     @pnClaSolicitud             INT, --Clave de Solicitud de Traspaso Manual 
     @pnClaPedidoOrigen          INT,
     @pnClaTipoTraspaso          INT,
@@ -15,8 +15,8 @@ BEGIN
 	SET NOCOUNT ON
 
 	--IF @@SERVERNAME = 'SRVDBDES01\ITKQA' SELECT @pnDebug = 1
-	IF @pnDebug = 1 
-		SELECT 'OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc'
+	--IF @pnDebug = 1 
+	--	SELECT 'OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc'
 	
 	SELECT @psMensajeTraspaso = ''
 
@@ -35,6 +35,8 @@ BEGIN
 		, EsMultiploCPO			INT
 		, ClaProyecto			INT
 		, ClaEstatusDet			INT
+		, BajaArticulo			INT
+		, ClaveArticulo			VARCHAR(20)
 	)
 
 	DECLARE @tbOtrasSolicitudes TABLE
@@ -58,12 +60,15 @@ BEGIN
 			, @smsj					VARCHAR(300)
 			, @nRenglon				INT = 0
 			, @nCont				INT
-
+			, @nArticulosBaja		INT = 0
+			, @sClaves				VARCHAR(240)
+			, @sClaveArticulo		VARCHAR(300)
+			, @sMsjError			VARCHAR(360)
 
 
 
     IF ( EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud AND ClaPedidoOrigen IS NOT NULL AND ClaEstatusSolicitud IN (0) ) 
-        AND @pnClaSolicitud > 0 AND @pnClaPedidoOrigen > 0 /*AND @pnClaTipoTraspaso IN (3,4)*/ )
+        AND @pnClaSolicitud > 0 AND @pnClaPedidoOrigen > 0 AND @pnClaTipoTraspaso IN (3,4) )
     BEGIN
 		---- No ingresar los registros que superan la cantidad disponible (Suministro directo) 
 	--	IF @pnClaPedidoOrigen IS NOT NULL AND @pnClaTipoTraspaso IN (3,4)
@@ -108,6 +113,8 @@ BEGIN
 					, EsMultiploCPO
 					, ClaProyecto
 					, ClaEstatusDet
+					, BajaArticulo
+					, ClaveArticulo
 				)
 				 SELECT  DISTINCT
 						 FabricacionCPO      = a.IdFabricacion,
@@ -120,12 +127,14 @@ BEGIN
 						 CantidadMinAgrupCPO = ISNULL( i.CantidadMinAgrup,0.00 ),
 						 EsMultiploCPO       = ISNULL( i.Multiplo,0 ),
 						 ClaProyecto		= e.ClaProyecto,
-						 ClaEstatusDet		= ISNULL(b.ClaEstatus,0)
+						 ClaEstatusDet		= ISNULL(b.ClaEstatus,0),
+						 BajaArticulo		= ISNULL(c.BajaLogica,0),
+						 c.ClaveArticulo
 				 FROM    OpeSch.OpeTraFabricacionVw a WITH(NOLOCK)  
 				 INNER JOIN  OpeSch.OpeTraFabricacionDetVw b WITH(NOLOCK)  
 					 ON  a.IdFabricacion = b.IdFabricacion
 				 INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
-					 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1
+					 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1 --AND ISNULL(c.BajaLogica,0) =  0
 				 INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
 					 ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
 				 INNER JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw e WITH(NOLOCK)  
@@ -150,6 +159,8 @@ BEGIN
 					, EsMultiploCPO
 					, ClaProyecto
 					, ClaEstatusDet
+					, BajaArticulo
+					, ClaveArticulo
 				)
 				 SELECT  DISTINCT
 						 FabricacionCPO      = a.IdFabricacion,
@@ -163,12 +174,14 @@ BEGIN
 						 EsMultiploCPO       = ISNULL( i.Multiplo,0 ),
 						 ClaProyecto		=  ISNULL(e.ClaProyecto,a.ClaProyecto),
 						 ClaEstatusDet		= CASE WHEN ISNULL(b.ClaEstatusFabricacion,0) IN (4,5)
-												THEN 1 ELSE 0 END
+												THEN 1 ELSE 0 END,
+						 BajaArticulo		= ISNULL(c.BajaLogica,0),
+						 c.ClaveArticulo
 				 FROM    DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion a WITH(NOLOCK)  
 				 INNER JOIN  DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDetVw b WITH(NOLOCK)  
 					 ON  a.IdFabricacion = b.IdFabricacion
 				 INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
-					 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1
+					 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1 --AND ISNULL(c.BajaLogica,0) =  0
 				 INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
 					 ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
 				 LEFT JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw e WITH(NOLOCK)  
@@ -192,6 +205,8 @@ BEGIN
 				, EsMultiploCPO
 				, ClaProyecto
 				, ClaEstatusDet
+				, BajaArticulo
+				, ClaveArticulo
 			)
 			 SELECT  DISTINCT
 					 FabricacionCPO      = a.IdFabricacion,
@@ -205,12 +220,14 @@ BEGIN
 					 EsMultiploCPO       = ISNULL( i.Multiplo,0 ),
 					 ClaProyecto		=  ISNULL(e.ClaProyecto,a.ClaProyecto),
 					 ClaEstatusDet		= CASE WHEN ISNULL(b.ClaEstatusFabricacion,0) IN (4,5)
-											THEN 1 ELSE 0 END
+											THEN 1 ELSE 0 END,
+					 BajaArticulo		= ISNULL(c.BajaLogica,0),
+					 c.ClaveArticulo
 			 FROM    DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion a WITH(NOLOCK)  
 			 INNER JOIN  DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDetVw b WITH(NOLOCK)  
 				 ON  a.IdFabricacion = b.IdFabricacion
 			 INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
-				 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1
+				 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1 --AND ISNULL(c.BajaLogica,0) =  0
 			 INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
 				 ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
 			 LEFT JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw e WITH(NOLOCK)  
@@ -219,6 +236,55 @@ BEGIN
 				 ON  b.ClaArticulo = i.ClaArticulo
 			 WHERE  a.IdFabricacion = @pnClaPedidoOrigen
 		END
+
+		--IF @@SERVERNAME = 'SRVDBDES01\ITKQA' -- Pruebas_Hv (BORRAR)
+		--BEGIN
+		--	UPDATE @tbCargaPartidasOrigen
+		--	SET		BajaArticulo = 1
+		--	--WHERE	ClaveArticulo = '30773'
+		--END
+
+		-- Se reporta por el equipo de Calidad que se generó un Pedido de Ingetek con un Articulo dado de baja
+		SELECT	@nArticulosBaja = COUNT(1) 
+		FROM	@tbCargaPartidasOrigen 
+		WHERE	BajaArticulo = 1
+
+		IF ISNULL(@nArticulosBaja,0) > 0
+		BEGIN
+			SET @nArticulosBaja = ISNULL(@nArticulosBaja,0)
+		
+			IF @nArticulosBaja > 1
+			BEGIN 
+				SELECT @sClaves = 
+				STUFF(
+					  (
+      					SELECT ', ' + RTRIM(LTRIM(a.ClaveArticulo)) 
+						FROM @tbCargaPartidasOrigen a
+						WHERE	a.BajaArticulo = 1
+						GROUP BY a.ClaveArticulo
+						FOR XML PATH ('')
+					  )
+				, 1, 1, '')
+
+				SELECT @sMsjError = 'Se detectaron que las siguientes claves están <b>ináctivas:</b> '+ ISNULL(@sClaves,'')+'.'
+			END
+			ELSE
+			BEGIN
+				SELECT @sClaveArticulo = a.ClaveArticulo + ' - ' + b.NomArticulo
+				FROM	@tbCargaPartidasOrigen a
+				INNER JOIN OpeSch.ArtCatArticuloVw b
+				ON		a.ClaProductoCPO = b.ClaArticulo
+				WHERE	a.BajaArticulo = 1
+
+				SELECT @sMsjError = 'Se ha detectado que el producto: '+ISNULL(@sClaveArticulo,'')+' se encuentra <b>ináctivo.</b>'
+			END
+
+			RAISERROR(@sMsjError,16,1)
+			RETURN
+		END
+		-----------------------------
+
+
 
 		IF ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
 		BEGIN
@@ -252,13 +318,6 @@ BEGIN
 
 		IF @pnDebug = 1
 			SELECT '' AS '@tbCargaPartidasOrigen', * FROM @tbCargaPartidasOrigen
-
-		IF @@SERVERNAME = 'SRVDBDES01\ITKQA'
-		BEGIN
-			UPDATE a
-			SET ClaEstatusDet = 1
-			FROM @tbCargaPartidasOrigen  a
-		END
 
 		---- /* Mensaje Traspaso
 		--------------------------------------------------------------------------

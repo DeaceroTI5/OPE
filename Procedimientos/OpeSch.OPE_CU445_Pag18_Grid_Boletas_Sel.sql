@@ -1,4 +1,4 @@
-CREATE  PROCEDURE OpeSch.OPE_CU445_Pag18_Grid_Boletas_Sel
+ALTER  PROCEDURE OpeSch.OPE_CU445_Pag18_Grid_Boletas_Sel
 @pnClaUbicacion INT
 ,@pnClaMaquilador INT
 ,@pnIdRecepFacturaMaquilador INT = null
@@ -70,6 +70,7 @@ SET NOCOUNT ON
 		AND		rec.ClaUbicacion = @pnClaUbicacion
 		AND		contrato.ClaMaquilador = @pnClaMaquilador
 		AND		(r.IdRecepFacturaMaquilador IS NULL OR r.IdRecepFacturaMaquilador = @pnIdRecepFacturaMaquilador)
+		AND		bol.ClaEstatusPlaca	NOT IN (3,4)	-- No mostrar boletas canceladas
 		) t 
 	LEFT    JOIN OPESCH.OpeTraBoletaHisVw  bol (nolock) ON t.IdBoleta = bol.IdBoleta AND bol.ClaUbicacion = @pnClaUbicacion
 	GROUP BY t.IdRecepOrdenMaquila, t.IdBoleta, t.IdRecepFacturaMaquilador, bol.FechaHoraSalida

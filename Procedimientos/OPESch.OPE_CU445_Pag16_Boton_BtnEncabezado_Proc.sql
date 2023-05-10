@@ -1,4 +1,4 @@
-CREATE PROCEDURE OPESch.OPE_CU445_Pag16_Boton_BtnEncabezado_Proc
+ALTER PROCEDURE OPESch.OPE_CU445_Pag16_Boton_BtnEncabezado_Proc
  @pnClaUbicacion		INT
 ,@pnClaMaquilador		INT
 ,@pnIdRecepOrdenMaquila	INT =null
@@ -14,7 +14,37 @@ CREATE PROCEDURE OPESch.OPE_CU445_Pag16_Boton_BtnEncabezado_Proc
 AS 
 BEGIN
 SET NOCOUNT ON
- 
+	
+	DECLARE @nClaEstatusPlaca INT
+
+	IF EXISTS (
+		SELECT	1 
+		FROM	OpeSch.OpeTraBoletaVw 
+		WHERE	ClaUbicacion = @pnClaUbicacion 
+		AND		IdBoleta = @pnIdBoletaODS
+	)
+	BEGIN
+		SELECT	@nClaEstatusPlaca = ClaEstatusPlaca 
+		FROM	OpeSch.OpeTraBoletaVw 
+		WHERE	ClaUbicacion = @pnClaUbicacion 
+		AND		IdBoleta = @pnIdBoletaODS
+	END
+	ELSE
+	BEGIN
+		SELECT	@nClaEstatusPlaca = ClaEstatusPlaca 
+		FROM	OpeSch.OpeTraBoletaHisVw 
+		WHERE	ClaUbicacion = @pnClaUbicacion 
+		AND		IdBoleta = @pnIdBoletaODS
+	END
+
+	IF ISNULL(@nClaEstatusPlaca,0) IN (3,4)
+	BEGIN
+		DECLARE @sMsj VARCHAR(300)
+		SELECT @sMsj = 'La Boleta <b>'+CONVERT(VARCHAR(20),@pnIdBoletaODS)+'</b> se encuentra con estatus de Cancelada/Rechazada. Favor de Verificar.'
+
+		RAISERROR (@sMsj, 16,1)
+		RETURN
+	END
  
 IF  NOT EXISTS (SELECT * FROM tempdb.sys.objects WHERE name ='##tmp_ODM' AND type in (N'U'))
 	BEGIN
