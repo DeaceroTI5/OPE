@@ -1,3 +1,6 @@
+-- DEAITKNET04
+USE Operacion
+GO
 BEGIN TRAN
 
 	declare @p2 int

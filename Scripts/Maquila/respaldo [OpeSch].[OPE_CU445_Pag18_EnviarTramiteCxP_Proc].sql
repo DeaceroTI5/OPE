@@ -26,9 +26,11 @@ BEGIN
 SET NOCOUNT ON  
 SET XACT_ABORT ON
 
---set @pnEsDebug=1
-IF @pnEsDebug=1
-select '' as '[OpeSch].[OPE_CU445_Pag18_EnviarTramiteCxP_Proc]'
+IF @pnClaUsuarioMod = 100010318
+BEGIN
+	select '' as '[OpeSch].[OPE_CU445_Pag18_EnviarTramiteCxP_Proc]'
+	set @pnEsDebug=1
+END
 
  DECLARE @IdControlRecepcion INT  
    ,@IdControlRecepcionUnico uniqueidentifier  

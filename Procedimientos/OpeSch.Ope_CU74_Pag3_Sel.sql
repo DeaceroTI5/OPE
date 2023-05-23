@@ -1,11 +1,16 @@
-CREATE PROCEDURE  OpeSch.Ope_CU74_Pag3_Sel
+USE Operacion
+GO
+-- EXEC SP_HELPTEXT 'OpeSch.Ope_CU74_Pag3_Sel'
+GO
+ALTER PROCEDURE  OpeSch.Ope_CU74_Pag3_Sel
 	@pnIdPlanCarga		int,
 	@pnClaUbicacion		int			
 AS
 BEGIN 
 	
 	DECLARE @nEsTieneTransaccion	INT,
-			@sErrorMsg				varchar(800)		
+			@sErrorMsg				varchar(800)	,
+			@nEsOCPedCanc			TINYINT
 	
 	DECLARE --@nPorcSemaforo				NUMERIC(22,8),
 			@nTonsEmbarcadas			NUMERIC(22,8),
@@ -16,8 +21,12 @@ BEGIN
 			@nCapacidadTransporte		NUMERIC(22,8),
 			--@nCubicajeTransp			NUMERIC(22,8),
 			@sTonsEmbarcadasChar		VARCHAR(30),
-			@sTonsCubicadasChar			VARCHAR(30)
+			@sTonsCubicadasChar			VARCHAR(30) ,
+			@nIdJefeEmbarqCanc			INT 
 	
+	SET @nEsOCPedCanc = 0 
+	SET @nIdJefeEmbarqCanc = 0 
+
 	--SELECT @nPorcSemaforo = PorcentajeSemaforo 
 	--FROM PleSch.PleCfgPlaneacionEmbarque WITH(NOLOCK)
 	--WHERE ClaUbicacion = @pnClaUbicacion 
@@ -48,8 +57,28 @@ BEGIN
 			
 		SELECT	@sTonsEmbarcadasChar	= CONVERT(VARCHAR(30), @nTonsEmbarcadas),
 				@sTonsCubicadasChar		= CONVERT(VARCHAR(30), @nTonsCubicadas)
-			
+		
+		
+		SELECT	@nIdJefeEmbarqCanc = ClaJefeEmbarque
+		FROM	OPESch.OpeCatJefeEmbarqueVw WITH(NOLOCK) 
+		WHERE	ClaUbicacion = @pnClaUbicacion
+		  
 	
+		IF EXISTS ( SELECT 1 
+		FROM (		 
+	 			SELECT DISTINCT  D.IdFabricacion 
+				FROM	OpeSch.OpeTraPlanCargaDet D WITH(NOLOCK)
+				INNER JOIN OpeSch.OpeTraPlanCarga E WITH(NOLOCK) ON D.ClaUbicacion = E.ClaUbicacion AND D.IdPlanCarga = E.IdPlanCarga
+	 				WHERE	D.ClaUbicacion =   @pnClaUbicacion AND 
+					D.IdPlanCarga =   @pnIdPlanCarga   AND
+					E.ClaEstatusPlanCarga = 2 AND--PREFACTURADO
+					ISNULL(D.CantEmbarcada, 0)> 0    ) D
+			INNER JOIN   OpeSch.OpeTraFabricacionVw F WITH(NOLOCK) ON D.IdFabricacion = F.IdFabricacion  
+		HAVING  COUNT(DISTINCT D.IdFabricacion)  = 
+				SUM( CASE WHEN F.ClaEstatus = 3 THEN 1 ELSE 0 END )  )
+		SET @nEsOCPedCanc = 1 
+
+
 	--regresamos la información a la pantalla  
 
 		SELECT	--IdPlanCarga,
@@ -69,8 +98,10 @@ BEGIN
 				TokenAcomodo				=	'',
 				EsImprimirAut				=	0,
 				TokenNuevoPlan				=	'',
-				ClaTiempoObjetivo			=	TiempoObjetivo,
-				ClaEstatusPlanCarga			
+				ClaTiempoObjetivo			=	TiempoObjetivo, 
+				ClaEstatusPlanCarga			 ,
+				EsOCPedCanc					= @nEsOCPedCanc  ,
+				IdJefeEmbarqCanc			= @nIdJefeEmbarqCanc
 		FROM		OpeSch.OpeTraPlanCarga			AS preplan		WITH(NOLOCK)
 		LEFT JOIN	OpeSch.OpetiCatEstatusvw		AS st			WITH (NOLOCK)	ON	(st.ClaEstatus					= preplan.ClaEstatusPlanCarga
 																						AND st.claClasificacionEstatus	= 1270002)
@@ -103,6 +134,8 @@ BEGIN
 				EsImprimirAut				= 0,
 				TokenNuevoPlan				= NULL,
 				ClaTiempoObjetivo			= NULL,
-				ClaEstatusPlanCarga			= NULL
+				ClaEstatusPlanCarga			= NULL ,
+				EsOCPedCanc					= 0,
+				IdJefeEmbarqCanc			= @nIdJefeEmbarqCanc
 	END
-END	
+END
