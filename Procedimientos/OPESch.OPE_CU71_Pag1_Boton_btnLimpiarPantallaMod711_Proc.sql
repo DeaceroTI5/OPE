@@ -1,5 +1,9 @@
-CREATE PROCEDURE OPESch.OPE_CU71_Pag1_Boton_btnLimpiarPantallaMod711_Proc
-	@pnClaUbicacion INT 
+USE Operacion
+GO
+ALTER PROCEDURE OPESch.OPE_CU71_Pag1_Boton_btnLimpiarPantallaMod711_Proc
+	@pnClaUbicacion		INT
+	,@pnIdViajeMod711	INT = NULL
+	,@pnEsModal711		TINYINT = 0
 AS
 BEGIN
 	SET NOCOUNT ON	
@@ -12,7 +16,7 @@ BEGIN
 	DECLARE @nIdTabularMod711 INT
 	DECLARE @nPorcRealMod711 NUMERIC(13,2)
 	
-DECLARE @nPorcCubMod711 NUMERIC(13,2)
+	DECLARE @nPorcCubMod711 NUMERIC(13,2)
 	DECLARE @sMontacarguistaMod711 VARCHAR(100)
 	DECLARE @nClaMovEntSalMod711 INT
 	DECLARE @nClaFactura INT
@@ -22,6 +26,9 @@ DECLARE @nPorcCubMod711 NUMERIC(13,2)
 	DECLARE @nClaViaje INT
 	DECLARE @nClaFabricacion INT
 	DECLARE @nEsNacional INT
+
+	IF ISNULL(@pnEsModal711,0) = 1
+		SET @nIdViajeMod711 = @pnIdViajeMod711
 		
 	SELECT @nIdViajeMod711 AS IdViajeMod711,
 		@nIdBoletaMod711 AS IdBoletaMod711,
@@ -29,8 +36,7 @@ DECLARE @nPorcCubMod711 NUMERIC(13,2)
 		@nIdPlanCargaMod711 AS IdPlanCargaMod711,
 		@nEsPesajeParcialMod711 AS EsPesajeParcialMod711,
 		@nIdTabularMod711 AS IdTabularMod711,
-		@n
-PorcRealMod711 AS PorcRealMod711,
+		@nPorcRealMod711 AS PorcRealMod711,
 		@nPorcCubMod711 AS PorcCubMod711,
 		@sMontacarguistaMod711 AS MontacarguistaMod711,
 		@nClaMovEntSalMod711 AS ClaMovEntSalMod711,
