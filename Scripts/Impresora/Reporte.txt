@@ -1,0 +1,28 @@
+http://deawwrnet01/Reports/report/OPE/Reportes/OPE_CU70_Pag1_Rpt_CertificadoHou
+
+BEGIN TRAN JD
+    DECLARE     @pnClaUbicacion   INT,
+    @pnClaMotivoEntrada INT = 1,
+    @pnIdboleta INT = NULL,
+    @pnIdPlanCargaFactIDM INT = NULL,
+    @pnClaIdioma INT = 5,
+    @pnEsFacturacion INT = 1, /* 1-Facturación, 0-Bascula,3-solocertificados*/
+    @psNombrePcMod VARCHAR(64),
+    @pnIdOrdenEnvioIDM int = 0
+
+ 
+
+    SELECT @pnClaUbicacion=267,@pnClaMotivoEntrada=1,@pnIdboleta=NULL,@pnIdPlanCargaFactIDM=101,@pnClaIdioma=5,@pnEsFacturacion=1,@psNombrePcMod='100josmor',@pnIdOrdenEnvioIDM=0
+
+ 
+
+    EXEC OPESch.OPE_ImprimirSrvBack_Proc
+        @pnClaUbicacion = @pnClaUbicacion,
+        @pnClaMotivoEntrada =@pnClaMotivoEntrada,
+        @pnIdboleta = @pnIdboleta,
+        @pnIdPlanCargaFact = @pnIdPlanCargaFactIDM,
+        @pnClaIdioma = @pnClaIdioma,
+        @pnEsFacturacion = @pnEsFacturacion,
+        @psNombrePcMod = @psNombrePcMod,
+        @pnIdOrdenEnvio = @pnIdOrdenEnvioIDM
+ROLLBACK TRAN JD

@@ -1,11 +1,10 @@
-Text
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-CREATE PROCEDURE OpcSch.OpcEtiquetaZebraRolloIDProc
+ALTER PROCEDURE OpcSch.OpcEtiquetaZebraRolloIDProc
 	@pnNumVersion 		INT,
 	@pnClaUbicacion		INT,
 	@pnIdRolloEntradaZebra INT
 AS 
 BEGIN 
+	--exec OpcSch.OpcEtiquetaZebraRolloIDProc 1, 61, 13
 
 	SET  NOCOUNT  ON 
 	DECLARE	@nNumrollo	   			INT,
@@ -76,6 +75,8 @@ BEGIN
 	,@sPesoBruto			VARCHAR(50)
 	,@nPesoBruto			NUMERIC(22,0)
 	,@dFechaCaptura			DATETIME
+	,@sNombrePlantaEsp		VARCHAR(100)
+	,@sNombrePlantaIng		VARCHAR(100)
 
    	  
  
@@ -106,12 +107,20 @@ BEGIN
 	AND		ClaSistema = 246
 	AND		ClaConfiguracion = 	24618
 		
-	SELECT	@sEtiIndustrial = sValor1,
+	SELECT	--@sEtiIndustrial = sValor1,
 			@sLeyenda = sValor2
 	FROM	OpcSch.OpcTiCatConfiguracionVw 
 	WHERE	ClaUbicacion = @pnClaUbicacion
 	AND		ClaSistema = 246
 	AND		ClaConfiguracion = 	24622
+
+	SELECT	  @sNombrePlantaEsp	= sValor1
+			, @sNombrePlantaIng	= sValor2
+	FROM	OpcSch.OpcTiCatConfiguracionVw 
+	WHERE	ClaUbicacion = @pnClaUbicacion
+	AND		ClaSistema = 246
+	AND		ClaConfiguracion = 	246153
+
 	
 	SELECT	@sClaveRollo	= RTRIM(ClaveRollo),
 			@nNumrollo	=  IdRollo  ,
@@ -145,10 +154,11 @@ BEGIN
 		,@sEtiPesoN		= 'NET WEIGHT'
 		,@sEtiPesoB		= 'GROSS WEIGHT'
 		,@sEtiRollo		= 'REEL #'
-		,@sEtiCab		= 'CAB'
+		,@sEtiCab		= 'W.O.'	--'CAB'
 		,@sEtiOpm		= 'OPM'
 		,@sAprobCalidadIng = 'APPROVED BY QUALITY DEPARTMENT'
 		,@sAprobCalidadEsp = ''
+		,@sEtiIndustrial = @sNombrePlantaIng
 	END
 	ELSE
 	BEGIN
@@ -162,13 +172,17 @@ BEGIN
 		,@sEtiOpm		= 'OPM'
 		,@sAprobCalidadEsp = 'APROBADO POR CALIDAD'	
 		,@sAprobCalidadIng = ''
+		,@sEtiIndustrial = @sNombrePlantaEsp
 	END
 	
 	/*Modificación solicitada por Abel Rdz. y Omar España 05/03/2021 */
 	IF @pnClaUbicacion = 61 --AND @nClaArticulo IN (691113, 692066)
 	BEGIN
-		SELECT	 @sEtiOpm		= 'FECHA'
-				,@sValOpm		= CONVERT(VARCHAR(10),@dFechaCaptura,103)	
+		--SELECT	 @sEtiOpm		= 'FECHA'
+		--		,@sValOpm		= CONVERT(VARCHAR(10),@dFechaCaptura,103)
+		
+		SELECT	 @sEtiOpm		= CASE WHEN @nUnidadBase = 32 THEN 'DATE' ELSE 'FECHA' END
+				,@sValOpm		= CASE WHEN @nUnidadBase = 32 THEN CONVERT(VARCHAR(10),@dFechaCaptura,101) ELSE CONVERT(VARCHAR(10),@dFechaCaptura,103) END
 	END
 
 	--EXEC OpcSch.OpcSeparaDescripcionProc @sNomArt,  @sdesc_planta_seg1 output, @sdesc_planta_seg2 output,  @sdesc_planta_seg3 output,  @sdesc_planta_seg4 OUTPUT
