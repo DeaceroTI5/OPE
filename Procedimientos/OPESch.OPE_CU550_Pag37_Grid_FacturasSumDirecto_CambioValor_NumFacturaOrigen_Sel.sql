@@ -1,9 +1,6 @@
-USE Operacion
-GO
-	-- 'OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_CambioValor_NumFacturaOrigen_Sel'
-GO
 ALTER PROCEDURE OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_CambioValor_NumFacturaOrigen_Sel
-	  @psNumFacturaOrigen	VARCHAR(15) 
+	  @psNumFacturaOrigen	VARCHAR(15)
+	  ,@pnClaUbicacionOrigen INT = NULL
 AS
 BEGIN
 	SET NOCOUNT ON
@@ -11,25 +8,35 @@ BEGIN
 	DECLARE	  @sMensajeError		VARCHAR(1000) = ''
 			, @sNumFacturaOrigen	VARCHAR(15)
 			, @nClaUbicacionOrigen	INT = NULL
+			, @nClaUbicacionVentaOrigen INT
 			, @sNomUbicacionOrigen	VARCHAR(90)
 
 	SET @sNumFacturaOrigen = @psNumFacturaOrigen
 
-	SELECT	@nClaUbicacionOrigen	= ClaUbicacion
+	IF @pnClaUbicacionOrigen IS NULL
+	SELECT	@pnClaUbicacionOrigen	= ClaUbicacion
 	FROM	OpeSch.OpeVtaCTraFacturaVw
 	WHERE	IdFacturaAlfanumerico	= @psNumFacturaOrigen
 
-	IF @nClaUbicacionOrigen IS NULL
-		SELECT	@nClaUbicacionOrigen	= ClaUbicacion
+	IF @pnClaUbicacionOrigen IS NULL
+		SELECT	@nClaUbicacionVentaOrigen	= ClaUbicacion
 		FROM	DEAOFINET04.Operacion.AceSch.VtaCTraFacturaVw
 		WHERE	IdFacturaAlfanumerico	= @psNumFacturaOrigen
 
-	IF @nClaUbicacionOrigen IS NOT NULL
+	IF @nClaUbicacionVentaOrigen IS NOT NULL
 		SELECT	@sNomUbicacionOrigen = CONVERT(VARCHAR(10),a.ClaUbicacion) + ' - ' + a.NomUbicacion
+				,@nClaUbicacionOrigen = ClaUbicacion
 		FROM	OpeSch.OpeTiCatUbicacionVw a
-		WHERE	ClaUbicacion = @nClaUbicacionOrigen
-	ELSE 
-		SELECT	@sNomUbicacionOrigen = NULL
+		WHERE	ClaUbicacionVentas = @nClaUbicacionVentaOrigen
+	ELSE
+		IF @pnClaUbicacionOrigen IS NOT NULL
+			SELECT    @sNomUbicacionOrigen = CONVERT(VARCHAR(10),a.ClaUbicacion) + ' - ' + a.NomUbicacion
+					, @nClaUbicacionOrigen = ClaUbicacion
+			FROM    OpeSch.OpeTiCatUbicacionVw a
+			WHERE    ClaUbicacion = @pnClaUbicacionOrigen
+		ELSE
+			SELECT	@sNomUbicacionOrigen = NULL
+					,@nClaUbicacionOrigen = NULL
 
 	SELECT	  NumFacturaOrigen	 = @sNumFacturaOrigen
 			, ClaUbicacionOrigen = @nClaUbicacionOrigen
