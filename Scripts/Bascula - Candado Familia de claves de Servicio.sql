@@ -19,3 +19,6 @@ update OpeSch.OpeTiCatConfiguracionVw
     where ClaUbicacion = 329
     and ClaSistema = 127
     and ClaConfiguracion = 1271229
+
+
+SELECT * FROM OpeSch.OpeticatUbicacionVw WHERE ClaUbicacion = 329

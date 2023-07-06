@@ -1,9 +1,10 @@
 USE Operacion
 GO
-	-- 'OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_IU'
+-- 'OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_IU'
 GO
 ALTER PROCEDURE  OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_IU
 	  @pnClaUbicacion		INT
+	, @pnIdRelFactura		INT = NULL
 	, @psNumFacturaFilial	VARCHAR(15)
 	, @pnClaUbicacionOrigen	INT
 	, @psNumFacturaOrigen	VARCHAR(15)
@@ -72,12 +73,16 @@ BEGIN
 		SELECT  1
 		FROM	OpeSch.OpeRelFacturaSuministroDirecto WITH(NOLOCK)
 		WHERE	ClaUbicacion		= @pnClaUbicacion
-		AND		NumFacturaFilial	= @psNumFacturaFilial
-		AND		IdFacturaFilial		= @nIdFacturaFilial
+		AND		IdRelFactura		= @pnIdRelFactura
 	)
 	BEGIN
+		SELECT	@pnIdRelFactura = ISNULL(MAX(IdRelFactura),0) + 1
+		FROM	OpeSch.OpeRelFacturaSuministroDirecto WITH(NOLOCK)
+		WHERE	ClaUbicacion = @pnClaUbicacion
+
 		INSERT INTO OpeSch.OpeRelFacturaSuministroDirecto (
 			  ClaUbicacion
+			, IdRelFactura
 			, NumFacturaFilial
 			, IdFacturaFilial
 			, ClaUbicacionOrigen
@@ -87,12 +92,14 @@ BEGIN
 			, MensajeError
 			, IdCertificado
 			, NumCertificado
+			, ClaAceriaOrigen
 			, ArchivoCertificado
 			, ClaUsuarioMod
 			, NombrePcMod
 			, FechaUltimaMod
 		) VALUES (
 			  @pnClaUbicacion			-- ClaUbicacion
+			, @pnIdRelFactura			-- IdRelFactura
 			, @psNumFacturaFilial		-- NumFacturaFilial
 			, @nIdFacturaFilial			-- IdFacturaFilial
 			, @pnClaUbicacionOrigen		-- ClaUbicacionOrigen
@@ -102,12 +109,12 @@ BEGIN
 			, NULL						-- MensajeError
 			, NULL						-- IdCertificado
 			, NULL						-- NumCertificado
+			, NULL						-- ClaAceriaOrigen
 			, NULL						-- ArchivoCertificado
 			, @pnClaUsuarioMod			-- ClaUsuarioMod
 			, @psNombrePcMod			-- NombrePcMod
 			, GETDATE()					-- FechaUltimaMod		
 		)
-	
 	END
 	ELSE
 	BEGIN
@@ -115,8 +122,7 @@ BEGIN
 		SELECT  @nEsBajaLogica		= BajaLogica
 		FROM	OpeSch.OpeRelFacturaSuministroDirecto WITH(NOLOCK)
 		WHERE	ClaUbicacion		= @pnClaUbicacion
-		AND		NumFacturaFilial	= @psNumFacturaFilial
-		AND		IdFacturaFilial		= @nIdFacturaFilial
+		AND		IdRelFactura		= @pnIdRelFactura
 
 		IF @pnDebug = 1
 			SELECT @nEsBajaLogica AS '@nEsBajaLogica'
@@ -128,7 +134,7 @@ BEGIN
 			RETURN
 		END
 			
-		UPDATE	OpeSch.OpeRelFacturaSuministroDirecto WITH(ROWLOCK)  
+		UPDATE	OpeSch.OpeRelFacturaSuministroDirecto WITH(UPDLOCK)  
 		SET		 ClaUbicacionOrigen	= @pnClaUbicacionOrigen
 				,NumFacturaOrigen	= @psNumFacturaOrigen
 				,IdFacturaOrigen	= @nIdFacturaOrigen
@@ -144,8 +150,7 @@ BEGIN
 				,NumCertificado		= NULL
 				,ArchivoCertificado	= NULL
 		WHERE	ClaUbicacion		= @pnClaUbicacion
-		AND		NumFacturaFilial	= @psNumFacturaFilial
-		AND		IdFacturaFilial		= @nIdFacturaFilial
+		AND		IdRelFactura		= @pnIdRelFactura
 	END
 
 	SET NOCOUNT OFF

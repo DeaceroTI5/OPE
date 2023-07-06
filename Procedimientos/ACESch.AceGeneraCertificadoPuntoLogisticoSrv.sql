@@ -1,9 +1,8 @@
-Text
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 --grant exec on [ACESch].[AceGeneraCertificadoSobreLogisticoSrv]to public
-CREATE PROCEDURE [ACESch].[AceGeneraCertificadoPuntoLogisticoSrv]
+go
+-- EXEC SP_HELPTEXT 'ACESch.AceGeneraCertificadoPuntoLogisticoSrv'
+GO
+ALTER PROCEDURE ACESch.AceGeneraCertificadoPuntoLogisticoSrv_Hv
 @pnClaUbicacion INT,
 @pnIdFactura INT,
 @pnClaUbicacionOrigen INT,
@@ -14,6 +13,7 @@ CREATE PROCEDURE [ACESch].[AceGeneraCertificadoPuntoLogisticoSrv]
 @psIdCertificado VARCHAR(100) = '' OUT,
 @pnClaEstatus INT OUTPUT,
 @psMensajeError VARCHAR(500) OUTPUT,
+@pnClaAceria INT = NULL,
 @pnDebug	TINYINT = 1
 AS
 BEGIN
@@ -30,7 +30,7 @@ BEGIN
 		@nIdCertificadoOrigen INT,
 		@nNumViaje INT,
 		@sNumCertificado VARCHAR(50),
-		@nClaUbicacionOrigen INT,
+	--	@nClaUbicacionOrigen INT,
 		@nClaAceria INT,
 		@sError VARCHAR(500) = ''
 
@@ -40,7 +40,10 @@ BEGIN
 		@idFabricacionItk INT,
 		@idFabricacionOrigen INT,
 		@nClaUbicacionFilialVentas INT,
-		@nClaUbicacionOrigenVentas INT
+	--	@nClaUbicacionOrigenVentas INT,
+		@nExisteEncCertificado INT = 0,
+		@nEsRegenerarCertificado	TINYINT = 0
+
 
 	DECLARE @tbCertificados TABLE (
 		  ClaUbicacion		int
@@ -69,12 +72,12 @@ BEGIN
 	)
 
        SELECT TOP 1 @nClaUbicacionFilialVentas = ClaUbicacionVentas
-       FROM   AceSch.AceTiCatUbicacionVw (NOLOCK)
+       FROM   AceSch.AceTiCatUbicacionVw WITH(NOLOCK)
        WHERE  ClaUbicacion = @pnClaUbicacion
 
-       SELECT TOP 1 @nClaUbicacionOrigenVentas = ClaUbicacionVentas
-       FROM AceSch.AceTiCatUbicacionVw (NOLOCK)
-       WHERE ClaUbicacion = @pnClaUbicacionOrigen
+       --SELECT TOP 1 @nClaUbicacionOrigenVentas = ClaUbicacionVentas
+       --FROM AceSch.AceTiCatUbicacionVw (NOLOCK)
+       --WHERE ClaUbicacion = @pnClaUbicacionOrigen
 
 
        SELECT TOP 1
@@ -91,14 +94,14 @@ BEGIN
 
     IF EXISTS(
             SELECT 1
-            FROM AceSch.AceTraCertificado (NOLOCK)
+            FROM AceSch.AceTraCertificado WITH(NOLOCK)
             WHERE ClaUbicacion = @pnClaUbicacion
             AND IdFactura = @pnIdFactura
 	  --    AND IdFabricacion = @idFabricacionItk
     ) AND @pnEsRegeneraCertificado = 0
     BEGIN
             SELECT TOP 1 @nIdCertificado = IdCertificado
-            FROM AceSch.AceTraCertificado (NOLOCK)
+            FROM AceSch.AceTraCertificado WITH(NOLOCK)
             WHERE ClaUbicacion = @pnClaUbicacion
             AND IdFactura = @pnIdFactura
         --  AND IdFabricacion = @idFabricacionItk
@@ -110,7 +113,7 @@ BEGIN
     END
     ELSE IF NOT EXISTS(
             SELECT 1
-            FROM AceSch.AceTraCertificado (NOLOCK)
+            FROM AceSch.AceTraCertificado WITH(NOLOCK)
             WHERE ClaUbicacion = @pnClaUbicacion
             AND IdFactura = @pnIdFactura
     ) AND @pnEsRegeneraCertificado = 1
@@ -122,7 +125,7 @@ BEGIN
     END
     ELSE IF NOT EXISTS(
             SELECT 1
-            FROM AceSch.VtaCTraFacturaRel1Vw (NOLOCK)
+            FROM AceSch.VtaCTraFacturaRel1Vw WITH(NOLOCK)
             WHERE IdFactura = @pnIdFactura
             AND ClaUbicacion = @nClaUbicacionFilialVentas
     )
@@ -134,7 +137,7 @@ BEGIN
     END
     ELSE IF NOT EXISTS(
             SELECT 1
- FROM AceSch.VtaCTraFacturaRel1Vw WITH(NOLOCK)
+			FROM AceSch.VtaCTraFacturaRel1Vw WITH(NOLOCK)
             WHERE IdFactura = @pnIdFacturaOrigen
       --    AND ClaUbicacion = @nClaUbicacionOrigenVentas
     )
@@ -146,7 +149,7 @@ BEGIN
     END
     ELSE IF NOT EXISTS(
             SELECT 1
-            FROM AceSch.AceTraCertificado (NOLOCK)
+            FROM AceSch.AceTraCertificado WITH(NOLOCK)
             WHERE ClaUbicacion = @pnClaUbicacionOrigen
             AND IdFactura = @pnIdFacturaOrigen
     )
@@ -166,23 +169,49 @@ BEGIN
 
 		INSERT INTO @tAcerias(ClaAceria)
 		SELECT DISTINCT ClaUbicacionOrigen
-		FROM AceSch.AceTraCertificado (NOLOCK)
+		FROM AceSch.AceTraCertificado WITH(NOLOCK)
 		WHERE ClaUbicacion = @pnClaUbicacionOrigen
-		AND IdFactura = @pnIdFacturaOrigen
+		AND		IdFactura = @pnIdFacturaOrigen
+		AND		(@pnClaAceria IS NULL OR (ClaUbicacionOrigen = @pnClaAceria))
+		AND		Archivo IS NOT NULL	-- Hv Omitir Certificados Origen sin Archivo
 
 		DECLARE @nCount INT = 1
 
 		WHILE(@nCount <= (SELECT MAX(Orden) FROM @tAcerias))
 		BEGIN
+			SELECT	  @nExisteEncCertificado	= 0
+					, @nClaAceria			= NULL
+					, @nIdCertificadoOrigen = NULL
+			--		, @nClaUbicacionOrigen	= NULL
+					, @nClaCliente			= NULL
+					, @sIdFacturaAlfanumerico = NULL
+					, @nIdFabricacion		= NULL
+					, @nNumViaje			= NULL
+					, @sNumCertificado		= NULL
+					, @nIdCertificado		= NULL
+					, @nEsRegenerarCertificado = 0
+
 			SELECT TOP 1 @nClaAceria = ClaAceria
 			FROM @tAcerias
 			WHERE Orden = @nCount
 
+			-------------------------------------------------
+			-- Validar si existe Certificado Factura Filial por acería
+			IF EXISTS (
+				SELECT	1
+				FROM	AceSch.AceTraCertificado a WITH(NOLOCK)
+				WHERE	ClaUbicacion = @pnClaUbicacion
+				AND		IdFactura = @pnIdFactura
+				AND		ClaUbicacionOrigen = @nClaAceria
+			)
+			BEGIN
+				SELECT @nEsRegenerarCertificado = 1
+			END
+			-------------------------------------------------
+
 			SELECT TOP 1
-				@nIdCertificadoOrigen = IdCertificado,
-				--@nNumViaje = NumViaje,
-				@nClaUbicacionOrigen = ClaUbicacionOrigen
-			FROM AceSch.AceTraCertificado (NOLOCK)
+				@nIdCertificadoOrigen = IdCertificado
+			FROM AceSch.AceTraCertificado WITH(NOLOCK)
 			WHERE ClaUbicacion = @pnClaUbicacionOrigen
 			AND IdFactura = @pnIdFacturaOrigen
 			AND ClaUbicacionOrigen = @nClaAceria
@@ -192,18 +221,18 @@ BEGIN
 				@sIdFacturaAlfanumerico = IdFacturaAlfanumerico,
 				@nIdFabricacion = IdFabricacion
 				,@nNumViaje = ClaViajeFactura
-			FROM ACESch.VtaCTraFacturaRel1Vw (NOLOCK)
+			FROM ACESch.VtaCTraFacturaRel1Vw WITH(NOLOCK)
 			WHERE ClaUbicacion = @pnClaUbicacion
 			ANd IdFactura = @pnIdFactura
 
 			SELECT TOP 1 @nIdCertificado = ISNULL(MAX(IdCertificado), 0) + 1
-			FROM ACESch.AceTraCertificado
+			FROM ACESch.AceTraCertificado WITH(NOLOCK)
 			WHERE ClaUbicacion = @pnClaUbicacion
 
-			SET @sNumCertificado = CONVERT(VARCHAR(20), @nNumViaje) + ' - ' + CONVERT(VARCHAR(20), @nIdFabricacion) + ' - ' + CONVERT(VARCHAR(20), @nClaUbicacionOrigen)
+			SET @sNumCertificado = CONVERT(VARCHAR(20), @nNumViaje) + ' - ' + CONVERT(VARCHAR(20), @nIdFabricacion) + ' - ' + CONVERT(VARCHAR(20), @nClaAceria)
 
 			IF @pnDebug = 1 
-				SELECT @sNumCertificado AS '@sNumCertificado', @nIdCertificado AS '@nIdCertificado', @nIdCertificadoOrigen AS '@nIdCertificadoOrigen', @nClaUbicacionOrigen AS '@nClaUbicacionOrigen', @pnEsRegeneraCertificado AS  '@pnEsRegeneraCertificado'
+				SELECT 'DATOS', @nClaAceria AS '@nClaAceria', @pnEsRegeneraCertificado AS  '@pnEsRegeneraCertificado', @sNumCertificado AS '@sNumCertificado', @nIdCertificadoOrigen AS '@nIdCertificadoOrigen'
 
 			INSERT INTO @tbCertificados (	--AceSch.AceTraCertificado
 				ClaUbicacion,
@@ -235,7 +264,7 @@ BEGIN
 				@nIdCertificado IdCertificado,
 				IdViaje,
 				@nIdFabricacion IdFabricacion,
-				@nClaUbicacionOrigen ClaUbicacionOrigen,
+				@nClaAceria ClaUbicacionOrigen,
 				ClaArticuloExt,
 				@nClaCliente ClaCliente,
 				NumViaje,
@@ -254,22 +283,29 @@ BEGIN
 				IdViajeTraspaso,
 				Placas,
 				NumPedCliente
-			FROM AceSch.AceTraCertificado (NOLOCK)
-			WHERE ClaUbicacion = @pnClaUbicacionOrigen
-			AND IdFactura = @pnIdFacturaOrigen
-			AND ClaUbicacionOrigen = @nClaUbicacionOrigen
+			FROM	AceSch.AceTraCertificado a WITH(NOLOCK)
+			WHERE	a.ClaUbicacion = @pnClaUbicacionOrigen
+			AND		a.IdFactura = @pnIdFacturaOrigen
+			AND		a.ClaUbicacionOrigen = @nClaAceria
+			AND		@nEsRegenerarCertificado = 0					-- Certificados Nuevos
 			AND NOT EXISTS(
-				SELECT 1
-				FROM AceSch.AceTraCertificado (NOLOCK)
-				WHERE ClaUbicacion = @pnClaUbicacion
-				AND IdFactura = @pnIdFactura
-				AND ClaUbicacionOrigen = @nClaUbicacionOrigen
+				SELECT	1
+				FROM	AceSch.AceTraCertificado b WITH(NOLOCK)
+				WHERE	b.ClaUbicacion = @pnClaUbicacion
+				AND		b.IdFactura = @pnIdFactura
+				AND		a.ClaUbicacionOrigen = b.ClaUbicacionOrigen
 			)
-			AND @pnEsRegeneraCertificado = 0
+
+			IF EXISTS (
+				SELECT 1 
+				FROM	@tbCertificados
+				WHERE	ClaUbicacionOrigen = @nClaAceria	-- Aceria
+			)
+			SELECT  @nExisteEncCertificado = 1
 
 			----
-			IF @pnDebug = 1
-				SELECT ''AS'@tbCertificados', * FROM @tbCertificados
+			--IF @pnDebug = 1
+			--	SELECT ''AS'@tbCertificados', * FROM @tbCertificados
 
 			IF EXISTS (
 				SELECT	1
@@ -307,9 +343,8 @@ BEGIN
 			ELSE
 			BEGIN
 				IF @pnDebug = 1
-					SELECT '' AS 'INSERT AceSch.AceTraCertificado', * FROM @tbCertificados
-
-
+					SELECT '' AS 'INSERT AceSch.AceTraCertificado', * FROM @tbCertificados WHERE ClaUbicacionOrigen = @nClaAceria
+				
 				INSERT INTO AceSch.AceTraCertificado (
 					ClaUbicacion,
 					IdCertificado,
@@ -359,13 +394,15 @@ BEGIN
 						Placas,
 						NumPedCliente
 				FROM	@tbCertificados
+				WHERE	ClaUbicacionOrigen = @nClaAceria
 			END
 			
 			---
 
-			IF @pnEsRegeneraCertificado = 1
+			IF @nEsRegenerarCertificado = 1
 			BEGIN
-				UPDATE AceSch.AceTraCertificado
+				
+				UPDATE AceSch.AceTraCertificado WITH(UPDLOCK)
 				SET Archivo = NULL,
 					EsGenerado = 0,
 					FechaUltimaMod = GETDATE(),
@@ -373,64 +410,21 @@ BEGIN
 					ClaUsuarioMod = @pnClaUsuarioMod
 				WHERE ClaUbicacion = @pnClaUbicacion
 				AND IdFactura = @pnIdFactura
-				AND ClaUbicacionOrigen = @nClaUbicacionOrigen
+				AND ClaUbicacionOrigen = @nClaAceria
 
 				SELECT TOP 1 @nIdCertificado = IdCertificado
-				FROM AceSch.AceTraCertificado (NOLOCK)
+				FROM AceSch.AceTraCertificado WITH(NOLOCK)
 				WHERE ClaUbicacion = @pnClaUbicacion
 				AND IdFactura = @pnIdFactura
-				AND ClaUbicacionOrigen = @nClaUbicacionOrigen
+				AND ClaUbicacionOrigen = @nClaAceria
 
 				IF @pnDebug = 1
-					SELECT 'DELETE Certificado', @nIdCertificado as '@nIdCertificado', @pnClaUbicacion AS '@pnClaUbicacion'
+					SELECT 'UPDATE RegenerarCertificado', @pnClaUbicacion AS '@pnClaUbicacion', @pnIdFactura AS '@pnIdFactura', @nClaAceria AS '@nClaAceria', @nIdCertificado AS '@nIdCertificado'
 
-				DELETE FROM AceSch.AceTraCertificadoDet
+				DELETE FROM AceSch.AceTraCertificadoDet WITH(ROWLOCK)
 				WHERE ClaUbicacion = @pnClaUbicacion
 				AND IdCertificado = @nIdCertificado
 			END
-
-			IF @pnDebug = 1
-			SELECT '' as 'debug INSERT', @pnClaUbicacionOrigen AS '@pnClaUbicacionOrigen', @nIdCertificadoOrigen AS '@nIdCertificadoOrigen'
-			, @pnClaUbicacion AS '@pnClaUbicacion', @nIdCertificado AS '@nIdCertificado' ,
-				@pnClaUbicacion ClaUbicacion,
-				@nIdCertificado IdCertificado,
-				ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) IdCertificadoDet,
-				ClaHornoFusion,
-				IdColada,
-				ClaMolino,
-				IdSecuencia,
-				ClaArticulo,
-				ClaArticuloExt,
-				Cantidad,
-				ClaGrado,
-				ClaGradoCertificado,
-				ClaNorma,
-				ClaCalibre,
-				0 BajaLogica,
-				NULL FechaBajaLogica,
-				GETDATE() FechaUltimaMod,
-				@psNombrePcMod NombrePcMod,
-				@pnClaUsuarioMod ClaUsuarioMod,
-				ClaSeccion,
-				ClaLongitud,
-				ClaPeraltePerfil,
-				ClaLbPiePerfil,
-				ClaMedidaPerfil,
-				ClaAnchoPerfil,
-				ClaLado1Perfil,
-				ClaLado2Perfil,
-				ClaEspesorPerfil, 
-				PesoEmbarque,
-				PesoTeoricoProm
-			FROM AceSch.AceTraCertificadoDet (NOLOCK)
-			WHERE ClaUbicacion = @pnClaUbicacionOrigen
-			AND IdCertificado = @nIdCertificadoOrigen
-			AND NOT EXISTS(
-				SELECT 1
-				FROM AceSch.AceTraCertificadoDet (NOLOCK)
-				WHERE ClaUbicacion = @pnClaUbicacion
-				AND IdCertificado = @nIdCertificado
-			)
 			
 
 			INSERT INTO AceSch.AceTraCertificadoDet
@@ -465,22 +459,22 @@ BEGIN
 				ClaEspesorPerfil, 
 				PesoEmbarque,
 				PesoTeoricoProm
-			FROM AceSch.AceTraCertificadoDet (NOLOCK)
+			FROM AceSch.AceTraCertificadoDet WITH(NOLOCK)
 			WHERE ClaUbicacion = @pnClaUbicacionOrigen
 			AND IdCertificado = @nIdCertificadoOrigen
+			AND @nExisteEncCertificado = 1					-- Hv No registrar detalle sin encabezado (Error FK) 
 			AND NOT EXISTS(
 				SELECT 1
-				FROM AceSch.AceTraCertificadoDet (NOLOCK)
+				FROM AceSch.AceTraCertificadoDet WITH(NOLOCK)
 				WHERE ClaUbicacion = @pnClaUbicacion
 				AND IdCertificado = @nIdCertificado
 			)
 
 
-
 			SET @psIdCertificado = ISNULL(@psIdCertificado,'') + ISNULL(CONVERT(VARCHAR(20), @nIdCertificado)+ ',', '')
 
-			IF @pnDebug = 1
-				SELECT @psIdCertificado AS '@psIdCertificado', @nIdCertificado AS '@nIdCertificado'
+			--IF @pnDebug = 1
+			--	SELECT @psIdCertificado AS '@psIdCertificado', @nIdCertificado AS '@nIdCertificado'
 
 			DECLARE
 				@sRutaServidorRS VARCHAR(1000),
@@ -500,8 +494,8 @@ BEGIN
 				@sRutaFinalArchivo = CASE WHEN LTRIM(RTRIM(ISNULL(@sRutaFinalArchivo, ''))) = '' THEN '\\appnet02\Certificados' ELSE @sRutaFinalArchivo END
 		
 			
-			IF @pnDebug = 1
-				SELECT 'EXEC AceSch.AceImprimeCertificadoSuministroDirectoProc ANTES' , @psIdCertificado AS '@psIdCertificado', @nError AS '@nError'
+			--IF @pnDebug = 1
+			--	SELECT 'EXEC AceSch.AceImprimeCertificadoSuministroDirectoProc ANTES' , @psIdCertificado AS '@psIdCertificado', @nError AS '@nError'
 			
 			IF @nError = 0
 			BEGIN
@@ -515,8 +509,8 @@ BEGIN
 				@pbArchivo = @bArchivo OUT,
 				@pnError = @nError OUT
 
-				IF @pnDebug = 1
-					SELECT 'EXEC AceSch.AceImprimeCertificadoSuministroDirectoProc' 
+				--IF @pnDebug = 1
+				--	SELECT 'EXEC AceSch.AceImprimeCertificadoSuministroDirectoProc' 
 
 				IF ISNULL(@nError, 0) > 0
 				BEGIN
@@ -526,7 +520,7 @@ BEGIN
 					RETURN	
 				END
 
-				UPDATE AceSch.AceTraCertificado
+				UPDATE AceSch.AceTraCertificado WITH(UPDLOCK)
 				SET
 					Archivo = @bArchivo,
 					EsGenerado = 1,

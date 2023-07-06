@@ -1,11 +1,8 @@
-USE Operacion
-GO
--- 'OpeSch.OPE_CU550_Pag37_GeneraCertificadoFilial'
-GO 
-ALTER PROCEDURE OpeSch.OPE_CU550_Pag37_GeneraCertificadoFilial
+CREATE PROCEDURE OpeSch.OPE_CU550_Pag37_GeneraCertificadoFilial
 	  @pnClaUbicacion		INT
 	, @psNumFacturaFilial	VARCHAR(20) = ''
 	, @pnIdFacturaFilial	INT = NULL
+	, @pnEsRegenerarCertificado TINYINT = 0
 	, @pnDebug				TINYINT = 0
 AS
 BEGIN
@@ -50,7 +47,9 @@ BEGIN
 			@nNumError				INT,
 			@sErrorMsj				VARCHAR(1000),
 			@nEsRegeneraCertificado TINYINT,
-			@sIdCertificado			VARCHAR(1000)
+			@sIdCertificado			VARCHAR(1000),
+			@nClaAceria				INT,
+			@nExisteArchivoAceria	TINYINT = 0
 
 
 	
@@ -149,6 +148,11 @@ BEGIN
 			END
 			ELSE
 			BEGIN
+				IF ISNULL(@pnEsRegenerarCertificado,0) = 1
+				BEGIN
+					SELECT @nEsRegeneraCertificado = 1
+				END
+				ELSE
 				--Revisión previa de Certificado
 				IF EXISTS (
 					SELECT	1
@@ -163,18 +167,21 @@ BEGIN
 						FROM	DEAOFINET04.Operacion.ACESch.AceTraCertificado WITH(NOLOCK)
 						WHERE	ClaUbicacion	= @nClaUbicacionFilial
 						AND		IdFactura		= @nIdFacturaFilial
-
-
+				
 						IF @nEsRegeneraCertificado = 0	
 						BEGIN
 							GOTO SALTO	-- Ya existe Certificado
 						END
+
+						IF @pnDebug = 1
+							SELECT @nClaUbicacionFilial AS '@nClaUbicacionFilial', @nIdFacturaFilial AS '@nIdFacturaFilial', @nEsRegeneraCertificado AS '@nEsRegeneraCertificado'
 				END
 
 				SET @sIdCertificado = ''
 				SELECT 'Otros Certificados'
 
-				EXEC DEAOFINET04.Operacion.ACESch.AceGeneraCertificadoSobrePuntoLogisticoSrv_DEV
+				--EXEC DEAOFINET04.Operacion.ACESch.AceGeneraCertificadoSobrePuntoLogisticoSrv_DEV
+				EXEC DEAOFINET04.Operacion.ACESch.AceGeneraCertificadoPuntoLogisticoSrv
 					@pnClaUbicacion			= @nClaUbicacionFilial,
 					@pnIdFactura			= @nIdFacturaFilial,
 					@pnClaUbicacionOrigen	= @nClaUbicacionOrigen,
@@ -191,7 +198,7 @@ BEGIN
 
 				IF @pnDebug =1
 				BEGIN
-					SELECT 'Otros Cert', @nId AS '@nId', @sIdCertificado as '@sIdCertificado', @sMensajeError AS '@sMensajeError', Error = ISNULL(ERROR_MESSAGE(),'') + ' [' + ISNULL(ERROR_PROCEDURE(),'') +']'
+					SELECT 'Otros Cert', @nId AS '@nId', @sIdCertificado as '@sIdCertificado', @sMensajeError AS '@sMensajeError', Error = ISNULL(ERROR_MESSAGE(),'') + ' [' + ISNULL(ERROR_PROCEDURE(),'') +']', @nEsRegeneraCertificado AS '@nEsRegeneraCertificado'
 				END
 		
 			END
@@ -248,6 +255,7 @@ BEGIN
 							, @nUsuario			= NULL
 							, @dFecha			= NULL
 							, @sNumCertificado	= NULL
+							, @nExisteArchivoAceria = 0
 
 					SELECT	@nIdCertificado = IdCertificado
 					FROM	@tbCertificados 
@@ -256,6 +264,7 @@ BEGIN
 					SELECT  @iArchivo = Archivo
 							,@nUsuario = ClaUsuarioMod
 							,@dFecha	= FechaUltimaMod
+							,@nClaAceria = ClaUbicacionOrigen
 							--,@sNumCertificado = CASE	WHEN ISNULL(@sNumCertificado,'') <> '' 
 							--							THEN  @sNumCertificado
 							--							ELSE NumCertificado END
@@ -274,11 +283,26 @@ BEGIN
 						SELECT @sMensajeError = 'Certificado ya existe. Fecha generado: '+CONVERT(VARCHAR,@dFecha,20)+ '. Usuario que generó:' + ISNULL(@sUsuario,'')
 					END
 
+					--IF @pnDebug = 1
+					--	SELECT 'PASÓ', @nIdCertificado AS '@nIdCertificado', @nClaUbicacionFilial AS '@nClaUbicacionFilial', @sNumFacturaFilial AS '@sNumFacturaFilial'
+					--			,@nClaAceria AS '@nClaAceria', @pnIdFacturaFilial AS '@pnIdFacturaFilial'
+
+					--IF @pnDebug = 1
+					--	SELECT '' AS'ACESch.AceTraCertificado',* FROM DEAOFINET04.Operacion.ACESch.AceTraCertificado WITH(NOLOCK)
+					--	WHERE	ClaUbicacion = @nClaUbicacionFilial
+					--	AND		IdCertificado = @nIdCertificado
+
+					---- Revisa que el Certificado exista en la Aceria para la factura Origen 
+					SELECT	@nExisteArchivoAceria = CASE WHEN Archivo IS NOT NULL THEN 1 ELSE 0 END
+					FROM	DEAOFINET04.Operacion.ACESch.AceTraCertificado WITH(NOLOCK)
+					WHERE	ClaUbicacion		= @nClaUbicacionOrigen
+					AND		IdFactura			= @nIdFacturaOrigen
+					AND		ClaUbicacionOrigen	= @nClaAceria
+
 					IF @pnDebug = 1
-						SELECT 'PASÓ', @nIdCertificado AS '@nIdCertificado', @nClaUbicacionFilial AS '@nClaUbicacionFilial', @sNumFacturaFilial AS '@sNumFacturaFilial'
+						SELECT @nExisteArchivoAceria AS '@nExisteArchivoAceria', @nClaAceria AS '@nClaAceria'
 			
-			
-					IF @nIdCertificado IS NOT NULL AND @iArchivo IS NOT NULL
+					IF @nIdCertificado IS NOT NULL AND @iArchivo IS NOT NULL AND ISNULL(@nExisteArchivoAceria,0) = 1
 					BEGIN
 						UPDATE	OpeSch.OpeRelFacturaSuministroDirecto
 						SET		ClaEstatus		= 3,
