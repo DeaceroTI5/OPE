@@ -1,6 +1,6 @@
 USE Operacion
 GO
--- 'OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_IU'
+-- EXEC SP_HELPTEXT 'OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_IU'
 GO
 ALTER PROCEDURE  OPESch.OPE_CU550_Pag37_Grid_FacturasSumDirecto_IU
 	  @pnClaUbicacion		INT
@@ -67,6 +67,13 @@ BEGIN
 
 	IF @pnDebug = 1
 		SELECT @nIdFacturaFilial AS '@nIdFacturaFilial', @nIdFacturaOrigen AS '@nIdFacturaOrigen', @nClaUbicacionVentas AS '@nClaUbicacionVentas'
+
+	IF @pnIdRelFactura IS NULL
+		SELECT  @pnIdRelFactura = IdRelFactura
+		FROM	OpeSch.OpeRelFacturaSuministroDirecto WITH(NOLOCK)
+		WHERE	ClaUbicacion		= @pnClaUbicacion
+		AND		NumFacturaFilial	= @psNumFacturaFilial
+		AND		IdFacturaFilial		= @nIdFacturaFilial
 
 
 	IF NOT EXISTS (

@@ -59,3 +59,17 @@ SELECT * FROM DEAOFINET04.Operacion.ACESch.AceTraCertificado WHERE NumFactura IN
 
 -------------------------------------------------------------
 
+SELECT DISTINCT ClaUbicacion, NumFacturaOrigen, IdFacturaFilial
+INTO	#Facturas
+FROM	OpeSch.OpeRelFacturaSuministroDirecto WITH(NOLOCK)
+
+SELECT	a.ClaUbicacion, a.NumFactura, COUNT(1) Cont
+FROM	DEAOFINET04.Operacion.ACESch.AceTraCertificado a WITH(NOLOCK) 
+INNER JOIN #Facturas b 
+ON		a.ClaUbicacion	= b.ClaUbicacion
+AND		a.IdFactura		= b.IdFacturaFilial
+GROUP BY a.ClaUbicacion, a.NumFactura
+HAVING COUNT(1) > 1
+
+
+SELECT * FROM DEAOFINET04.Operacion.ACESch.AceTraCertificado  WITH(NOLOCK) WHERE NumFactura IN ('QN3611', 'QN4948')

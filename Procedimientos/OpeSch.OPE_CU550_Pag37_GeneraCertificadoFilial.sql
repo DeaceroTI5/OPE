@@ -1,14 +1,22 @@
-CREATE PROCEDURE OpeSch.OPE_CU550_Pag37_GeneraCertificadoFilial
+USE Operacion
+GO
+-- EXEC SP_HELPTEXT 'OpeSch.OPE_CU550_Pag37_GeneraCertificadoFilial'
+GO
+ALTER PROCEDURE OpeSch.OPE_CU550_Pag37_GeneraCertificadoFilial
 	  @pnClaUbicacion		INT
 	, @psNumFacturaFilial	VARCHAR(20) = ''
 	, @pnIdFacturaFilial	INT = NULL
 	, @pnEsRegenerarCertificado TINYINT = 0
+	, @pnClaAceria			INT = NULL
 	, @pnDebug				TINYINT = 0
 AS
 BEGIN
 	SET NOCOUNT ON
 	
-	SELECT @pnDebug = ISNULL(@pnDebug,0)
+	SELECT	 @pnDebug					= ISNULL(@pnDebug,0)
+			,@pnEsRegenerarCertificado	= ISNULL(@pnEsRegenerarCertificado,0)
+
+
 	IF @pnDebug =1
 		SELECT 'Proc OPE_CU550_Pag37_GeneraCertificadoFilial'
 
@@ -16,6 +24,7 @@ BEGIN
 	DECLARE @Relaciones TABLE 
 	(
 		Id					INT IDENTITY(1,1),
+		IdRelFactura		INT,
 		ClaUbicacionFilial	INT,
 		NumFacturaFilial	VARCHAR(50),
 		IdFacturaFilial		INT,
@@ -31,7 +40,14 @@ BEGIN
 		, IdCertificado	INT
 	)
 
+	DECLARE @tbCertificadosRegenerar TABLE (
+		  Id			INT IDENTITY(1,1)
+		, EsRegenerar	INT
+		, IdCertificado	INT
+	)
+
 	DECLARE @nId					INT,
+			@nIdRelFactura			INT,
 			@nClaUbicacionFilial	INT,
 			@sNumFacturaFilial		VARCHAR(50),
 			@nIdFacturaFilial		INT,
@@ -40,7 +56,7 @@ BEGIN
 			@nIdFacturaOrigen		INT,
 			@nIdCertificado			INT,
 			@sNumCertificado		VARCHAR(500),
-			@nClaEstatus			TINYINT,
+	--		@nClaEstatus			TINYINT,
 			@sMensajeError			VARCHAR(500),
 			@iArchivo				VARBINARY(MAX),
 			@nClaTipoUbicacion		INT,
@@ -56,6 +72,7 @@ BEGIN
 	INSERT INTO @Relaciones
 	(
 		ClaUbicacionFilial,
+		IdRelFactura,
 		NumFacturaFilial,
 		IdFacturaFilial,
 		ClaUbicacionOrigen,
@@ -65,19 +82,21 @@ BEGIN
 		ClaTipoUbicacion
 	)
 	SELECT	a.ClaUbicacion,
-			NumFacturaFilial,
-			IdFacturaFilial,
-			ClaUbicacionOrigen,
-			NumFacturaOrigen,
-			IdFacturaOrigen,
-			MensajeError,
-			ClaTipoUbicacion
+			a.IdRelFactura,
+			a.NumFacturaFilial,
+			a.IdFacturaFilial,
+			a.ClaUbicacionOrigen,
+			a.NumFacturaOrigen,
+			a.IdFacturaOrigen,
+			a.MensajeError,
+			b.ClaTipoUbicacion
 	FROM	OpeSch.OpeRelFacturaSuministroDirecto a WITH(NOLOCK)
 	LEFT JOIN OPESch.OpeTiCatUbicacionVw b
 	ON		a.ClaUbicacion = b.ClaUbicacion
 	WHERE	(@pnClaUbicacion IS NULL OR (a.ClaUbicacion = @pnClaUbicacion))
 	AND		(@psNumFacturaFilial = '' OR (NumFacturaFilial = @psNumFacturaFilial))
 	AND		(@pnIdFacturaFilial IS NULL OR (IdFacturaFilial = @pnIdFacturaFilial))
+	AND		(@pnClaAceria IS NULL OR (ClaAceriaOrigen = @pnClaAceria))
 --	AND		ClaEstatus <> 3 -- Pendiente y En Proceso
 	AND		ClaEstatus IN (1,2) -- Pendiente y En Proceso
 	AND		a.BajaLogica = 0
@@ -88,7 +107,7 @@ BEGIN
 	FROM	OpeSch.OpeRelFacturaSuministroDirecto RelFactFilial
 	INNER JOIN @Relaciones RelProceso
 	ON		RelFactFilial.ClaUbicacion = RelProceso.ClaUbicacionFilial
-	AND		RelFactFilial.NumFacturaFilial = RelProceso.NumFacturaFilial
+	AND		RelFactFilial.IdRelFactura = RelProceso.IdRelFactura
 
 	IF @pnDebug = 1
 		SELECT	'' AS '@Relaciones',* FROM	@Relaciones
@@ -107,9 +126,10 @@ BEGIN
 				, @nIdFacturaFilial = NULL
 				, @nIdFacturaOrigen	= NULL
 				, @nClaTipoUbicacion = NULL
-				, @nNumError		= NULL
+				, @nNumError		= 0
 				, @nEsRegeneraCertificado	= 0
 				, @sIdCertificado	= ''
+				, @nIdRelFactura	= NULL
 
 		SELECT @nClaUbicacionFilial		= ClaUbicacionFilial,
 				@sNumFacturaFilial		= NumFacturaFilial,
@@ -118,7 +138,8 @@ BEGIN
 				@sNumFacturaOrigen		= NumFacturaOrigen,
 				@nIdFacturaOrigen		= IdFacturaOrigen,
 				@sMensajeError			= MensajeError,
-				@nClaTipoUbicacion		= ClaTipoUbicacion
+				@nClaTipoUbicacion		= ClaTipoUbicacion,
+				@nIdRelFactura			= IdRelFactura
 		FROM	@Relaciones
 		WHERE	Id = @nId
 
@@ -161,26 +182,51 @@ BEGIN
 					AND		IdFactura		= @nIdFacturaFilial
 				)
 				BEGIN
-						SELECT	  @nEsRegeneraCertificado = CASE	WHEN Archivo IS NULL THEN 1 
+						--SELECT	  @nEsRegeneraCertificado = CASE	WHEN Archivo IS NULL THEN 1 
+						--											ELSE 0 END
+						--		, @sIdCertificado = CONVERT(VARCHAR(20),IdCertificado)
+						--FROM	DEAOFINET04.Operacion.ACESch.AceTraCertificado WITH(NOLOCK)
+						--WHERE	ClaUbicacion	= @nClaUbicacionFilial
+						--AND		IdFactura		= @nIdFacturaFilial
+
+						INSERT INTO @tbCertificadosRegenerar (EsRegenerar, IdCertificado)
+						SELECT	EsRegenerar = CASE	WHEN Archivo IS NULL THEN 1 
 																	ELSE 0 END
-								, @sIdCertificado = CONVERT(VARCHAR(20),IdCertificado)
+								,IdCertificado
 						FROM	DEAOFINET04.Operacion.ACESch.AceTraCertificado WITH(NOLOCK)
 						WHERE	ClaUbicacion	= @nClaUbicacionFilial
 						AND		IdFactura		= @nIdFacturaFilial
-				
-						IF @nEsRegeneraCertificado = 0	
-						BEGIN
-							GOTO SALTO	-- Ya existe Certificado
-						END
 
-						IF @pnDebug = 1
-							SELECT @nClaUbicacionFilial AS '@nClaUbicacionFilial', @nIdFacturaFilial AS '@nIdFacturaFilial', @nEsRegeneraCertificado AS '@nEsRegeneraCertificado'
+						IF EXISTS (
+							SELECT	1
+							FROM	@tbCertificadosRegenerar
+							WHERE	EsRegenerar = 1
+						)
+						BEGIN
+							SELECT @nEsRegeneraCertificado = 1
+						END
+						ELSE
+						BEGIN
+							SELECT @sIdCertificado = 
+							STUFF(
+								  (
+      								SELECT ', ' + RTRIM(LTRIM(CONVERT(VARCHAR(20),IdCertificado))) 
+									FROM @tbCertificadosRegenerar 
+									GROUP BY IdCertificado
+									FOR XML PATH ('')
+								  )
+							, 1, 1, '')
+
+							GOTO SALTO	-- Ya existe Certificado
+						END				
 				END
 
 				SET @sIdCertificado = ''
 				SELECT 'Otros Certificados'
 
-				--EXEC DEAOFINET04.Operacion.ACESch.AceGeneraCertificadoSobrePuntoLogisticoSrv_DEV
+				IF ISNULL(@pnEsRegenerarCertificado,0) = 0
+					SELECT @pnClaAceria = NULL
+
 				EXEC DEAOFINET04.Operacion.ACESch.AceGeneraCertificadoPuntoLogisticoSrv
 					@pnClaUbicacion			= @nClaUbicacionFilial,
 					@pnIdFactura			= @nIdFacturaFilial,
@@ -191,10 +237,11 @@ BEGIN
 					@pnClaUsuarioMod		= 1,
 					@psIdCertificado		= @sIdCertificado	OUT,
 					@pnClaEstatus			= @nNumError		OUT,
-					@psMensajeError			= @sMensajeError	OUT
+					@psMensajeError			= @sMensajeError	OUT,
+					@pnClaAceria			= @pnClaAceria
 
-					IF ISNULL(@sIdCertificado,'') <> '' AND @nNumError IS NULL
-						SELECT @nNumError = 0
+				IF ISNULL(@sIdCertificado,'') <> '' AND @nNumError IS NULL
+					SELECT @nNumError = 0
 
 				IF @pnDebug =1
 				BEGIN
@@ -204,12 +251,6 @@ BEGIN
 			END
 		END TRY
 		BEGIN CATCH
-			-- Validación temporal debido a RAISERROR
-			--IF @nClaTipoUbicacion <> 2 AND @nNumError = 1
-			--BEGIN
-			--	SET @nNumError  = 0 -- Ya existe un certificado
-			--END
-
 			SET @sErrorMsj = NULL
 			SELECT @sErrorMsj = ERROR_MESSAGE() + ' [' + ERROR_PROCEDURE() +']'
 
@@ -282,38 +323,22 @@ BEGIN
 					BEGIN
 						SELECT @sMensajeError = 'Certificado ya existe. Fecha generado: '+CONVERT(VARCHAR,@dFecha,20)+ '. Usuario que generó:' + ISNULL(@sUsuario,'')
 					END
-
-					--IF @pnDebug = 1
-					--	SELECT 'PASÓ', @nIdCertificado AS '@nIdCertificado', @nClaUbicacionFilial AS '@nClaUbicacionFilial', @sNumFacturaFilial AS '@sNumFacturaFilial'
-					--			,@nClaAceria AS '@nClaAceria', @pnIdFacturaFilial AS '@pnIdFacturaFilial'
-
-					--IF @pnDebug = 1
-					--	SELECT '' AS'ACESch.AceTraCertificado',* FROM DEAOFINET04.Operacion.ACESch.AceTraCertificado WITH(NOLOCK)
-					--	WHERE	ClaUbicacion = @nClaUbicacionFilial
-					--	AND		IdCertificado = @nIdCertificado
-
-					---- Revisa que el Certificado exista en la Aceria para la factura Origen 
-					SELECT	@nExisteArchivoAceria = CASE WHEN Archivo IS NOT NULL THEN 1 ELSE 0 END
-					FROM	DEAOFINET04.Operacion.ACESch.AceTraCertificado WITH(NOLOCK)
-					WHERE	ClaUbicacion		= @nClaUbicacionOrigen
-					AND		IdFactura			= @nIdFacturaOrigen
-					AND		ClaUbicacionOrigen	= @nClaAceria
-
-					IF @pnDebug = 1
-						SELECT @nExisteArchivoAceria AS '@nExisteArchivoAceria', @nClaAceria AS '@nClaAceria'
 			
-					IF @nIdCertificado IS NOT NULL AND @iArchivo IS NOT NULL AND ISNULL(@nExisteArchivoAceria,0) = 1
+					IF	@nIdCertificado IS NOT NULL 
+					AND @iArchivo IS NOT NULL 
 					BEGIN
-						UPDATE	OpeSch.OpeRelFacturaSuministroDirecto
-						SET		ClaEstatus		= 3,
-								MensajeError	= @sMensajeError,
-								NumCertificado	= @sNumCertificado,
-								IdCertificado	= @nIdCertificado,
-								ArchivoCertificado = @iArchivo,
-								FechaUltimaMod	= GETDATE(),
-								NumError		= @nNumError
-						WHERE	ClaUbicacion = @nClaUbicacionFilial
-						AND		NumFacturaFilial = @sNumFacturaFilial
+						EXEC OpeSch.OpeRelFacturaSuministroDirectoIU
+							  @pnClaUbicacionFilial	= @nClaUbicacionFilial
+							, @psNumFacturaFilial	= @sNumFacturaFilial
+							, @pnIdFacturaFilial	= @nIdFacturaFilial
+							, @pnClaUbicacionOrigen	= @nClaUbicacionOrigen
+							, @psNumFacturaOrigen	= @sNumFacturaOrigen
+							, @pnIdFacturaOrigen	= @nIdFacturaOrigen
+							, @psMensajeError		= @sMensajeError
+							, @pnIdCertificado		= @nIdCertificado
+							, @psNumCertificado		= @sNumCertificado
+							, @pnClaAceria			= @nClaAceria
+							, @psArchivo			= @iArchivo
 
 						IF NOT EXISTS (
 							SELECT	1
@@ -344,7 +369,7 @@ BEGIN
 								, 1				
 							)
 						END
-					END										
+					END									
 
 					------------------------
 					SELECT	@nIdCert = MIN(Id)
@@ -364,7 +389,7 @@ BEGIN
 					MensajeError	= @sMensajeError,
 					FechaUltimaMod	= GETDATE()
 			WHERE	ClaUbicacion	= @nClaUbicacionFilial
-			AND		NumFacturaFilial = @sNumFacturaFilial
+			AND		IdRelFactura	= @nIdRelFactura
 		END
 		
 

@@ -1,6 +1,10 @@
+USE Operacion
+GO
+-- EXEC SP_HELPTEXT 'OPESch.OPE_CU550_Pag37_LnkBoton_Descarga_Descarga'
+GO
 ALTER PROCEDURE OPESch.OPE_CU550_Pag37_LnkBoton_Descarga_Descarga
-	  @pnClaUbicacion INT
-	, @psNumFacturaFilial	VARCHAR(20)
+	@pnClaUbicacion		INT,
+	@pnIdRelFactura		INT
 AS
 BEGIN
 	SET NOCOUNT ON
@@ -12,8 +16,7 @@ BEGIN
 			FileExt = 'pdf'
 	FROM	OpeSch.OpeRelFacturaSuministroDirecto a WITH(NOLOCK)
 	WHERE	a.ClaUbicacion = @pnClaUbicacion
-	AND		a.NumFacturaFilial = @psNumFacturaFilial
+	AND		a.IdRelFactura = @pnIdRelFactura
 
 	SET NOCOUNT OFF
 END
-
