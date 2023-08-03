@@ -1,15 +1,16 @@
 USE Operacion
 GO
-DECLARE @sFactura VARCHAR(10) = 'PP24920'
+DECLARE @sFactura VARCHAR(10) = 'PG17370'
 
 
-SELECT	a.ClaUbicacion, a.IdFacturaAlfanumerico AS Factura--, b.NombreUbicacion, c.NombreTipoUbicacion, 
+SELECT	DISTINCT a.ClaUbicacion, a.IdFacturaAlfanumerico AS Factura--, b.NombreUbicacion, c.NombreTipoUbicacion, 
 FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFacturaVw a
-INNER JOIN OPESch.OPETiCatUbicacionVw b
-ON		a.ClaUbicacion = b.ClaUbicacion
-INNER JOIN OPESch.OPETiCatUbicacionVw  c
-ON		b.ClaTipoUbicacion = c.ClaTipoUbicacion
+--INNER JOIN OPESch.OPETiCatUbicacionVw b
+--ON		a.ClaUbicacion = b.ClaUbicacion
+--INNER JOIN OPESch.OPETiCatUbicacionVw  c
+--ON		b.ClaTipoUbicacion = c.ClaTipoUbicacion
 WHERE	a.IdFacturaAlfanumerico = @sFactura
+
 
 
 IF EXISTS (	SELECT	1
@@ -67,5 +68,25 @@ ELSE
 					LEFT JOIN AMP_DEAPATNET03_LNKSVR.Operacion.AMPSch.AmpTraViaje b WITH(NOLOCK)
 					ON		a.ClaUbicacion			= b.ClaUbicacion		
 					AND		a.IdBoleta				= b.IdBoleta
-					WHERE	IdFacturaAlfanumerico	= 'PP25368'--@psIdFacturaAlfanumerica
+					WHERE	IdFacturaAlfanumerico	= 'PP25476'--@psIdFacturaAlfanumerica
+
+exec OpeSch.OPE_CU550_Pag41_Boton_btnGenerarRemisionDeAcero_Proc
+  @pnClaUbicacion			= 324
+, @pnClaUbicacionOrigenDS	= 191
+, @pnIdViajeOrigenDS		= 315300
+, @pnIdFacturaDS			= 191025476
+, @psFacturaAlfanumericaDS	= 'PP25476'
+, @pnClaUsuarioMod			= 1
+, @psNombrePcMod			= 'Prueba'
+, @pnDebug					= 1
+
+SELECT * FROM DEAOFINET05.Ventas.VtaSch.VtaCTraFactura WITH(NOLOCK) WHERE IdFacturaAlfanumerico IN ('PP25477','PP25476')
+SELECT * FROM DEAOFINET05.Ventas.VtaSch.VtaCTraFacturaDET WITH(NOLOCK) WHERE IdFactura IN (191025476, 191025477)
+
+SELECT * FROM OpeSch.OpetrasalidaComandoCmdshellprocess where SalidaComando LIKE '%PP25477%'
+SELECT * FROM OpeSch.OpetrasalidaComandoCmdshellprocess where SalidaComando LIKE '%PP25476%'
+
 */
+
+
+

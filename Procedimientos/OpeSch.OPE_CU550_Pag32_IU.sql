@@ -1,7 +1,3 @@
-USE Operacion
-GO
--- EXEC SP_HELPTEXT 'OpeSch.OPE_CU550_Pag32_IU'
-GO
 ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_IU
 	@pnClaUbicacion             INT,
     @pnClaUsuarioMod            INT,	
@@ -19,6 +15,7 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_IU
     @pnCmbCliente               INT = 0,
     @pnCmbConsignado            INT = 0,
     @ptFechaDesea               DATETIME,
+	@pnCmbTipoFlete				INT = 0,
     @pnChkAceptaAntes           INT = 0,
     @pnChkAceptaParcial         INT = 0,
     @pnChkSurtirSinExcederse    INT = 0,
@@ -94,8 +91,14 @@ BEGIN
                 THROW 127010, 'Una Solicitud de Traspaso no requiere tener informado el campo de Consignado.', 6;  
                 RETURN
             END
+            IF ( ISNULL( @pnCmbTipoFlete,0 ) = 0 )
+            BEGIN
+                THROW 127003, 'Es necesario seleccionar un Tipo de Flete.', 1;  
+                RETURN
+            END
 
 			-- Validar que una Planta de Ingetek se encuentre como Planta Pide o Plantas Surte en la Solicitud
+			/*
 			IF NOT EXISTS (
 				SELECT	1 
 				FROM	OpeSch.OpeTiCatUbicacionVw WITH(NOLOCK)  
@@ -104,6 +107,11 @@ BEGIN
 						)
 				AND		(ClaUbicacion = @pnCmbPlantaPide OR ClaUbicacion = @pnCmbPlantaSurte)
 			)
+			*/
+			IF NOT EXISTS (
+				SELECT	1 
+				FROM	OpeSch.OpeTiCatUbicacionIngetekVw WITH(NOLOCK)  
+				WHERE	(ClaUbicacion = @pnCmbPlantaPide OR ClaUbicacion = @pnCmbPlantaSurte) )
 			BEGIN
 				RAISERROR('Es necesario que el traspaso manual este compuesto por al menos una Ubicación de Ingetek',16,1)
 				RETURN
@@ -126,20 +134,17 @@ BEGIN
                         EsSuministroDirecto,        EsLlaveEnMano,          EsCanceladaSolicitud,   EsCanceladoPedido,      FechaCancela,
                         ClaUsuarioCancela,          EsEnviadoVta,           EsEnviadoPta,           FechaAutorizacion,      ClaUsuarioAutoriza,
                         FechaIns,                   ClaUsuarioIns,          FechaUltimaMod,         ClaUsuarioMod,          NombrePcMod,
-						EsDoorToDoor)
+						EsDoorToDoor,				ClaTipoFlete)
                 SELECT  @pnClaPedidoCliente,        @pnClaPedidoOrigen,     @pnCmbCliente,          @pnCmbProyecto,         @pnCmbConsignado,
                         @pnCmbPlantaPide,           @pnCmbPlantaSurte,      @ptFechaDesea,          0,                      @psObservaciones,
                         NULL,                       NULL,                   @pnChkAceptaAntes,      @pnChkAceptaParcial,    @pnChkSurtirSinExcederse,
                         @pnChkSuministroDirecto,    @pnChkLlaveEnMano,      NULL,                   NULL,                   NULL,
                         NULL,                       0,                      0,                      NULL,                   NULL,
                         GETDATE(),                  @pnClaUsuarioMod,       GETDATE(),              @pnClaUsuarioMod,       @psNombrePcMod,
-						@pnChkDoorToDoor
+						@pnChkDoorToDoor,			@pnCmbTipoFlete
 
 
-                SELECT  @pnClaSolicitud = @@IDENTITY   
-				
-				IF @pnDebug = 1
-					SELECT @pnClaSolicitud AS '@pnClaSolicitud'
+                SELECT  @pnClaSolicitud = @@IDENTITY      
 
                 --IF ( ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4) AND @pnClaPedidoOrigen > 0 AND @pnClaSolicitud > 0 )
 				IF 	( @pnClaPedidoOrigen > 0 AND @pnClaSolicitud > 0 ) --Considerar todos los Tipos de Traspasos Hv_07/03/23
@@ -149,9 +154,8 @@ BEGIN
                             @pnClaPedidoOrigen          = @pnClaPedidoOrigen,
                             @pnClaTipoTraspaso          = @pnClaTipoTraspaso,
                             @pnClaUsuarioMod            = @pnClaUsuarioMod,
-                            @psNombrePcMod              = @psNombrePcMod,
-							@psMensajeTraspaso			= @psMensajeTraspaso OUTPUT,
-							@pnDebug					= @pnDebug
+                            @psNombrePcMod    = @psNombrePcMod,
+							@psMensajeTraspaso			= @psMensajeTraspaso OUTPUT
                 END
             END
             ELSE IF ( EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud AND ClaEstatusSolicitud IN (0) ) ) -- Proceso de Edición
@@ -179,7 +183,8 @@ BEGIN
                         FechaUltimaMod          = GETDATE(),         
                         ClaUsuarioMod           = @pnClaUsuarioMod,          
                         NombrePcMod             = @psNombrePcMod,
-						EsDoorToDoor			= @pnChkDoorToDoor
+						EsDoorToDoor			= @pnChkDoorToDoor,
+						ClaTipoFlete			= @pnCmbTipoFlete
                 FROM    OpeSch.OpeTraSolicitudTraspasoEncVw a 
                 WHERE   a.IdSolicitudTraspaso = @pnClaSolicitud
                 AND     a.ClaEstatusSolicitud = 0
@@ -193,8 +198,8 @@ BEGIN
                 @pnClaSolicitud             = @pnClaSolicitud,      --Clave de Solicitud de Traspaso Manual 
                 @pnClaUsuarioMod            = @pnClaUsuarioMod,     --Usuario Autorizador
                 @psNombrePcMod              = @psNombrePcMod,
-                @pnFabricacionGenerada      = @pnClaPedido OUTPUT   --Identificador de Fabricación Generada para Traspaso Manual
-				,@pnDebug					= @pnDebug    
+                @pnFabricacionGenerada      = @pnClaPedido OUTPUT,   --Identificador de Fabricación Generada para Traspaso Manual
+				@pnDebug					= @pnDebug    
 	END
     ELSE IF ( @pnClaTipoEvento = 2 )
     BEGIN
@@ -212,10 +217,8 @@ BEGIN
                 @psNombrePcMod              = @psNombrePcMod
     END
 
-
-
 	IF ISNULL(@psMensajeTraspaso,'') <> '' 
-	SELECT	@pnEsMensajeTraspaso = 1
+		SELECT	@pnEsMensajeTraspaso = 1
 			
 
     SELECT  @pnClaSolicitud = @pnClaSolicitud,
