@@ -1,8 +1,4 @@
-USE Operacion
-GO
--- 'OpeSch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_IU'
-GO
-ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_IU
+CREATE PROCEDURE OpeSch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_IU
 	@pnClaUbicacion             INT,
     @pnClaUsuarioMod            INT,	
     @psNombrePcMod              VARCHAR(64),
@@ -22,10 +18,16 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_IU
     @pnColCantidadMinAgrupCPD   NUMERIC(22,4),
     @pnColEsMultiploCPD         INT = 0,
 	@pnColCantidadDisponible	NUMERIC(22,4)=NULL,
-	@pnColCantidadSolicitada	NUMERIC(22,4)=NULL
+	@pnColCantidadSolicitada	NUMERIC(22,4)=NULL,
+	@pnDebug					INT = 0
 AS  
 BEGIN
     
+	--EXEC OpeSch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_IU @pnClaUbicacion=325,@pnClaUsuarioMod=100026157,@psNombrePcMod='100CESUAREZ',
+	--@pnEsEditableDet=0,@pnClaTipoTraspaso=3,@pnClaTipoEvento=0,@pnClaSolicitud=3780,@pnClaPedidoOrigen=24777675,@pnColSeleccionCPD=1,@pnColClaProductoCPD=696890,
+	--@psColProductoCPD='24938 - VARILLA DA- 457 G56 C5 1" 12.0 m P05 R INGETEK',@psColUnidadCPD='Kg',@pnColCantPedidaCPD=11442.0000,@pnColPrecioListaMPCPD=13.7632,
+	--@pnColPrecioListaCPD=17.2000,@pnColPesoTeoricoCPD=1.0000,@pnColCantidadMinAgrupCPD=1907.0000, @pnColEsMultiploCPD=1,@pnColCantidadDisponible=11442.0000,@pnColCantidadSolicitada=0, @pnDebug = 1
+
     SET NOCOUNT ON
 
     IF ( @pnClaTipoEvento = 0 AND @pnColSeleccionCPD = 1 )
@@ -126,6 +128,11 @@ BEGIN
             END
         END
     END
+
+	IF @pnDebug = 1
+	SELECT *
+	FROM OpeSch.OpeTraSolicitudTraspasoDetVw
+	WHERE IdSolicitudTraspaso = @pnClaSolicitud
 
     SET NOCOUNT OFF    
 
