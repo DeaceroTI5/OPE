@@ -1,5 +1,5 @@
 --SELECT @@SERVERNAME
--- MSLABBD01\VTAPREPROD
+-- SRVDBDES04\VTAPREPROD vtausr/vtausr
 BEGIN TRAN
 	UPDATE	a
 	SET		ClaEstatusFabricacion = 1 -- 3

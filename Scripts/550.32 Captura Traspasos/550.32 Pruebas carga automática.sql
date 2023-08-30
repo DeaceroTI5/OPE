@@ -1,6 +1,95 @@
 DECLARE	@pnClaPedidoOrigen INT
 
 	-- Pedidos Origen
+	--SELECT ClaEstatus FROM OpeSch.OpeTraFabricacionVw where idfabricacion = 23047486
+
+	-- Consulta Agregar Articulos 
+	SELECT	  a.IdFabricacion
+			, b.ClaArticulo
+			, Producto = c.ClaveArticulo + ' - ' + c.NomArticulo
+			, a.ClaEstatus
+			, b.ClaEstatusFabricacion 
+			, b.CantidadPedida
+			, Corruga = ClaValor
+	INTO	#Universo
+	FROM    OpeSch.OpeTraFabricacionVw a WITH(NOLOCK)
+	INNER  JOIN DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDetVw b
+	ON		a.IdFabricacion		= b.IdFabricacion
+	INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
+	ON		b.ClaArticulo		= c.ClaArticulo AND c.ClaTipoInventario = 1
+	INNER JOIN OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
+	ON		c.ClaUnidadBase		= d.ClaUnidad AND d.ClaTipoInventario = 1
+	INNER JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw e WITH(NOLOCK)  
+	ON		a.IdFabricacion		= e.IdFabricacion
+	INNER JOIN  OpeSch.OpeVtaCatProyectoVw f WITH(NOLOCK)  
+	ON		e.ClaProyecto		= f.ClaProyecto
+	LEFT JOIN OpeSch.OpeArtRelArticuloCarValorVw as g		--Corruga
+	ON		g.ClaTipoInventario = 1
+	AND		b.ClaArticulo		= g.ClaArticulo
+	AND		g.ClaCaracteristica = 1097
+	AND		g.BajaLogica		= 0
+	WHERE	1 = 1
+--	AND		g.ClaValor			= 5 -- Corruga
+	AND		b.ClaEstatusFabricacion IN (4,5)
+	AND		b.CantidadPedida	> 10000
+--	AND		a.ClaEstatus		= 1   
+
+	SELECT	IdFabricacion, COUNT(1) Conteo 
+	FROM	#Universo
+	GROUP BY IdFabricacion
+	HAVING COUNT(1) > 1
+	ORDER BY Conteo DESC
+
+	--- Actualizar Estatus (Activo)
+	UPDATE	a
+	SET		ClaEstatus = 1
+--	SELECT	ClaEstatus
+	FROM	OPESch.OpeTraFabricacion a 
+	WHERE	IdFabricacion IN (24280918, 24283053, 24269340, 23954981,23984742,24237492)
+
+	UPDATE	b
+	SET		ClaEstatus = 1
+--	SELECT	ClaEstatus
+	FROM	OpeSch.OpeTraFabricacionDetVw b
+	WHERE	IdFabricacion IN (24280918, 24283053, 24269340, 23954981,23984742,24237492)
+
+	SELECT * FROM #Universo a
+	WHERE EXISTS ( 
+		SELECT	1
+		FROM	#Universo b
+		WHERE	a.IdFabricacion = b.IdFabricacion
+		GROUP BY IdFabricacion
+		HAVING COUNT(1) > 1
+		)
+	
+
+
+	DROP TABLE #Universo
+
+	SELECT	nChkPesoNormaPO = EsPesoNorma
+	FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw c WITH(NOLOCK)  
+    WHERE	c.IdFabricacion = 24280918--@pnClaPedidoOrigen
+
+/*
+	-- ERROR CantidadDisponible = 0
+	SELECT * FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE ClaPedidoOrigen = 24237492
+
+	DELETE FROM OpeSch.OpeTraSolicitudTraspasoDetVw WHERE IdSolicitudTraspaso = 27
+	DELETE FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = 27
+*/
+	SELECT	IdFabricacion, CantPedida 
+	FROM	OpeSch.OpeTraFabricacionDetVw a
+	WHERE	EXISTS (	SELECT 1
+						FROM #Universo b
+						WHERE	a.IdFabricacion = b.IdFabricacion
+					)
+
+
+
+	----------------------------------------------
+	
+
+	-- Exportación
 	SELECT	a.IdFabricacion
 	INTO	#PedidosActivos
 	FROM    DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw a WITH(NOLOCK)

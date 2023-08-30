@@ -1,4 +1,8 @@
-CREATE PROCEDURE OpeSch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_IU
+USE Operacion
+GO
+-- EXEC SP_HELPTEXT 'OpeSch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_IU'
+GO
+ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_IU
 	@pnClaUbicacion             INT,
     @pnClaUsuarioMod            INT,	
     @psNombrePcMod              VARCHAR(64),
@@ -12,6 +16,7 @@ CREATE PROCEDURE OpeSch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_IU
     @psColProductoCPD           VARCHAR(255),
     @psColUnidadCPD             VARCHAR(10),
     @pnColCantPedidaCPD         NUMERIC(22,4),
+	@pnColCantPedidaOriginalCPD NUMERIC(22,4),
     @pnColPrecioListaMPCPD      NUMERIC(22,4),
     @pnColPrecioListaCPD        NUMERIC(22,4),
     @pnColPesoTeoricoCPD        NUMERIC(22,4),
@@ -19,6 +24,7 @@ CREATE PROCEDURE OpeSch.OPE_CU550_Pag32_Grid_GridCargaPartidasOrigenDet_IU
     @pnColEsMultiploCPD         INT = 0,
 	@pnColCantidadDisponible	NUMERIC(22,4)=NULL,
 	@pnColCantidadSolicitada	NUMERIC(22,4)=NULL,
+	@pnColNoRenglonCPD			INT = NULL,
 	@pnDebug					INT = 0
 AS  
 BEGIN
@@ -98,7 +104,7 @@ BEGIN
                         PrecioListaMP,              PrecioLista,                ClaEstatus,                 ClaMotivoRechazo,           ClaMotivoAutomatico,
                         FechaUltimaMod,             ClaUsuarioMod,              NombrePcMod)
 
-                SELECT  @pnClaSolicitud,            @pnColClaProductoCPD,       @nNoRenglon,                @pnColCantPedidaCPD,        @pnColCantPedidaCPD,
+                SELECT  @pnClaSolicitud,            @pnColClaProductoCPD,       @nNoRenglon,                @pnColCantPedidaOriginalCPD,@pnColCantPedidaCPD,
                         @psColUnidadCPD,            @pnColPesoTeoricoCPD,       @pnColCantidadMinAgrupCPD,  @pnColEsMultiploCPD,        @pnColPrecioListaCPD,
                         @pnColPrecioListaMPCPD,     @pnColPrecioListaMPCPD,     0,                          0,                          0,
                         GETDATE(),                  @pnClaUsuarioMod,           @psNombrePcMod   
@@ -111,7 +117,8 @@ BEGIN
                     AND (ISNULL( @pnClaSolicitud,0 ) > 0  AND ISNULL( @pnColClaProductoCPD,0 ) > 0 AND ISNULL( @nClaEstatus,-1 ) = 0) ) -- Proceso de Edición
             BEGIN
                 UPDATE  a
-                SET     CantidadPedidaOrigen    = @pnColCantPedidaCPD,
+                SET     CantidadPedida		    = @pnColCantPedidaCPD,
+						CantidadPedidaOrigen    = @pnColCantPedidaOriginalCPD,
                         Unidad                  = @psColUnidadCPD,
                         PesoTeoricoKgs          = @pnColPesoTeoricoCPD,        
                         CantidadMinAgrup        = @pnColCantidadMinAgrupCPD,
@@ -128,6 +135,15 @@ BEGIN
             END
         END
     END
+	ELSE IF (@pnClaTipoEvento = 0 AND @pnColSeleccionCPD = 0)
+	BEGIN
+		SELECT 'HV'
+		DELETE
+        FROM    OpeSch.OpeTraSolicitudTraspasoDetVw
+        WHERE   IdSolicitudTraspaso	= @pnClaSolicitud
+        AND     IdRenglon			= @pnColNoRenglonCPD
+        AND     ClaEstatus			= 0	
+	END
 
 	IF @pnDebug = 1
 	SELECT *

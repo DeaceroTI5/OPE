@@ -154,8 +154,9 @@ BEGIN
                             @pnClaPedidoOrigen          = @pnClaPedidoOrigen,
                             @pnClaTipoTraspaso          = @pnClaTipoTraspaso,
                             @pnClaUsuarioMod            = @pnClaUsuarioMod,
-                            @psNombrePcMod    = @psNombrePcMod,
-							@psMensajeTraspaso			= @psMensajeTraspaso OUTPUT
+                            @psNombrePcMod				= @psNombrePcMod,
+							@psMensajeTraspaso			= @psMensajeTraspaso OUTPUT,
+							@pnClaUbicacion				= @pnClaUbicacion
                 END
             END
             ELSE IF ( EXISTS ( SELECT 1 FROM OpeSch.OpeTraSolicitudTraspasoEncVw WHERE IdSolicitudTraspaso = @pnClaSolicitud AND ClaEstatusSolicitud IN (0) ) ) -- Proceso de Edición

@@ -2,13 +2,14 @@ USE Operacion
 GO
 -- EXEC SP_HELPTEXT 'OpeSch.OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc'
 GO
-CREATE PROCEDURE OpeSch.OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc
+ALTER PROCEDURE OpeSch.OPE_CU550_Pag32_Servicio_CargaPartidasOrigen_Proc
     @pnClaSolicitud             INT, --Clave de Solicitud de Traspaso Manual 
     @pnClaPedidoOrigen          INT,
     @pnClaTipoTraspaso          INT,
     @pnClaUsuarioMod            INT, --Usuario Autorizador
     @psNombrePcMod              VARCHAR(64),
 	@psMensajeTraspaso			VARCHAR(MAX) = '' OUTPUT,
+	@pnClaUbicacion				INT = NULL,
 	@pnDebug					TINYINT = 0
 AS
 BEGIN
@@ -28,6 +29,7 @@ BEGIN
 		, ClaProductoCPO		INT
 		, UnidadCPO				VARCHAR(20)
 		, CantPedidaCPO			NUMERIC(22,4)
+		, CantPedidaOrigenCPO	NUMERIC(22,4)
 		, PrecioListaMPCPO		NUMERIC(25,4)
 		, PrecioListaCPO		NUMERIC(22,4)
 		, PesoTeoricoCPO		NUMERIC(22,7)
@@ -35,8 +37,7 @@ BEGIN
 		, EsMultiploCPO			INT
 		, ClaProyecto			INT
 		, ClaEstatusDet			INT
-		, BajaArticulo			INT
-		, ClaveArticulo			VARCHAR(20)
+		, Corruga				INT
 	)
 
 	DECLARE @tbOtrasSolicitudes TABLE
@@ -60,10 +61,7 @@ BEGIN
 			, @smsj					VARCHAR(300)
 			, @nRenglon				INT = 0
 			, @nCont				INT
-			, @nArticulosBaja		INT = 0
-			, @sClaves				VARCHAR(240)
-			, @sClaveArticulo		VARCHAR(300)
-			, @sMsjError			VARCHAR(360)
+
 
 
 
@@ -106,15 +104,14 @@ BEGIN
 					, NoRenglonCPO			
 					, ClaProductoCPO		
 					, UnidadCPO				
-					, CantPedidaCPO			
+					, CantPedidaCPO	
+					, CantPedidaOrigenCPO
 					, PrecioListaCPO		
 					, PesoTeoricoCPO		
 					, CantidadMinAgrupCPO	
 					, EsMultiploCPO
 					, ClaProyecto
 					, ClaEstatusDet
-					, BajaArticulo
-					, ClaveArticulo
 				)
 				 SELECT  DISTINCT
 						 FabricacionCPO      = a.IdFabricacion,
@@ -122,19 +119,18 @@ BEGIN
 						 ClaProductoCPO      = c.ClaArticulo,
 						 UnidadCPO           = d.NomCortoUnidad,
 						 CantPedidaCPO       = ISNULL( b.CantPedida,0.00 ),
+						 CantPedidaOrigenCPO = ISNULL(b.CantPedida,0.00),
 						 PrecioListaCPO      = ISNULL( b.PrecioLista,0.00 ),
 						 PesoTeoricoCPO      = c.PesoTeoricoKgs,
 						 CantidadMinAgrupCPO = ISNULL( i.CantidadMinAgrup,0.00 ),
 						 EsMultiploCPO       = ISNULL( i.Multiplo,0 ),
 						 ClaProyecto		= e.ClaProyecto,
-						 ClaEstatusDet		= ISNULL(b.ClaEstatus,0),
-						 BajaArticulo		= ISNULL(c.BajaLogica,0),
-						 c.ClaveArticulo
+						 ClaEstatusDet		= ISNULL(b.ClaEstatus,0)
 				 FROM    OpeSch.OpeTraFabricacionVw a WITH(NOLOCK)  
 				 INNER JOIN  OpeSch.OpeTraFabricacionDetVw b WITH(NOLOCK)  
 					 ON  a.IdFabricacion = b.IdFabricacion
 				 INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
-					 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1 --AND ISNULL(c.BajaLogica,0) =  0
+					 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1 AND ISNULL(c.BajaLogica,0) =  0
 				 INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
 					 ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
 				 INNER JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw e WITH(NOLOCK)  
@@ -152,15 +148,14 @@ BEGIN
 					, NoRenglonCPO			
 					, ClaProductoCPO		
 					, UnidadCPO				
-					, CantPedidaCPO			
+					, CantPedidaCPO
+					, CantPedidaOrigenCPO
 					, PrecioListaCPO		
 					, PesoTeoricoCPO		
 					, CantidadMinAgrupCPO	
 					, EsMultiploCPO
 					, ClaProyecto
 					, ClaEstatusDet
-					, BajaArticulo
-					, ClaveArticulo
 				)
 				 SELECT  DISTINCT
 						 FabricacionCPO      = a.IdFabricacion,
@@ -168,20 +163,19 @@ BEGIN
 						 ClaProductoCPO      = c.ClaArticulo,
 						 UnidadCPO           = d.NomCortoUnidad,
 						 CantPedidaCPO       = ISNULL( b.CantidadPedida,0.00 ),
+						 CantPedidaOrigenCPO = ISNULL(b.CantidadPedida,0.00),
 						 PrecioListaCPO      = ISNULL( b.PrecioLista,0.00 ),
 						 PesoTeoricoCPO      = c.PesoTeoricoKgs,
 						 CantidadMinAgrupCPO = ISNULL( i.CantidadMinAgrup,0.00 ),
 						 EsMultiploCPO       = ISNULL( i.Multiplo,0 ),
 						 ClaProyecto		=  ISNULL(e.ClaProyecto,a.ClaProyecto),
 						 ClaEstatusDet		= CASE WHEN ISNULL(b.ClaEstatusFabricacion,0) IN (4,5)
-												THEN 1 ELSE 0 END,
-						 BajaArticulo		= ISNULL(c.BajaLogica,0),
-						 c.ClaveArticulo
+												THEN 1 ELSE 0 END
 				 FROM    DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion a WITH(NOLOCK)  
 				 INNER JOIN  DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDetVw b WITH(NOLOCK)  
 					 ON  a.IdFabricacion = b.IdFabricacion
 				 INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
-					 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1 --AND ISNULL(c.BajaLogica,0) =  0
+					 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1 AND ISNULL(c.BajaLogica,0) =  0
 				 INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
 					 ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
 				 LEFT JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw e WITH(NOLOCK)  
@@ -198,15 +192,14 @@ BEGIN
 				, NoRenglonCPO			
 				, ClaProductoCPO		
 				, UnidadCPO				
-				, CantPedidaCPO			
+				, CantPedidaCPO
+				, CantPedidaOrigenCPO
 				, PrecioListaCPO		
 				, PesoTeoricoCPO		
 				, CantidadMinAgrupCPO	
 				, EsMultiploCPO
 				, ClaProyecto
 				, ClaEstatusDet
-				, BajaArticulo
-				, ClaveArticulo
 			)
 			 SELECT  DISTINCT
 					 FabricacionCPO      = a.IdFabricacion,
@@ -214,20 +207,19 @@ BEGIN
 					 ClaProductoCPO      = c.ClaArticulo,
 					 UnidadCPO           = d.NomCortoUnidad,
 					 CantPedidaCPO       = ISNULL( b.CantidadPedida,0.00 ),
+					 CantPedidaOrigenCPO = ISNULL( b.CantidadPedida, 0.00 ),
 					 PrecioListaCPO      = ISNULL( b.PrecioLista,0.00 ),
 					 PesoTeoricoCPO      = c.PesoTeoricoKgs,
 					 CantidadMinAgrupCPO = ISNULL( i.CantidadMinAgrup,0.00 ),
 					 EsMultiploCPO       = ISNULL( i.Multiplo,0 ),
 					 ClaProyecto		=  ISNULL(e.ClaProyecto,a.ClaProyecto),
 					 ClaEstatusDet		= CASE WHEN ISNULL(b.ClaEstatusFabricacion,0) IN (4,5)
-											THEN 1 ELSE 0 END,
-					 BajaArticulo		= ISNULL(c.BajaLogica,0),
-					 c.ClaveArticulo
+											THEN 1 ELSE 0 END
 			 FROM    DEAOFINET05.Ventas.VtaSch.VtaTraFabricacion a WITH(NOLOCK)  
 			 INNER JOIN  DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionDetVw b WITH(NOLOCK)  
 				 ON  a.IdFabricacion = b.IdFabricacion
 			 INNER JOIN  OpeSch.OpeArtCatArticuloVw c WITH(NOLOCK)  
-				 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1 --AND ISNULL(c.BajaLogica,0) =  0
+				 ON  b.ClaArticulo = c.ClaArticulo AND c.ClaTipoInventario = 1 AND ISNULL(c.BajaLogica,0) =  0
 			 INNER JOIN  OpeSch.OpeArtCatUnidadVw d WITH(NOLOCK)  
 				 ON  c.ClaUnidadBase = d.ClaUnidad AND d.ClaTipoInventario = 1
 			 LEFT JOIN  OpeSch.OpeVtaRelFabricacionProyectoVw e WITH(NOLOCK)  
@@ -236,55 +228,6 @@ BEGIN
 				 ON  b.ClaArticulo = i.ClaArticulo
 			 WHERE  a.IdFabricacion = @pnClaPedidoOrigen
 		END
-
-		--IF @@SERVERNAME = 'SRVDBDES01\ITKQA' -- Pruebas_Hv (BORRAR)
-		--BEGIN
-		--	UPDATE @tbCargaPartidasOrigen
-		--	SET		BajaArticulo = 1
-		--	--WHERE	ClaveArticulo = '30773'
-		--END
-
-		-- Se reporta por el equipo de Calidad que se generó un Pedido de Ingetek con un Articulo dado de baja
-		SELECT	@nArticulosBaja = COUNT(1) 
-		FROM	@tbCargaPartidasOrigen 
-		WHERE	BajaArticulo = 1
-
-		IF ISNULL(@nArticulosBaja,0) > 0
-		BEGIN
-			SET @nArticulosBaja = ISNULL(@nArticulosBaja,0)
-		
-			IF @nArticulosBaja > 1
-			BEGIN 
-				SELECT @sClaves = 
-				STUFF(
-					  (
-      					SELECT ', ' + RTRIM(LTRIM(a.ClaveArticulo)) 
-						FROM @tbCargaPartidasOrigen a
-						WHERE	a.BajaArticulo = 1
-						GROUP BY a.ClaveArticulo
-						FOR XML PATH ('')
-					  )
-				, 1, 1, '')
-
-				SELECT @sMsjError = 'Se detectaron que las siguientes claves están <b>ináctivas:</b> '+ ISNULL(@sClaves,'')+'.'
-			END
-			ELSE
-			BEGIN
-				SELECT @sClaveArticulo = a.ClaveArticulo + ' - ' + b.NomArticulo
-				FROM	@tbCargaPartidasOrigen a
-				INNER JOIN OpeSch.ArtCatArticuloVw b
-				ON		a.ClaProductoCPO = b.ClaArticulo
-				WHERE	a.BajaArticulo = 1
-
-				SELECT @sMsjError = 'Se ha detectado que el producto: '+ISNULL(@sClaveArticulo,'')+' se encuentra <b>ináctivo.</b>'
-			END
-
-			RAISERROR(@sMsjError,16,1)
-			RETURN
-		END
-		-----------------------------
-
-
 
 		IF ISNULL( @pnClaTipoTraspaso,0 ) IN (3,4)
 		BEGIN
@@ -471,6 +414,45 @@ BEGIN
 		WHERE	a.ClaEstatusDet = 1
 		AND		b.CantidadSolicitada > 0
 
+		DECLARE @nChkPesoNormaPO TINYINT = 0
+		SELECT	@nChkPesoNormaPO = EsPesoNorma
+		FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw c WITH(NOLOCK)  
+        WHERE	c.IdFabricacion = @pnClaPedidoOrigen
+
+		IF @@SERVERNAME = 'SRVDBDES01\ITKQA'
+			SELECT @nChkPesoNormaPO = 1
+
+		IF ISNULL(@nChkPesoNormaPO,0) = 1
+		BEGIN
+			DECLARE @nPorcentajeDeduccion  NUMERIC(22,4),
+					@nValorMinimoPesoNorma NUMERIC(22,4)	
+
+			SELECT	@nValorMinimoPesoNorma = ISNULL(nValor1, 0)
+					,@nPorcentajeDeduccion = ISNULL(nValor2, 0) / 100
+			FROM	OPESch.OpeTiCatConfiguracionVw  (NOLOCK)   
+			WHERE	ClaSistema = 127 
+			and		ClaConfiguracion = 1271240
+			and		ClaUbicacion = @pnClaUbicacion
+
+			UPDATE	a	
+			SET		Corruga = ISNULL(b.ClaValor, 0)
+			FROM	@tbCargaPartidasOrigen a
+			INNER JOIN OpeSch.OpeArtRelArticuloCarValorVw b
+			ON		b.ClaTipoInventario = 1
+			AND		b.ClaArticulo = a.ClaProductoCPO
+			AND		b.ClaCaracteristica = 1097
+			AND		b.BajaLogica = 0
+
+			UPDATE a
+			SET CantPedidaCPO = CASE WHEN ( CantPedidaCPO - (CantPedidaCPO * @nPorcentajeDeduccion) ) % CantidadMinAgrupCPO = 0
+										THEN CantPedidaCPO - (CantPedidaCPO * @nPorcentajeDeduccion)
+										ELSE ( CantPedidaCPO - (CantPedidaCPO * @nPorcentajeDeduccion) ) - ( ( CantPedidaCPO - (CantPedidaCPO * @nPorcentajeDeduccion) ) % CantidadMinAgrupCPO )
+										END
+			FROM	@tbCargaPartidasOrigen as a
+			WHERE	a.Corruga = 5
+			AND		CantPedidaCPO > @nValorMinimoPesoNorma
+		END
+
 
 		 IF @pnDebug = 1
 			SELECT '' AS '@tbCargaPartidasOrigen Diferencias', * FROM @tbCargaPartidasOrigen
@@ -486,7 +468,7 @@ BEGIN
 			SELECT  @pnClaSolicitud,            
 					a.ClaProductoCPO,
 					ROW_NUMBER() OVER (PARTITION BY a.FabricacionCPO ORDER BY a.ClaProductoCPO) + @nRenglon,
-					a.CantPedidaCPO,
+					a.CantPedidaOrigenCPO,
 					a.CantPedidaCPO,
 					a.UnidadCPO,
 					a.PesoTeoricoCPO,
@@ -510,7 +492,7 @@ BEGIN
 			SELECT  ClaSolicitud = @pnClaSolicitud,            
 					a.ClaProductoCPO,
 					ROW_NUMBER() OVER (PARTITION BY a.FabricacionCPO ORDER BY a.ClaProductoCPO) + @nRenglon,
-					a.CantPedidaCPO,
+					a.CantPedidaOrigenCPO,
 					a.CantPedidaCPO,
 					a.UnidadCPO,
 					a.PesoTeoricoCPO,

@@ -21,4 +21,4 @@ update OpeSch.OpeTiCatConfiguracionVw
     and ClaConfiguracion = 1271229
 
 
-SELECT * FROM OpeSch.OpeticatUbicacionVw WHERE ClaUbicacion = 329
+--SELECT * FROM OpeSch.OpeticatUbicacionVw WHERE ClaUbicacion = 329
