@@ -7,11 +7,18 @@ CREATE TABLE #Remisiones (
 	,Liga		VARCHAR(300)
 )
 
-INSERT INTO #Remisiones (Remision) VALUES ('G397637')
-INSERT INTO #Remisiones (Remision) VALUES ('G397949')
-INSERT INTO #Remisiones (Remision) VALUES ('G397948')
-INSERT INTO #Remisiones (Remision) VALUES ('G397949')
-INSERT INTO #Remisiones (Remision) VALUES ('G396286')
+INSERT INTO #Remisiones (Remision) VALUES ('G398495')
+INSERT INTO #Remisiones (Remision) VALUES ('G398498')
+INSERT INTO #Remisiones (Remision) VALUES ('G398503')
+INSERT INTO #Remisiones (Remision) VALUES ('G398578')
+INSERT INTO #Remisiones (Remision) VALUES ('G398580')
+INSERT INTO #Remisiones (Remision) VALUES ('G398451')
+INSERT INTO #Remisiones (Remision) VALUES ('G398489')
+INSERT INTO #Remisiones (Remision) VALUES ('G398493')
+INSERT INTO #Remisiones (Remision) VALUES ('G398502')
+INSERT INTO #Remisiones (Remision) VALUES ('G398586')
+
+
 
 
 

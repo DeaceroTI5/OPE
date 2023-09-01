@@ -1,10 +1,8 @@
-USE Operacion
-GO
--- EXEC SP_HELPTEXT 'OpeSch.OPE_CU550_Pag28_Grid_GridConsFactEstimaciones_Sel'
-GO
-ALTER PROCEDURE [OpeSch].[OPE_CU550_Pag28_Grid_GridConsFactEstimaciones_Sel] 
+Text
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+CREATE PROCEDURE OpeSch.OPE_CU550_Pag28_Grid_GridConsFactEstimaciones_Sel
     @pnClaUbicacion         INT, 
-    @pnCmbCliente           INT, 
+    @pnCmbCliente           INT,
     @pnCmbProyecto          INT, 
     @pnCmbTipoProyecto      INT,
     @pnChkRemNoEntregadas   TINYINT = 0,
@@ -13,10 +11,13 @@ ALTER PROCEDURE [OpeSch].[OPE_CU550_Pag28_Grid_GridConsFactEstimaciones_Sel]
 	@pdFechaFin			    DATETIME = NULL,
     @pnCmbTransportista     INT,
     @pnChkRemCanceladas		TINYINT = 0,
-	@pnDebug				TINYINT = 0, @pnClaUsuarioMod INT = NULL
+	@pnClaUsuarioMod		INT = NULL,
+	@psTxtRemision			VARCHAR(20) = '',
+	@pnViajeSel				INT = NULL,
+	@pnDebug				TINYINT = 0
 AS
 BEGIN
-	IF @pnClaUsuarioMod = 100010318 SELECT @pnChkRemCanceladas = 1
+
 	IF (@pdFechaInicio IS NOT NULL AND @pdFechaFin IS NOT NULL AND (@pdFechaFin < @pdFechaInicio)) 
 	BEGIN
 		RAISERROR('La Fecha Inicial NO debe ser Mayor a la Fecha Final. Favor de Verificar.',16,1)
@@ -25,10 +26,11 @@ BEGIN
 	
 	IF @pdFechaFin IS NOT NULL
 		SELECT @pdFechaFin = DATEADD(DAY,1,@pdFechaFin)
-
-    DECLARE	@CmbCliente         INT, 
+	
+    DECLARE	@CmbCliente         INT,
 			@CmbProyecto        INT,
-            @CmbTipoProyecto    INT
+            @CmbTipoProyecto    INT,
+			@TxtRemision		VARCHAR(20)
 
 	DECLARE @tUbicacionEstimacionCmb TABLE(
 		  Id						INT IDENTITY(1,1)
@@ -44,6 +46,11 @@ BEGIN
 		Articulo		INT,
 		CantSurtidaRec	NUMERIC(22,4),
 		CantSurtidaFact	NUMERIC(22,4)
+	)
+
+	DECLARE @tbProformasEstimaciones TABLE(
+		Remision		VARCHAR(20),
+		Proformas		VARCHAR(600)
 	)
     
 	------------------------------------------------------------------------------	
@@ -61,6 +68,13 @@ BEGIN
 		INNER JOIN	OpeSch.OpeTiCatUbicacionVw T1 WITH(NOLOCK)  
 			ON	LTRIM(RTRIM(T0.string)) = T1.ClaUbicacion
 	END
+
+    IF  ISNULL(@pnDebug, 0) = 1
+    BEGIN 
+        SELECT  '@tUbicacionEstimacionCmb',
+                *
+        FROM    @tUbicacionEstimacionCmb
+    END
 	
 	------------------------------------------------------------------------------
 	INSERT INTO @tbControlFacturadoRemisiones(
@@ -88,6 +102,67 @@ BEGIN
 			T0.RemisionAlfanumerico,
 			T1.ClaArticulo
 
+    IF  ISNULL(@pnDebug, 0) = 1
+    BEGIN 
+        SELECT  '@tbControlFacturadoRemisiones',
+                *
+        FROM    @tbControlFacturadoRemisiones
+    END
+
+    ------------------------------------------------------------------------------
+	;WITH	ListadoRemisionesEstimacion		AS
+	(
+		SELECT	DISTINCT
+				T0.FacturaAlfanumericoVenta
+		FROM	OpeSch.OpeRelEmbarqueEstimacionVw T0 WITH(NOLOCK)
+		INNER JOIN	@tUbicacionEstimacionCmb T1
+			ON	T0.PlantaEstimacion			= T1.ClaUbicacionEstimacion
+	),		
+			RelProformasRemisiones			AS
+	(
+		SELECT	Remision			= T0.FacturaAlfanumericoVenta,
+				FolioProforma		= T1.FolioProforma,
+				Factura				= T3.IdFacturaAlfanumerico
+		FROM	ListadoRemisionesEstimacion T0
+		INNER JOIN	OpeSch.OpeTraRelFacturaRemisionEstimacionDet T1 WITH(NOLOCK)
+			ON	T0.FacturaAlfanumericoVenta	= T1.RemisionAlfanumerico
+		INNER JOIN	OpeSch.OpeVtaTraProformaVw T2 WITH(NOLOCK)
+			ON	T1.FolioProforma			= T2.IdProforma
+		LEFT JOIN	OpeSch.OpeVtaCTraFacturaVw T3 WITH(NOLOCK)
+			ON	T2.IdFacturaNueva			= T3.IdFactura
+	),		
+			ConcatenadoProformas			AS
+	(
+		SELECT	Remision			= T0.FacturaAlfanumericoVenta,
+				Proformas			= STUFF((	SELECT	', ' + pr.Factura
+                                                FROM	RelProformasRemisiones pr
+                                                WHERE	pr.Remision	= T0.FacturaAlfanumericoVenta											
+                                                GROUP BY
+                                                        pr.Factura
+                                                FOR XML PATH ('')
+                                                ), 1, 1, '')
+		FROM	ListadoRemisionesEstimacion T0
+	)
+
+	INSERT INTO @tbProformasEstimaciones(
+		  Remision		
+		, Proformas		
+	)
+	SELECT	Remision,
+			Proformas
+	FROM	ConcatenadoProformas
+	WHERE	Proformas IS NOT NULL
+
+    IF  ISNULL(@pnDebug, 0) = 1
+    BEGIN 
+        SELECT  '@tbProformasEstimaciones',
+                *
+        FROM    @tbProformasEstimaciones
+    END
+			
+	------------------------------------------------------------------------------
+    
+
 	IF ISNULL(@pnChkRemCanceladas,0) = 0
 	BEGIN
 		SELECT	--ColNomUbicacionOrigen
@@ -114,6 +189,8 @@ BEGIN
 				T1.FechaViajeEstimacion AS ColFecha,
 				--ColDias
 				DATEDIFF(DAY, T1.FechaViajeEstimacion, GETDATE()) AS ColDias,
+                --ColProformas
+                T14.Proformas AS ColProformas,
 				--ColVerRemision
 				'Ver' AS ColVerRemision,
 				--ColTransportista
@@ -173,6 +250,8 @@ BEGIN
 			ON T1.PlantaEstimacion = T12.ClaUbicacionEstimacion
 		LEFT JOIN	OpeSch.OpeFleCatTransportistaVw T13 WITH(NOLOCK)
 			ON T1.PlantaEstimacion = T13.ClaUbicacion AND T1.ClaTransportistaEstimacion = T13.ClaTransportista AND (T13.ClaTransportista = ISNULL( @pnCmbTransportista,0 ) OR ISNULL( @pnCmbTransportista,0 ) = 0)
+        LEFT JOIN	@tbProformasEstimaciones T14
+            ON	T1.FacturaAlfanumericoVenta		= T14.Remision
 		WHERE	T1.PlantaVirtualAgrupador IN (365)		
 		AND     T2.EsEstimacion = 1
 		AND		( T1.ClienteProyectoAgp = @pnCmbCliente OR @CmbCliente = 1 )  
@@ -182,6 +261,8 @@ BEGIN
 		AND		( ISNULL(T3.EsEntregado, 0) = 1 OR ISNULL(@pnChkRemNoEntregadas,0) = 1 )
 		AND		(@pdFechaInicio IS NULL OR (@pdFechaInicio <= T1.FechaViajeEstimacion))
 		AND		(@pdFechaFin IS NULL OR (@pdFechaFin > T1.FechaViajeEstimacion))
+		AND		(ISNULL(@psTxtRemision,'') = '' OR (T1.FacturaAlfanumericoVenta = @psTxtRemision))
+		AND		(@pnViajeSel IS NULL OR @pnViajeSel = T1.IdViajeEstimacion)
 		GROUP BY
 				T1.ProyectoAgrupador,
 				LTRIM(RTRIM(CONVERT(VARCHAR(150), TA1.ClaProyecto))) + ' - ' + TA1.NomProyecto,
@@ -200,7 +281,8 @@ BEGIN
 				T3.EsRecibido,
 				T5.Remision,
 				T6.NombreUsuario + ' ' + T6.ApellidoPaterno,
-				T3.ComentarioRecepcion
+				T3.ComentarioRecepcion,
+			    T14.Proformas
 		ORDER BY 
 				T1.IdViajeVenta, T1.FacturaAlfanumericoVenta
 	END
@@ -230,6 +312,8 @@ BEGIN
 				T1.FechaViajeEstimacion AS ColFecha,
 				--ColDias
 				DATEDIFF(DAY, T1.FechaViajeEstimacion, GETDATE()) AS ColDias,
+                --ColProformas
+                T14.Proformas AS ColProformas,
 				--ColVerRemision
 				'Ver' AS ColVerRemision,
 				--ColTransportista
@@ -289,6 +373,8 @@ BEGIN
 			ON T1.PlantaEstimacion = T12.ClaUbicacionEstimacion
 		LEFT JOIN	OpeSch.OpeFleCatTransportistaVw T13 WITH(NOLOCK)
 			ON T1.PlantaEstimacion = T13.ClaUbicacion AND T1.ClaTransportistaEstimacion = T13.ClaTransportista AND (T13.ClaTransportista = ISNULL( @pnCmbTransportista,0 ) OR ISNULL( @pnCmbTransportista,0 ) = 0)
+        LEFT JOIN	@tbProformasEstimaciones T14
+            ON	T1.FacturaAlfanumericoVenta		= T14.Remision
 		WHERE	T1.PlantaVirtualAgrupador IN (365)		
 		AND     T2.EsEstimacion = 1
 		AND		( T1.ClienteProyectoAgp = @pnCmbCliente OR @CmbCliente = 1 )  
@@ -298,6 +384,8 @@ BEGIN
 		AND		( ISNULL(T3.EsEntregado, 0) = 1 OR ISNULL(@pnChkRemNoEntregadas,0) = 1 )
 		AND		(@pdFechaInicio IS NULL OR (@pdFechaInicio <= T1.FechaViajeEstimacion))
 		AND		(@pdFechaFin IS NULL OR (@pdFechaFin > T1.FechaViajeEstimacion))
+		AND		(ISNULL(@psTxtRemision,'') = '' OR (T1.FacturaAlfanumericoVenta = @psTxtRemision))
+		AND		(@pnViajeSel IS NULL OR @pnViajeSel = T1.IdViajeEstimacion)
 		GROUP BY
 				T1.ProyectoAgrupador,
 				LTRIM(RTRIM(CONVERT(VARCHAR(150), TA1.ClaProyecto))) + ' - ' + TA1.NomProyecto,
@@ -316,9 +404,9 @@ BEGIN
 				T3.EsRecibido,
 				T5.Remision,
 				T6.NombreUsuario + ' ' + T6.ApellidoPaterno,
-				T3.ComentarioRecepcion
+				T3.ComentarioRecepcion,
+			    T14.Proformas
 		ORDER BY 
 				T1.IdViajeVenta, T1.FacturaAlfanumericoVenta
 	END
-	
 END

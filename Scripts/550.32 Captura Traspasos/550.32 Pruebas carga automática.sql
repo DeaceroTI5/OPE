@@ -31,8 +31,8 @@ DECLARE	@pnClaPedidoOrigen INT
 	WHERE	1 = 1
 --	AND		g.ClaValor			= 5 -- Corruga
 	AND		b.ClaEstatusFabricacion IN (4,5)
-	AND		b.CantidadPedida	> 10000
---	AND		a.ClaEstatus		= 1   
+--	AND		b.CantidadPedida	> 10000
+	AND		a.ClaEstatus		= 1   
 
 	SELECT	IdFabricacion, COUNT(1) Conteo 
 	FROM	#Universo
