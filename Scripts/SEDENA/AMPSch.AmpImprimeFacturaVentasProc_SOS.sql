@@ -1,6 +1,6 @@
 USE Operacion
 GO
-DECLARE @sFactura VARCHAR(10) = 'PG17370'
+DECLARE @sFactura VARCHAR(10) = 'EW17390'
 
 
 SELECT	DISTINCT a.ClaUbicacion, a.IdFacturaAlfanumerico AS Factura--, b.NombreUbicacion, c.NombreTipoUbicacion, 
@@ -59,6 +59,12 @@ ELSE
 
 ----------------------
 /*
+SELECT	DISTINCT ClaClienteUnico, NomClienteCuenta
+FROM	OpeSch.OpeVtaCatClienteCuentaVw 
+WHERE	ClaClienteUnico = 14064 
+AND		NomClienteCuenta LIKE '%DESARROLLADORA DE INFRAESTRUCTURA PUERTO ESCONDIDO%'
+
+
 					SELECT	nIdBoletaOrigen		=	a.IdBoleta,
 							nIdFactura				= NumFactura,
 							sFacturaAlfanumerica	= IdFacturaAlfanumerico,

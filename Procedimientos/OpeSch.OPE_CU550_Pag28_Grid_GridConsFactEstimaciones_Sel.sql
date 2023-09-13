@@ -1,6 +1,8 @@
-Text
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-CREATE PROCEDURE OpeSch.OPE_CU550_Pag28_Grid_GridConsFactEstimaciones_Sel
+USE Operacion
+GO
+-- EXEC SP_HELPTEXT 'OpeSch.OPE_CU550_Pag28_Grid_GridConsFactEstimaciones_Sel'
+GO
+ALTER PROCEDURE OpeSch.OPE_CU550_Pag28_Grid_GridConsFactEstimaciones_Sel
     @pnClaUbicacion         INT, 
     @pnCmbCliente           INT,
     @pnCmbProyecto          INT, 
@@ -67,6 +69,14 @@ BEGIN
 		FROM	OpeSch.OPEUtiSplitStringFn(@psClaUbicacionOrig, ',') T0
 		INNER JOIN	OpeSch.OpeTiCatUbicacionVw T1 WITH(NOLOCK)  
 			ON	LTRIM(RTRIM(T0.string)) = T1.ClaUbicacion
+	END
+	ELSE
+	BEGIN	-- Todas las Ubicaciones
+		INSERT	INTO @tUbicacionEstimacionCmb
+		SELECT	ClaUbicacion, NombreUbicacion
+		FROM	OPESch.OPEAtiTICatUbicacionVw
+		WHERE	ClaEmpresa = 52
+		AND		BajaLogica = 0
 	END
 
     IF  ISNULL(@pnDebug, 0) = 1
@@ -410,3 +420,4 @@ BEGIN
 				T1.IdViajeVenta, T1.FacturaAlfanumericoVenta
 	END
 END
+

@@ -1,4 +1,8 @@
-CREATE PROCEDURE OpeSch.OPE_CU550_Pag28_Grid_GridConsultaTraArticulo_Sel
+USE Operacion
+GO
+-- EXEC SP_HELPTEXT 'OpeSch.OPE_CU550_Pag28_Grid_GridConsultaTraArticulo_Sel'
+GO
+ALTER PROCEDURE OpeSch.OPE_CU550_Pag28_Grid_GridConsultaTraArticulo_Sel
     @pnClaUbicacion         INT,       
     @pnIdFabVentaDet        INT,
     @pnIdFabDetVentaDet     INT,
@@ -32,6 +36,7 @@ BEGIN
 
     SELECT	--ColFacturaTra
 			T1.Factura AS ColFacturaTra,
+			T4.IdFacturaAlfanumerico AS ColProforma,
 			--ColKilosFacturadosTra
 			ISNULL( (T1.CantidadFactura * T2.PesoTeoricoKgs) , 0.00) AS ColKilosFacturadosTra,
 			--ColImporteTra
@@ -50,7 +55,11 @@ BEGIN
 		--Información de Embarques
 	INNER JOIN	OpeSch.OpeRelEmbarqueEstimacionVw T2 WITH(NOLOCK)
 		ON	T1.ViajeFactura = T2.IdViajeVenta AND T1.RemisionFactura = T2.FacturaAlfanumericoVenta AND T1.ArticuloFactura = T2.ClaArticulo
-    WHERE	T2.PlantaVirtualAgrupador IN (365)	
+	LEFT JOIN OpeSch.OpeVtaTraProformaVw T3 
+	ON		T1.Factura	= T3.IdProforma
+	LEFT JOIN OpeSch.OpeVtaCTraFacturaVw T4
+	ON		T3.IdFacturaNueva = T4.IdFactura    
+	WHERE	T2.PlantaVirtualAgrupador IN (365)	
     ORDER BY T1.FechaFactura DESC, T1.Factura
 
 END

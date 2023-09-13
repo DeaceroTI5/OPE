@@ -3,7 +3,7 @@ DECLARE	@pnClaPedidoOrigen INT
 	-- Pedidos Origen
 	--SELECT ClaEstatus FROM OpeSch.OpeTraFabricacionVw where idfabricacion = 23047486
 
-	-- Consulta Agregar Articulos 
+	-- Consulta Pedido Origen (activo)
 	SELECT	  a.IdFabricacion
 			, b.ClaArticulo
 			, Producto = c.ClaveArticulo + ' - ' + c.NomArticulo
@@ -29,16 +29,27 @@ DECLARE	@pnClaPedidoOrigen INT
 	AND		g.ClaCaracteristica = 1097
 	AND		g.BajaLogica		= 0
 	WHERE	1 = 1
---	AND		g.ClaValor			= 5 -- Corruga
-	AND		b.ClaEstatusFabricacion IN (4,5)
---	AND		b.CantidadPedida	> 10000
 	AND		a.ClaEstatus		= 1   
+	AND		b.ClaEstatusFabricacion IN (4,5)
+--	AND		g.ClaValor			= 5 -- Corruga
+--	AND		b.CantidadPedida	> 10000
+
+	-- Consulta de Partidas por Fabricación Origen
+	SELECT * FROM #Universo a
+	WHERE EXISTS ( 
+		SELECT	1
+		FROM	#Universo b
+		WHERE	a.IdFabricacion = b.IdFabricacion
+		GROUP BY IdFabricacion
+		HAVING COUNT(1) > 1
+		)
 
 	SELECT	IdFabricacion, COUNT(1) Conteo 
 	FROM	#Universo
 	GROUP BY IdFabricacion
 	HAVING COUNT(1) > 1
 	ORDER BY Conteo DESC
+
 
 	--- Actualizar Estatus (Activo)
 	UPDATE	a
@@ -53,6 +64,7 @@ DECLARE	@pnClaPedidoOrigen INT
 	FROM	OpeSch.OpeTraFabricacionDetVw b
 	WHERE	IdFabricacion IN (24280918, 24283053, 24269340, 23954981,23984742,24237492)
 
+	-- Consulta de Partidas por Fabricación Origen
 	SELECT * FROM #Universo a
 	WHERE EXISTS ( 
 		SELECT	1
@@ -61,11 +73,10 @@ DECLARE	@pnClaPedidoOrigen INT
 		GROUP BY IdFabricacion
 		HAVING COUNT(1) > 1
 		)
-	
-
 
 	DROP TABLE #Universo
 
+	---------------------------------------------------------------------
 	SELECT	nChkPesoNormaPO = EsPesoNorma
 	FROM	DEAOFINET05.Ventas.VtaSch.VtaTraFabricacionVw c WITH(NOLOCK)  
     WHERE	c.IdFabricacion = 24280918--@pnClaPedidoOrigen
@@ -87,8 +98,6 @@ DECLARE	@pnClaPedidoOrigen INT
 
 
 	----------------------------------------------
-	
-
 	-- Exportación
 	SELECT	a.IdFabricacion
 	INTO	#PedidosActivos
