@@ -1,5 +1,3 @@
-Text
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 CREATE PROCEDURE OpeSch.OPE_CU550_Pag41_Servicio_CargaRemisionDeAcero_Proc
     @pnClaUbicacion				INT,
 	@pnClaUbicacionOrigen		INT,
@@ -150,6 +148,11 @@ BEGIN
 									'INSERT	INTO [OpeSch].[OpeTraSalidaComandoCmdShellProcess] ( SalidaComando ) ' + 
 									'EXEC	master.dbo.xp_cmdshell @sCmd'
 
+		IF	ISNULL( @pnDebug, 0 ) =  1
+		BEGIN
+			SELECT	sComando			= @sComando
+		END
+
 		EXEC	[OpeSch].[OPE_CU550_Pag41_Servicio_ExecCmdShellProcess_Proc]
 			@psNombreJob				= 'xp_cmdshell replacement',
 			@psSubSistema				= 'TSQL',
@@ -164,6 +167,7 @@ BEGIN
 		SELECT	ArchivoOrigen	= SUBSTRING( SalidaComando, CHARINDEX('Factura',SalidaComando,0), LEN(SalidaComando) ) 
 		FROM	OpeSch.OpeTraSalidaComandoCmdShellProcess WITH(NOLOCK) 
 		WHERE	SalidaComando	LIKE '%' + @sFacturaAlfanumerica + '%'
+--		AND		SalidaComando LIKE '%Factura%'
 
 		UPDATE	T0
 		SET		T0.RutaCompletaOrigen	= @sPathOrigen + ArchivoOrigen
@@ -192,13 +196,13 @@ BEGIN
 		FROM	@tResources
 		WHERE	Id = @nId
 
-		IF	ISNULL( @pnDebug, 0 ) =  1
-		BEGIN
-			SELECT	sRutaCompletaOrigen		= @sRutaCompletaOrigen,
-					sRutaCompletaDestino	= @sRutaCompletaDestino,
-					sArchivoOrigen			= @sArchivoOrigen,
-					sArchivoDestino			= @sArchivoDestino
-		END
+		--IF	ISNULL( @pnDebug, 0 ) =  1
+		--BEGIN
+		--	SELECT	sRutaCompletaOrigen		= @sRutaCompletaOrigen,
+		--			sRutaCompletaDestino	= @sRutaCompletaDestino,
+		--			sArchivoOrigen			= @sArchivoOrigen,
+		--			sArchivoDestino			= @sArchivoDestino
+		--END
 
 		--Carga de Archivo Fisico para Obtener VARBINARY
 		IF @nEsCargarArchivo = 1
@@ -218,11 +222,13 @@ BEGIN
 			BEGIN
 				SELECT	sRutaCompletaOrigen		= @sRutaCompletaOrigen,
 						sRutaCompletaDestino	= @sRutaCompletaDestino,
+						sql_cmd					= @sql,
+						parmsdeclare			= @parmsdeclare,
 						bArchivo				= @bArchivo
 			END
 		END
 
-		--Almacenamiento de VARBINARY en Tabla Transaccional
+		--Almacenamiento de VARBINARY en Tabla Transaccionalx
 		UPDATE	T0
 		SET		T0.NombreArchivo		= SUBSTRING( @sArchivoOrigen, 0, CHARINDEX('.', @sArchivoOrigen) ),
 				T0.Extension			= SUBSTRING( @sArchivoOrigen, CHARINDEX('.', @sArchivoOrigen) + 1, (LEN(@sArchivoOrigen) - CHARINDEX('.', @sArchivoOrigen) )),
