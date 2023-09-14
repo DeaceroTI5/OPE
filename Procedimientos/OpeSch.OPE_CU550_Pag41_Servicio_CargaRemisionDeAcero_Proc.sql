@@ -1,4 +1,8 @@
-CREATE PROCEDURE OpeSch.OPE_CU550_Pag41_Servicio_CargaRemisionDeAcero_Proc
+USE Operacion
+GO
+-- EXEC SP_HELPTEXT 'OpeSch.OPE_CU550_Pag41_Servicio_CargaRemisionDeAcero_Proc'
+GO
+ALTER PROCEDURE OpeSch.OPE_CU550_Pag41_Servicio_CargaRemisionDeAcero_ProcHv
     @pnClaUbicacion				INT,
 	@pnClaUbicacionOrigen		INT,
 	@pnIdViajeOrigen			INT	= NULL,
@@ -136,6 +140,10 @@ BEGIN
 			SET	@sCmd			= 'dir ' + @sPathOrigen
 		END	
 
+		-- Hv 13/09/23 SE agrega condición de filtro
+		SELECT @sCmd = @sCmd + ' /b | find "' + @sFacturaAlfanumerica + '"'
+
+
 		IF	ISNULL( @pnDebug, 0 ) =  1
 		BEGIN
 			SELECT	sPathOrigen			= @sPathOrigen,
@@ -167,7 +175,7 @@ BEGIN
 		SELECT	ArchivoOrigen	= SUBSTRING( SalidaComando, CHARINDEX('Factura',SalidaComando,0), LEN(SalidaComando) ) 
 		FROM	OpeSch.OpeTraSalidaComandoCmdShellProcess WITH(NOLOCK) 
 		WHERE	SalidaComando	LIKE '%' + @sFacturaAlfanumerica + '%'
---		AND		SalidaComando LIKE '%Factura%'
+		AND		SalidaComando LIKE '%Factura%'			-- Hv 12/09/23  Corrección de error al encontrar más de un archivo generado (Caso de Certificado Calidad)
 
 		UPDATE	T0
 		SET		T0.RutaCompletaOrigen	= @sPathOrigen + ArchivoOrigen
@@ -178,12 +186,12 @@ BEGIN
 			SELECT	sComando				= @sComando,
 					sFacturaAlfanumerica	= @sFacturaAlfanumerica
 
-			SELECT	'OpeSch.OpeTraSalidaComandoCmdShellProcess',
+			SELECT	'' AS 'OpeSch.OpeTraSalidaComandoCmdShellProcess',
 					*
 			FROM	OpeSch.OpeTraSalidaComandoCmdShellProcess WITH(NOLOCK)  
 			WHERE	SalidaComando	LIKE '%' + @sFacturaAlfanumerica + '%'
 
-			SELECT	'@tResources',
+			SELECT	'' AS '@tResources',
 					*
 			FROM	@tResources 
 		END
@@ -241,7 +249,7 @@ BEGIN
 
 		IF	ISNULL( @pnDebug, 0 ) =  1
 		BEGIN
-			SELECT	*
+			SELECT	'' AS 'OpeTraRemisionesDeAceroSD', *
 			FROM	OpeSch.OpeTraRemisionesDeAceroSD  
 			WHERE	ClaUbicacionOrigen	= @pnClaUbicacionOrigen
 			AND		IdViajeOrigen		= @pnIdViajeOrigen
