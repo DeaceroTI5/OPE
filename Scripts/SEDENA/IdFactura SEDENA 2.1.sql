@@ -7,7 +7,12 @@ CREATE TABLE #Remisiones (
 	,Liga		VARCHAR(300)
 )
 
-INSERT INTO #Remisiones (Remision) VALUES ('G398596')
+INSERT INTO #Remisiones (Remision) VALUES ('G399218')
+INSERT INTO #Remisiones (Remision) VALUES ('G399118')
+INSERT INTO #Remisiones (Remision) VALUES ('G399224')
+INSERT INTO #Remisiones (Remision) VALUES ('G398682')
+INSERT INTO #Remisiones (Remision) VALUES ('G395484')
+
 
 
 SELECT	a.IdFactura

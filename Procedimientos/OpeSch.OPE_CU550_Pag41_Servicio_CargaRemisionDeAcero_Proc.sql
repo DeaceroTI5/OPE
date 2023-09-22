@@ -2,7 +2,7 @@ USE Operacion
 GO
 -- EXEC SP_HELPTEXT 'OpeSch.OPE_CU550_Pag41_Servicio_CargaRemisionDeAcero_Proc'
 GO
-ALTER PROCEDURE OpeSch.OPE_CU550_Pag41_Servicio_CargaRemisionDeAcero_ProcHv
+ALTER PROCEDURE OpeSch.OPE_CU550_Pag41_Servicio_CargaRemisionDeAcero_Proc
     @pnClaUbicacion				INT,
 	@pnClaUbicacionOrigen		INT,
 	@pnIdViajeOrigen			INT	= NULL,
@@ -13,7 +13,7 @@ ALTER PROCEDURE OpeSch.OPE_CU550_Pag41_Servicio_CargaRemisionDeAcero_ProcHv
 	@psNombrePcMod				VARCHAR(64) = NULL,
 	@pnEsCargarArchivo			TINYINT = 1,
 	@pnEsCopiarArchivo			TINYINT = 0,
-	@pnDebug					INT = NULL
+	@pnDebug					INT = 0
 AS
 BEGIN
 	SET NOCOUNT ON
@@ -156,15 +156,12 @@ BEGIN
 									'INSERT	INTO [OpeSch].[OpeTraSalidaComandoCmdShellProcess] ( SalidaComando ) ' + 
 									'EXEC	master.dbo.xp_cmdshell @sCmd'
 
-		IF	ISNULL( @pnDebug, 0 ) =  1
-		BEGIN
-			SELECT	sComando			= @sComando
-		END
 
 		EXEC	[OpeSch].[OPE_CU550_Pag41_Servicio_ExecCmdShellProcess_Proc]
-			@psNombreJob				= 'xp_cmdshell replacement',
+			@psNombreJob				= 'xp_cmdshell replacement', 
 			@psSubSistema				= 'TSQL',
-			@psComando					= @sComando
+			@psComando					= @sComando,
+			@pnDebug					= @pnDebug
 
 		--EXEC	[dbo].[OPEServicioExecCmdShellProcess]
 		--	@psNombreJob				= 'xp_cmdshell replacement',
