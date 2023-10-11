@@ -1,6 +1,6 @@
 USE Operacion
 GO
-DECLARE @sFactura VARCHAR(10) = 'EW17390'
+DECLARE @sFactura VARCHAR(10) = 'DC41296'
 
 
 SELECT	DISTINCT a.ClaUbicacion, a.IdFacturaAlfanumerico AS Factura--, b.NombreUbicacion, c.NombreTipoUbicacion, 
