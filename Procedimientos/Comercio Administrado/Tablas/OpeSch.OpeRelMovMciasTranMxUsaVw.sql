@@ -214,3 +214,140 @@ RETURN
 		AND		a.ClaUbicacionOrigen	= c.ClaUbicacionOrigen
 		AND		a.ClaUbicacion			= c.ClaUbicacionDestino	
 		WHERE 	b.ClaUbicacion IS NULL
+
+		INSERT INTO OpeSch.OpeTraFabricacion
+		SELECT    a.IdFabricacion
+				, a.ClaEstatus
+				, a.ClaTipoMercadoPta
+				, a.FechaPromesaActual
+				, a.FechaUltimaMod
+				, a.NombrePcMod
+				, a.ClaUsuarioMod
+				, a.ClaUbicacion
+				, a.FechaIns
+		FROM	DEAITKUSANET01.Operacion.OpeSch.OpeTraFabricacion a WITH(NOLOCK)
+		LEFT JOIN OpeSch.OpeTraFabricacion b WITH(NOLOCK)
+		ON		a.IdFabricacion	= b.IdFabricacion
+		WHERE	b.IdFabricacion IS NULL
+
+		INSERT INTO OpeSch.OpeTraFabricacionDet
+		SELECT    a.IdFabricacion
+				, a.IdFabricacionDet
+				, a.CantPlanes
+				, a.CantSurtida
+				, a.ClaEstatus
+				, a.IdOpm
+				, a.FechaUltimaMod
+				, a.NombrePcMod
+				, a.ClaUsuarioMod
+				, a.ClaveRollo
+		FROM	DEAITKUSANET01.Operacion.OpeSch.OpeTraFabricacionDet a WITH(NOLOCK)
+		LEFT JOIN OpeSch.OpeTraFabricacionDet b WITH(NOLOCK)
+		ON		a.IdFabricacion = b.IdFabricacion
+		AND		a.IdFabricacionDet = b.IdFabricacionDet
+		WHERE	b.IdFabricacion IS NULL
+
+
+		INSERT INTO OpeSch.OpeTraRecepTraspasoFab
+		SELECT    a.IdViajeOrigen
+				, a.ClaUbicacionOrigen
+				, a.ClaUbicacion
+				, a.IdFabricacion
+				, a.EsRecibida
+				, a.IdEntSalOrigen
+				, a.IdFacturaOrigen
+				, a.IdEntSalDestino
+				, a.CantTotalEmpaque
+				, a.Comentarios
+				, a.FechaUltimaMod
+				, a.NombrePcMod
+				, a.ClaUsuarioMod
+				, a.IdFacturaAlfanumericoOrigen
+		FROM	DEAITKUSANET01.Operacion.OpeSch.OpeTraRecepTraspasoFab a WITH(NOLOCK)
+		LEFT JOIN OpeSch.OpeTraRecepTraspasoFab b WITH(NOLOCK)
+		ON		a.IdViajeOrigen			= b.IdViajeOrigen
+		AND		a.ClaUbicacionOrigen	= b.ClaUbicacionOrigen
+		AND		a.ClaUbicacion			= b.ClaUbicacion
+		AND		a.IdFabricacion			= b.IdFabricacion
+		INNER JOIN OpeSch.OpeTraRecepTraspaso c
+		ON		a.IdViajeOrigen			= c.IdViajeOrigen		
+		AND		a.ClaUbicacionOrigen	= c.ClaUbicacionOrigen
+		AND		a.ClaUbicacion			= c.ClaUbicacion	
+		WHERE 	b.IdViajeOrigen IS NULL
+		-- FK_OpeTraRecepTraspasoFabOpeTraRecepTraspaso
+
+
+
+		INSERT INTO OpeSch.OpeTraRecepTraspasoProd
+		SELECT    a.IdViajeOrigen
+				, a.ClaUbicacionOrigen
+				, a.ClaUbicacion
+				, a.IdFabricacion
+				, a.IdFabricacionDet
+				, a.ClaArticuloRemisionado
+				, a.CantRemisionada
+				, a.PesoRemisionado
+				, a.PesoTaraRemisionado
+				, a.AplicaReclasificacion
+				, a.FechaUltimaMod
+				, a.NombrePcMod
+				, a.ClaUsuarioMod
+				, a.IdMovimientoInvRec
+				, a.ImporteRemisionado
+		FROM	DEAITKUSANET01.Operacion.OpeSch.OpeTraRecepTraspasoProd a WITH(NOLOCK)
+		LEFT JOIN OpeSch.OpeTraRecepTraspasoProd b WITH(NOLOCK)
+		ON		a.ClaUbicacion			= b.ClaUbicacion
+		AND		a.IdViajeOrigen			= b.IdViajeOrigen
+		AND		a.ClaUbicacionOrigen	= b.ClaUbicacionOrigen
+		AND		a.IdFabricacion			= b.IdFabricacion
+		AND		a.IdFabricacionDet		= b.IdFabricacionDet
+		INNER JOIN OpeSch.OpeTraRecepTraspaso c
+		ON		a.IdViajeOrigen			= c.IdViajeOrigen		
+		AND		a.ClaUbicacionOrigen	= c.ClaUbicacionOrigen
+		AND		a.ClaUbicacion			= c.ClaUbicacion		
+		WHERE 	b.ClaUbicacion IS NULL
+
+		INSERT INTO OpeSch.OpeTraRecepTraspasoProdRecibido
+		SELECT a.IdViajeOrigen
+				, a.ClaUbicacionOrigen
+				, a.ClaUbicacion
+				, a.IdFabricacion
+				, a.IdFabricacionDet
+				, a.IdRenglonRecepcion
+				, a.ClaAlmacen
+				, a.ClaSubAlmacen
+				, a.ClaSubSubAlmacen
+				, a.ClaSeccion
+				, a.Referencia1
+				, a.Referencia2
+				, a.Referencia3
+				, a.Referencia4
+				, a.Referencia5
+				, a.ClaArticuloRecibido
+				, a.CantRecibida
+				, a.PesoRecibido
+				, a.PesoTaraRecibido
+				, a.ComentariosRecepcion
+				, a.FechaUltimaMod
+				, a.NombrePcMod
+				, a.ClaUsuarioMod
+				, a.ClaTipoInventario
+				, a.EsPesajeParcial
+				, a.KilosReales
+				, a.IdBoleta
+				, a.PorcentajeMaterial
+				, a.ClaTaraRecibida
+				, a.CantTaraRecibida
+		FROM	DEAITKUSANET01.Operacion.OpeSch.OpeTraRecepTraspasoProdRecibido a WITH(NOLOCK)
+		LEFT JOIN OpeSch.OpeTraRecepTraspasoProdRecibido b WITH(NOLOCK)
+		ON		a.IdViajeOrigen			= b.IdViajeOrigen
+		AND		a.ClaUbicacionOrigen	= b.ClaUbicacionOrigen
+		AND		a.ClaUbicacion			= b.ClaUbicacion
+		AND		a.IdFabricacion			= b.IdFabricacion
+		AND		a.IdFabricacionDet		= b.IdFabricacionDet
+		AND		a.IdRenglonRecepcion	= b.IdRenglonRecepcion
+		INNER JOIN OpeSch.OpeTraRecepTraspaso c
+		ON		a.IdViajeOrigen			= c.IdViajeOrigen		
+		AND		a.ClaUbicacionOrigen	= c.ClaUbicacionOrigen
+		AND		a.ClaUbicacion			= c.ClaUbicacion		
+		WHERE 	b.ClaUbicacion IS NULL

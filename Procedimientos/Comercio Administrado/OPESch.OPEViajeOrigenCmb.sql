@@ -1,10 +1,14 @@
+USE operacion
+-- EXEC SP_HELPTEXT 'OPESch.OPEViajeOrigenCmb'
+GO
 ALTER PROCEDURE OPESch.OPEViajeOrigenCmb
 		@psValor				VARCHAR(100),		-- Texto a Buscar  
 		@pnTipo					INT,				-- 1=Buscar por la ClaveXxxxx  
 		@pnClaUbicacion			INT,
 		@pnClaUbicacionOrigen	INT,
 		@pnClaArticuloRel		INT,
-		@pnClaPlanCargaAux		INT
+		@pnClaPlanCargaAux		INT,
+		@pnCantPlanRel			NUMERIC(22,4)
 AS    
 BEGIN  
 
@@ -13,10 +17,28 @@ BEGIN
 		, NomViajeOrigen	VARCHAR(20)
 	)
 
+	DECLARE @tbViajeCantDocumentada TABLE (
+		  IdViajeOrigen		INT
+		, CantDocumentada	NUMERIC(22,4)
+	)
+
+	-- Calcula Cantidad Documentada a nivel de viaje/producto en otros diferentes Planes de Carga
+	INSERT INTO @tbViajeCantDocumentada (IdViajeOrigen, CantDocumentada)
+	SELECT	  IdViajeOrigen
+			, CantDocumentada		= ISNULL(SUM(CantDocumentada),0) 
+	FROM	OpeSch.OpeRelPlanCargaViajeOrigenDet a WITH(NOLOCK)
+	WHERE	a.ClaUbicacion			= @pnClaUbicacion
+	AND		a.IdPlanCarga			<> @pnClaPlanCargaAux
+	AND		a.ClaArticulo			= @pnClaArticuloRel
+	AND		a.BajaLogica			= 0
+	GROUP BY IdViajeOrigen
+
+
+
 	INSERT INTO @tbViajeOrigen (ClaViajeOrigen, NomViajeOrigen)
 	SELECT	a.NumViaje, CONVERT(VARCHAR(20),NumViaje)
-	FROM	OpeSch.OpeTraMovMciasTranEncVw a
-	INNER JOIN OpeSch.OpeTraMovMciasTranDetVw b	
+	FROM	OpeSch.OpeTraMovMciasTranEncVw a WITH(NOLOCK)
+	INNER JOIN OpeSch.OpeTraMovMciasTranDetVw b	WITH(NOLOCK)
 	ON		a.ClaUbicacion			= b.ClaUbicacion
 	AND		a.ClaTipoInventario		= b.ClaTipoInventario
 	AND		a.IdMovimiento			= b.IdMovimiento
@@ -25,11 +47,11 @@ BEGIN
 	AND		a.EstatusTransito		IN (0,1)
 	AND		b.ClaUbicacionDestino	= @pnClaUbicacion
 	AND		b.ClaArticulo			= @pnClaArticuloRel
-	AND		NOT EXISTS (	-- Mostrar Viajes no relacionados a otro plan de carga)
+	AND		NOT EXISTS (	-- Mostrar Viajes que no han sido agregados al plan de carga)
 				SELECT	1
 				FROM	OpeSch.OpeRelPlanCargaViajeOrigenDet c WITH(NOLOCK)		
-				WHERE	b.ClaUbicacionDestino	= C.ClaUbicacion
-				AND		c.IdPlanCarga			<> @pnClaPlanCargaAux
+				WHERE	b.ClaUbicacionDestino	= c.ClaUbicacion
+				AND		c.IdPlanCarga			= @pnClaPlanCargaAux
 				AND		a.NumViaje				= c.IdViajeOrigen
 				AND		c.BajaLogica			= 0
 	)

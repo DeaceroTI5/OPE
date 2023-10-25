@@ -21,7 +21,6 @@ CREATE TABLE [OpeSch].[OpeRelPlanCargaViajeOrigen](
 	[IdViajeOrigen]  [int] NOT NULL,
 	[Placa] [varchar](12) NOT NULL,
 	[PlacaOrigen] [varchar](12) NOT NULL,
-	[EsRecepTraspaso] [tinyint],
 	[BajaLogica] [tinyint] NOT NULL,
 	[FechaBajaLogica] [datetime] NULL,
 	[ClaUsuarioMod] [int] NOT NULL,

@@ -1,12 +1,20 @@
-CREATE PROCEDURE OpeSch.OPE_CU444_Pag7_Boton_Load_Proc
+USE operacion
+-- EXEC SP_HELPTEXT 'OpeSch.OPE_CU444_Pag7_Boton_Load_Proc'
+GO
+ALTER PROCEDURE OpeSch.OPE_CU444_Pag7_Boton_Load_Proc
 	@pnClaUbicacion int ,
 	@pnClaPlanCarga	int
 AS
-BEGIN	
+BEGIN
+	SET NOCOUNT ON
+
 	SELECT 
 		EsCargaTerminada = IsNull(EsCargaTerminada, 0) 
 		, etiqPlanFinalizado = CASE WHEN EsCargaTerminada = 1 OR ClaEstatusPlanCarga >= 2 THEN 'Plan Finalizado' ELSE '' END
-	from OpeSch.OpeTraPlanCarga WITH (NOLOCK)
-	where ClaUbicacion = @pnClaUbicacion
-	and IdPlanCarga = @pnClaPlanCarga
+		, ClaPlanCargaAux = IdPlanCarga
+	FROM OpeSch.OpeTraPlanCarga WITH (NOLOCK)
+	WHERE ClaUbicacion = @pnClaUbicacion
+	AND IdPlanCarga = @pnClaPlanCarga
+
+	SET NOCOUNT OFF
 END

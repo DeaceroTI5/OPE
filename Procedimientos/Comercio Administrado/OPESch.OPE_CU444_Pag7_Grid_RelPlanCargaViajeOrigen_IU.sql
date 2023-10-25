@@ -1,3 +1,6 @@
+USE operacion
+-- EXEC SP_HELPTEXT 'OPESch.OPE_CU444_Pag7_Grid_RelPlanCargaViajeOrigen_IU'
+GO
 ALTER PROCEDURE OPESch.OPE_CU444_Pag7_Grid_RelPlanCargaViajeOrigen_IU
 	  @pnClaUbicacion			INT
 	, @pnIdPlanCargaViaje		INT
@@ -8,9 +11,11 @@ ALTER PROCEDURE OPESch.OPE_CU444_Pag7_Grid_RelPlanCargaViajeOrigen_IU
 	, @pnIdFabricacionDetRel	INT
 	, @pnClaUbicacionOrigen		INT				= NULL
 	, @pnClaViajeOrigen			INT				= NULL
+	, @pnCantPlanRel			NUMERIC(22,4)	= NULL
 	, @pnCantidadRecibida		NUMERIC(22,4)	= NULL
 	, @pnPesoRecibido			NUMERIC(22,4)	= NULL
 	, @pnCantidadDocumentada	NUMERIC(22,4)	= NULL
+	, @pnCantidadDisponible		NUMERIC(22,4)	= NULL
 	, @pnClaUsuarioMod			INT
 	, @psNombrePCMod			VARCHAR(64)
 	, @pnBajaLogica				INT = 0  
@@ -19,9 +24,64 @@ AS
 BEGIN
 	SET NOCOUNT ON
 
+	DECLARE   @sClaveArticulo	VARCHAR(20)
+			, @sMsg				VARCHAR(200)
+			, @nTotalCantDoc	NUMERIC(22,4)
+
 	IF 0 >= ISNULL(@pnCantidadDocumentada,0)
 	BEGIN
-		RAISERROR ('La Cantidad a documentar debe ser mayor a cero. Favor de verificar.',16,1)
+		SELECT @sMsg = 'La Cantidad a documentar del viaje <b>' + CONVERT(VARCHAR(20),@pnClaViajeOrigen) + '</b> debe ser mayor a cero. Favor de verificar.'
+		RAISERROR (@sMsg,16,1)
+		RETURN
+	END
+
+	IF @pnCantidadDocumentada > @pnCantidadDisponible
+	BEGIN
+		SELECT @sMsg = 'La Cantidad a documentar del viaje <b>' + CONVERT(VARCHAR(20),@pnClaViajeOrigen) + '</b> no puede ser mayor a la <b>Cantidad Disponible</b>. Favor de verificar.'
+		RAISERROR (@sMsg,16,1)
+		RETURN
+	END
+
+	IF @pnCantidadDocumentada > @pnCantPlanRel
+	BEGIN
+		SELECT @sMsg = 'La Cantidad a documentar del viaje <b>' + CONVERT(VARCHAR(20),@pnClaViajeOrigen) + '</b> no puede ser mayor a la <b>Cantidad Plan</b>. Favor de verificar.'
+		RAISERROR (@sMsg,16,1)
+		RETURN
+	END
+
+	SELECT	@nTotalCantDoc = SUM(ISNULL(CantDocumentada,0)) 
+	FROM	OpeSch.OpeRelPlanCargaViajeOrigenDet WITH(NOLOCK) 
+	WHERE	ClaUbicacion	= @pnClaUbicacion 
+	AND		IdPlanCarga		= @pnClaPlanCargaAux
+	AND		IdViajeOrigen	<> @pnClaViajeOrigen
+	AND		ClaArticulo		= @pnClaArticuloRel
+	AND		BajaLogica		= 0
+
+	SELECT @nTotalCantDoc , @pnCantidadDocumentada
+
+	IF @pnCantPlanRel < (ISNULL(@nTotalCantDoc,0) + @pnCantidadDocumentada)
+	BEGIN
+		RAISERROR ('La <b>Cantidad Total</b> a documentar no puede ser mayor a la <b>Cantidad Plan</b>. Favor de verificar.',16,1)
+		RETURN		
+	END
+
+	IF NOT EXISTS (
+		SELECT 1 
+		FROM	OpeSch.OpeTraPlanCargaDet WITH(NOLOCK) 
+		WHERE	ClaUbicacion	= @pnClaUbicacion
+		AND		IdPlanCarga		= @pnClaPlanCargaAux
+		AND		ClaArticulo		= @pnClaArticuloRel
+		AND		CantEmbarcada	> 0
+	)
+	BEGIN
+		SELECT	@sClaveArticulo = ClaveArticulo
+		FROM	OpeSch.OpeArtCatArticuloVw 
+		WHERE	ClaTipoInventario	= 1
+		AND		ClaArticulo			= @pnClaArticuloRel
+
+		SELECT @sMsg = 'El producto clave <b>'+ @sClaveArticulo +'</b> no se encuentra dentro del Plan de Carga. Favor de revisar.'
+					
+		RAISERROR(@sMsg,16,1)
 		RETURN
 	END
 
@@ -35,12 +95,27 @@ BEGIN
 			, @nPesoRecibido		NUMERIC(22,4)
 			, @nPesoDocumentado		NUMERIC(22,4)
 
-	SELECT	  @sPlacaOrigen		= Placa
-			, @nEsRecepTraspaso	= CASE WHEN ISNULL(EsRecepcionTerminada,0) = 0 THEN 0 ELSE 1 END 
-	FROM	OpeSch.OpeRelMovMciasTranMxUsaVw
-	WHERE	ClaUbicacionOrigen	= @pnClaUbicacionOrigen
-	AND		IdViajeOrigen		= @pnClaViajeOrigen
-	AND		ClaUbicacionDestino	= @pnClaUbicacion
+	
+	SELECT	@nEsRecepTraspaso = ISNULL(EsRecepcionTerminada,0)
+	FROM	OpeSch.OpeTraRecepTraspaso b WITH(NOLOCK)
+	WHERE	b.IdViajeOrigen			= @pnClaViajeOrigen
+	AND		b.ClaUbicacionOrigen	= @pnClaUbicacionOrigen
+	AND		b.ClaUbicacion			= @pnClaUbicacion
+	
+	IF ISNULL(@nEsRecepTraspaso,0) = 0
+	BEGIN
+		SELECT @sMsg = 'El viaje <b>'+ CONVERT(VARCHAR(20),ISNULL(@pnClaViajeOrigen,'')) + '</b> no ha sido recepcionado. Favor de recepcionarlo para validar la mercancia'
+		RAISERROR (@sMsg, 16, 1)
+		RETURN
+	END
+	
+	------------------------------------------------------------------------
+
+	SELECT	@sPlacaOrigen		= Placas
+	FROM	OpeSch.OpeTraMovMciasTranEncVw
+	WHERE	ClaUbicacion		= @pnClaUbicacionOrigen
+	AND		ClaUbicacionOrigen	= @pnClaUbicacionOrigen
+	AND		NumViaje			= @pnClaViajeOrigen
 
 	SELECT	@sPlaca			= Placa
 	FROM	OpeSch.OpeTraPlanCarga WITH(NOLOCK)
@@ -91,7 +166,7 @@ BEGIN
 				, IdViajeOrigen
 				, Placa
 				, PlacaOrigen
-				, EsRecepTraspaso
+			--	, EsRecepTraspaso
 				, BajaLogica
 				, FechaBajaLogica
 				, ClaUsuarioMod
@@ -105,7 +180,7 @@ BEGIN
 					, @pnClaViajeOrigen
 					, @sPlaca
 					, @sPlacaOrigen
-					, @nEsRecepTraspaso
+			--		, @nEsRecepTraspaso
 					, BajaLogica			= 0
 					, FechaBajaLogica		= NULL
 					, ClaUsuarioMod			= @pnClaUsuarioMod

@@ -1,4 +1,7 @@
-CREATE PROCEDURE OpeSch.OPE_CU444_Pag7_Grid_RecepcionPTPorRollo_Sel 
+USE Operacion
+-- EXEC SP_HELPTEXT 'OpeSch.OPE_CU444_Pag7_Grid_RecepcionPTPorRollo_Sel'
+GO
+ALTER PROCEDURE OpeSch.OPE_CU444_Pag7_Grid_RecepcionPTPorRollo_Sel
 --DECLARE  
    @pnClaUbicacion INT     
  , @pnClaPlanCarga INT  
@@ -22,7 +25,9 @@ BEGIN
    , OrdenAcomodo  INT    , NomMarca   VARCHAR(20)  , ClaCliente  INT   , ClaConsignado INT  
    , PesoKgs   NUMERIC(22,4) , Vejez    INT    , Destino   VARCHAR(250), Referencias VARCHAR(20), MultiAlmacen INT, ClaAlmacen INT)  
         
- CREATE TABLE #ProductoConReferencia (ClaArticulo INT, ClaFamilia INT, ClaSubFamilia INT, EsRequerida INT)  
+ CREATE TABLE #ProductoConReferencia (ClaArticulo INT, ClaFamilia INT, ClaSubFamilia INT, EsRequerida INT)
+ 
+ DECLARE @tbRelPlanCargaViajeOrigen TABLE ( IdFabricacion INT, IdFabricacionDet INT, ClaArticulo INT, CantDocumentada NUMERIC(22,4))
       
  SELECT @nClaAlmacenCuarentenaDevoluciones = NumValor1  
  FROM OpeSch.OpeCfgParametroNegVw WITH(NOLOCK)  
@@ -135,8 +140,8 @@ BEGIN
   , MultiAlmacen  = CASE WHEN EXISTS (SELECT 1 FROM #ProductoMultiAlmacen ma WHERE ma.ClaArticulo = det.ClaArticulo) THEN 1 ELSE 0 END  
   , ClaAlmacen  = a.ClaAlmacen  
  from OpeSch.OpeTraPlanCargaDet Det   with (nolock)
- LEFT OUTER JOIN OpeSch.OpeTraPlanCargaLocInv a   with (nolock)   ON a.ClaUbicacion = Det.ClaUbicacion AND a.IdPlanCarga = Det.IdPlanCarga  AND a.ClaArticulo = Det.ClaArticulo  AND a.IdFabricacion = Det.IdFabricacion  AND a.IdFabricacionDet = Det.IdFabric
-acionDet  LEFT OUTER JOIN OpeSch.OpeArtCatArticuloVw (NOLOCK) b   ON b.claTipoInventario = 1 AND b.claArticulo = Det.ClaArticulo    
+ LEFT OUTER JOIN OpeSch.OpeTraPlanCargaLocInv a   with (nolock)   ON a.ClaUbicacion = Det.ClaUbicacion AND a.IdPlanCarga = Det.IdPlanCarga  AND a.ClaArticulo = Det.ClaArticulo  AND a.IdFabricacion = Det.IdFabricacion  
+ AND a.IdFabricacionDet = Det.IdFabricacionDet  LEFT OUTER JOIN OpeSch.OpeArtCatArticuloVw (NOLOCK) b   ON b.claTipoInventario = 1 AND b.claArticulo = Det.ClaArticulo    
  LEFT OUTER JOIN OpeSch.OpeArtCatFamiliaVw (NOLOCK) fam   ON b.ClaTipoInventario = fam.ClaTipoInventario AND b.ClaFamilia = fam.ClaFamilia  
  LEFT OUTER JOIN OpeSch.OPeArtCatMarcaVw mar with (nolock)     ON b.ClaMarca = mar.ClaMarca         
  LEFT OUTER JOIN OpeSch.OpeCatAlmacenVw (NOLOCK) d    ON d.claTipoInventario = 1 AND d.claAlmacen = a.ClaAlmacen  AND d.ClaUbicacion = Det.ClaUbicacion        
@@ -174,7 +179,22 @@ acionDet  LEFT OUTER JOIN OpeSch.OpeArtCatArticuloVw (NOLOCK) b   ON b.claTipoIn
   a.ClaAlmacen  
  order by Max(Det.OrdenAcomodo) asc, Det.IdFabricacionDet asc  
   
-  
+	-- Calcula Cantidad Documentada a nivel de partida para el Plan de Carga
+	INSERT INTO @tbRelPlanCargaViajeOrigen (IdFabricacion, IdFabricacionDet, ClaArticulo, CantDocumentada)
+	SELECT	a.IdFabricacion, a.IdFabricacionDet, a.ClaArticulo, CantDocumentada = SUM(CantDocumentada) 
+	FROM	OpeSch.OpeRelPlanCargaViajeOrigenDet a WITH(NOLOCK)
+	INNER JOIN #ProductosParaCarga b
+	ON		a.IdFabricacion		= b.ClaPedido
+	AND		a.IdFabricacionDet	= b.ClaPedidoDet
+	AND		a.ClaArticulo		= b.ClaArticulo
+	WHERE	a.ClaUbicacion	= @pnClaUbicacion
+	AND		a.IdPlanCarga	= @pnClaPlanCarga
+	AND		a.BajaLogica	= 0
+	GROUP BY a.IdFabricacion, a.IdFabricacionDet, a.ClaArticulo
+
+DECLARE @sRutaImagen VARCHAR(200)
+SELECT @sRutaImagen = '..\Common\Images\WebToolImages'
+
  SELECT   
     Pintar   = CASE WHEN ord.NuevoOrd % 2 = 0 THEN 1 ELSE 2 END  
   , dat.OrdenAcomodo  
@@ -182,7 +202,7 @@ acionDet  LEFT OUTER JOIN OpeSch.OpeArtCatArticuloVw (NOLOCK) b   ON b.claTipoIn
   , dat.ClaConsignado  
   , ClaPedido2  = ClaPedido  
   , ClaPedidoDet2  = ClaPedidoDet  
-  , ClaArticulo  
+  , dat.ClaArticulo  
   , ClaveArticulo2 = ClaveArticulo  
   , NomArticulo  
   , NomFamilia  
@@ -190,6 +210,7 @@ acionDet  LEFT OUTER JOIN OpeSch.OpeArtCatArticuloVw (NOLOCK) b   ON b.claTipoIn
   , ClaUnidad  
   , NomUnidad  
   , CantEmbarcada  = CONVERT(FLOAT, ISNULL(CantEmbarcada, 0))  
+  , CantDocumentada = c.CantDocumentada
   , Observaciones  = CONVERT(INT, CASE   
           WHEN OpeSch.IsReallyNumeric(Observaciones) = 1 THEN CONVERT(INT, Observaciones)  
           ELSE 0  
@@ -209,6 +230,10 @@ acionDet  LEFT OUTER JOIN OpeSch.OpeArtCatArticuloVw (NOLOCK) b   ON b.claTipoIn
   , Referencias    
   , MultiAlmacen    
   , ClaAlmacen  
+--  , RelViajeOrigen = 'Relacionar'
+  , RelViajeOrigen =	CASE WHEN c.ClaArticulo IS NULL 
+							THEN '<img src="'+@sRutaImagen+'/Agregar16.png" />' 
+							ELSE '<img src="'+@sRutaImagen+'/Pencil16.png" />' END
  FROM #ProductosParaCarga  dat  
  INNER JOIN ( SELECT NuevoOrd = ROW_NUMBER() OVER (ORDER BY MIN(OrdenAcomodo), ClaCliente, ClaConsignado),  
        MinOrdenAcomodo = MIN(OrdenAcomodo),   
@@ -218,6 +243,10 @@ acionDet  LEFT OUTER JOIN OpeSch.OpeArtCatArticuloVw (NOLOCK) b   ON b.claTipoIn
      GROUP BY ClaCliente, ClaConsignado  
     ) ord ON (dat.ClaCliente   = ord.ClaCliente  
        AND dat.ClaConsignado = ord.ClaConsignado)  
+ LEFT JOIN @tbRelPlanCargaViajeOrigen c
+ ON		dat.ClaPedido		= c.IdFabricacion
+ AND	dat.ClaPedidoDet	= c.IdFabricacionDet
+ AND	dat.ClaArticulo		= c.ClaArticulo
  ORDER BY dat.OrdenAcomodo, ClaPedidoDet2  
   
  DROP TABLE #ProductoConReferencia  
